@@ -1,0 +1,66 @@
+export type UserRole = 'SuperAdmin' | 'Admin' | 'Employee';
+
+export interface User {
+  User_Id: number;
+  ID_Number: number;
+  Full_Name: string;
+  Gender: string;
+  Email: string;
+  Department: string;
+  Division: string;
+  User_Role: UserRole;
+  User_Name: string;
+  Status: boolean;
+}
+
+export interface Document {
+  Document_Id: number;
+  Type: string;
+  User_Id: number;
+  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived';
+  Priority: string;
+  sender_name?: string;
+  sender_department?: string;
+  target_department: string; // The department this document is sent TO
+  created_at?: string;
+  comments?: string;
+  forwarded_from?: string; // Department that forwarded this document
+  forwarded_by_admin?: string; // Name of admin who forwarded
+  is_forwarded_request?: boolean; // True if this was forwarded from another admin
+}
+
+export interface DocumentResponse {
+  Response_Id: number;
+  Document_Id: number;
+  Responder_Department: string;
+  Responder_Name: string;
+  Response_Message: string;
+  Response_Date: string;
+}
+
+export interface ApprovedDocument {
+  Approved_Doc_Id: number;
+  Document_Id: number;
+  User_Id: number;
+}
+
+export interface RevisionDocument {
+  Revesion_Doc_Id: number;
+  Document_Id: number;
+  User_Id: number;
+  comments?: string;
+}
+
+export interface ResponseDocument {
+  Respond_Doc_Id: number;
+  Document_Id: number;
+  User_Id: number;
+  Status: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
