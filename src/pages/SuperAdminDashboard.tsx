@@ -76,27 +76,7 @@ const SuperAdminDashboard: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <a 
-              href="/manage-admins" 
-              className="flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-muted"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Manage Admins</h3>
-                <p className="text-sm text-muted-foreground">Create and manage admin accounts</p>
-              </div>
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 };

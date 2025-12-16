@@ -12,7 +12,6 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -56,24 +55,24 @@ const Login: React.FC = () => {
 
       <div className="w-full max-w-md animate-slide-up">
 
-        <div className="rounded-3xl border bg-white/60 dark:bg-black/40 backdrop-blur-md p-8 shadow-md hover:shadow-xl hover:-translate-y-1 transition-transform duration-200 ring-1 ring-border">
-          <div className="mb-6 text-center">
-            <h2 className="text-xl font-extrabold text-foreground">Welcome to Document Flow System</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to continue.</p>
+        <div className="rounded-3xl border bg-white/60 dark:bg-black/40 backdrop-blur-md p-12 min-h-[520px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-transform duration-200 ring-1 ring-border">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground">Welcome to Document Flow System</h2>
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground">Sign in to continue.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
             <div className="space-y-1">
               <Label htmlFor="username" className="text-sm">Username</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="pl-10 py-3 rounded-xl"
+                  className="pl-12 py-4 rounded-2xl text-base"
                   disabled={isLoading}
                 />
               </div>
@@ -82,33 +81,16 @@ const Login: React.FC = () => {
             <div className="space-y-1">
               <Label htmlFor="password" className="text-sm">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 py-3 rounded-xl"
+                  className="pl-12 pr-4 py-4 rounded-2xl text-base"
                   disabled={isLoading}
                 />
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.176.192-2.305.545-3.357M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -123,7 +105,7 @@ const Login: React.FC = () => {
             <div className="flex justify-center">
               <Button
                 type="submit"
-                className={`group w-48 sm:w-56 rounded-xl py-3 px-6 bg-gradient-to-r from-primary to-accent text-white text-center transition-transform duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg ${isLoading ? 'cursor-wait opacity-80' : ''}`}
+                className={`group w-full sm:w-56 rounded-2xl py-4 px-6 bg-gradient-to-r from-primary to-accent text-white text-center text-lg transition-transform duration-200 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl ${isLoading ? 'cursor-wait opacity-80' : ''}`}
                 disabled={isLoading}
                 aria-busy={isLoading}
               >
@@ -143,17 +125,13 @@ const Login: React.FC = () => {
           </form>
 
 
-          <div className="mt-6 rounded-lg bg-muted p-4">
-            <p className="text-xs font-medium text-muted-foreground">Demo Credentials:</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Super Admin: <code className="rounded bg-background px-1">superadmin / superadmin</code>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Admin: <code className="rounded bg-background px-1">admin / admin</code>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Employee: <code className="rounded bg-background px-1">employee / employee</code>
-            </p>
+          <div className="mt-8 rounded-lg bg-muted p-6">
+            <p className="text-sm sm:text-base font-semibold text-muted-foreground">Demo Credentials</p>
+            <div className="mt-3 grid gap-2 sm:flex sm:items-center sm:gap-4">
+              <p className="text-sm text-muted-foreground">Super Admin: <code className="rounded bg-background px-2 py-0.5">superadmin / superadmin</code></p>
+              <p className="text-sm text-muted-foreground">Admin: <code className="rounded bg-background px-2 py-0.5">admin / admin</code></p>
+              <p className="text-sm text-muted-foreground">Employee: <code className="rounded bg-background px-2 py-0.5">employee / employee</code></p>
+            </div>
           </div>
         </div>
       </div>

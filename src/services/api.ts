@@ -155,6 +155,11 @@ export const getDocuments = async (userId?: number, role?: UserRole, userDepartm
   // const response = await fetch(`${API_BASE_URL}/documents?userId=${userId}&role=${role}&department=${userDepartment}`);
   // return response.json();
 
+  if (role === 'SuperAdmin') {
+    // SuperAdmin sees all documents
+    return mockDocuments;
+  }
+
   if (role === 'Admin') {
     // Admin sees only documents sent TO their department
     return mockDocuments.filter((d) => d.target_department === userDepartment);
@@ -327,6 +332,9 @@ export const getDashboardStats = async (userId?: number, role?: UserRole, userDe
   
   if (role === 'Admin') {
     docs = mockDocuments.filter((d) => d.target_department === userDepartment);
+  } else if (role === 'SuperAdmin') {
+    // SuperAdmin sees all documents
+    docs = mockDocuments;
   } else {
     docs = mockDocuments.filter((d) => d.User_Id === userId);
   }

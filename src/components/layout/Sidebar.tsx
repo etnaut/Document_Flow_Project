@@ -51,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   ];
 
   const superAdminLinks = [
-    { to: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/manage-admins', icon: User, label: 'Manage Admins' },
   ];
 
