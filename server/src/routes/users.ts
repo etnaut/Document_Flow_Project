@@ -49,10 +49,26 @@ router.get('/', async (req: Request, res: Response) => {
 
     const result = await pool.query(sql, params);
     const users: User[] = result.rows.map((user: any) => {
-      const { status, ...userWithoutStatus } = user; // Remove lowercase status if exists
+      // Remove any possible status-like properties from the copied object
+      const userCopy = { ...user } as any;
+      delete userCopy.status;
+      delete userCopy.Status;
+      delete userCopy.STATUS;
+
+      // Normalize raw status value from various column casings and types
+      const rawStatus = user.Status ?? user.status ?? user.STATUS ?? null;
+      let normalizedStatus = false;
+      if (typeof rawStatus === 'boolean') {
+        normalizedStatus = rawStatus;
+      } else if (typeof rawStatus === 'string') {
+        normalizedStatus = rawStatus.toLowerCase() === 'active' || rawStatus.toLowerCase() === 'true';
+      } else {
+        normalizedStatus = Boolean(rawStatus);
+      }
+
       return {
-        ...userWithoutStatus,
-        Status: user.Status === 'active',
+        ...userCopy,
+        Status: normalizedStatus,
       };
     });
 
@@ -88,32 +104,55 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Resolve department id
-    const deptResult = await pool.query(
-      'SELECT Department_Id FROM Department_Tbl WHERE Department = $1',
-      [input.Department]
-    );
+    let deptId: number | null = null;
+    const deptInput = String(input.Department).trim();
 
-    if (deptResult.rows.length === 0) {
-      return sendResponse(res, { error: `Department not found: ${input.Department}` }, 400);
+    // If client passed a numeric id, try to use it
+    if (/^\d+$/.test(deptInput)) {
+      const byId = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE Department_Id = $1', [parseInt(deptInput, 10)]);
+      if (byId.rows.length > 0) {
+        deptId = byId.rows[0].department_id ?? byId.rows[0].Department_Id;
+      }
     }
 
-    const deptId = deptResult.rows[0].Department_Id;
+    // Try exact match, then case-insensitive trimmed match
+    if (!deptId) {
+      let deptResult = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE Department = $1', [deptInput]);
+      if (deptResult.rows.length === 0) {
+        deptResult = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE LOWER(TRIM(Department)) = LOWER(TRIM($1))', [deptInput]);
+      }
+      if (deptResult.rows.length === 0) {
+        return sendResponse(res, { error: `Department not found: ${input.Department}` }, 400);
+      }
+      deptId = deptResult.rows[0].department_id ?? deptResult.rows[0].Department_Id;
+    }
 
     // Resolve division id (must belong to department)
-    const divResult = await pool.query(
-      'SELECT Division_Id FROM Division_Tbl WHERE Division = $1 AND Department_Id = $2',
-      [input.Division, deptId]
-    );
+    let divId: number | null = null;
+    const divInput = String(input.Division).trim();
 
-    if (divResult.rows.length === 0) {
-      return sendResponse(
-        res,
-        { error: `Division not found in department: ${input.Division}` },
-        400
-      );
+    // Accept numeric id for division
+    if (/^\d+$/.test(divInput)) {
+      const byId = await pool.query('SELECT Division_Id FROM Division_Tbl WHERE Division_Id = $1 AND Department_Id = $2', [parseInt(divInput, 10), deptId]);
+      if (byId.rows.length > 0) {
+        divId = byId.rows[0].division_id ?? byId.rows[0].Division_Id;
+      }
     }
 
-    const divId = divResult.rows[0].Division_Id;
+    if (!divId) {
+      let divResult = await pool.query('SELECT Division_Id FROM Division_Tbl WHERE Division = $1 AND Department_Id = $2', [divInput, deptId]);
+      if (divResult.rows.length === 0) {
+        divResult = await pool.query('SELECT Division_Id FROM Division_Tbl WHERE LOWER(TRIM(Division)) = LOWER(TRIM($1)) AND Department_Id = $2', [divInput, deptId]);
+      }
+      if (divResult.rows.length === 0) {
+        return sendResponse(
+          res,
+          { error: `Division not found in department: ${input.Division}` },
+          400
+        );
+      }
+      divId = divResult.rows[0].division_id ?? divResult.rows[0].Division_Id;
+    }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(input.Password, 10);
@@ -149,7 +188,17 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    const userId = insertResult.rows[0].User_Id;
+    // The PG driver typically returns column names in lowercase (user_id),
+    // but some queries or DB setups may have different casing. Normalize here.
+    let userId: any = insertResult.rows[0].user_id ?? insertResult.rows[0].User_Id ?? insertResult.rows[0].userid ?? insertResult.rows[0].USER_ID;
+
+    // If we didn't get an id from RETURNING (odd cases), try a fallback lookup using unique fields
+    if (!userId) {
+      const fallback = await pool.query('SELECT User_Id FROM User_Tbl WHERE User_Name = $1 OR ID_Number = $2 LIMIT 1', [input.User_Name, input.ID_Number]);
+      if (fallback.rows.length > 0) {
+        userId = fallback.rows[0].user_id ?? fallback.rows[0].User_Id;
+      }
+    }
 
     // Fetch the created user
     const userResult = await pool.query(
@@ -174,12 +223,15 @@ router.post('/', async (req: Request, res: Response) => {
     );
 
     if (userResult.rows.length === 0) {
+      // This is unexpected because the insert succeeded. Log and return a clearer message.
+      console.error('Create user: insert succeeded but select returned no rows, userId=', userId, 'insertResult=', insertResult.rows[0]);
       return sendResponse(res, { error: 'User could not be created' }, 500);
     }
 
+    const raw = userResult.rows[0];
     const user: User = {
-      ...userResult.rows[0],
-      Status: userResult.rows[0].Status === 'active',
+      ...raw,
+      Status: (raw.Status ?? raw.status ?? '').toString().toLowerCase() === 'active',
     };
 
     sendResponse(res, user, 201);

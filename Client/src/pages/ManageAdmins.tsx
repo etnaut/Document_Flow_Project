@@ -53,6 +53,7 @@ const ManageAdmins: React.FC = () => {
   const [isDivDialogOpen, setIsDivDialogOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
   const [newDivName, setNewDivName] = useState('');
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -108,9 +109,9 @@ const ManageAdmins: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // on submit: validate then show confirmation dialog
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.Full_Name || !formData.Email || !formData.User_Name || !formData.Password || !formData.Department || !formData.Division) {
       toast({
         title: 'Validation Error',
@@ -119,7 +120,11 @@ const ManageAdmins: React.FC = () => {
       });
       return;
     }
+    setIsConfirmOpen(true);
+  };
 
+  const doCreateAdmin = async () => {
+    setIsConfirmOpen(false);
     setIsLoading(true);
     try {
       await createUser({
@@ -134,30 +139,13 @@ const ManageAdmins: React.FC = () => {
         Password: formData.Password,
         Status: true,
       });
-      
-      toast({
-        title: 'Success',
-        description: 'Admin account created successfully.',
-      });
-      
+
+      toast({ title: 'Success', description: 'Admin account created successfully.' });
       setIsOpen(false);
-      setFormData({
-        ID_Number: '',
-        Full_Name: '',
-        Gender: '',
-        Email: '',
-        Department: '',
-        Division: '',
-        User_Name: '',
-        Password: '',
-      });
-      loadData();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create admin account.',
-        variant: 'destructive',
-      });
+      setFormData({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: '', Division: '', User_Name: '', Password: '' });
+      await loadData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.message || 'Failed to create admin account.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -184,6 +172,7 @@ const ManageAdmins: React.FC = () => {
                 <Shield className="h-5 w-5" />
                 Create Admin Account
               </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">Note: This form creates Admin accounts only. Role is set automatically.</p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -323,6 +312,8 @@ const ManageAdmins: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Role is implicit: only Admin accounts are created by this flow. UI hides the role input. */}
               
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
@@ -368,6 +359,26 @@ const ManageAdmins: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+            {/* Confirmation Dialog for creating admin */}
+            <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Confirm Create Admin</DialogTitle>
+                </DialogHeader>
+                <div className="mt-2 space-y-2">
+                  <div><strong>Full Name:</strong> {formData.Full_Name}</div>
+                  <div><strong>Email:</strong> {formData.Email}</div>
+                  <div><strong>Department:</strong> {formData.Department}</div>
+                  <div><strong>Division:</strong> {formData.Division}</div>
+                  <div><strong>Role:</strong> Admin</div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Cancel</Button>
+                  <Button onClick={doCreateAdmin}>Confirm</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
           {/* Division creation dialog */}
           <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
