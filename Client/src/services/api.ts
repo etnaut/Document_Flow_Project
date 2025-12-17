@@ -219,6 +219,22 @@ export const getDepartments = async (): Promise<string[]> => {
   return [];
 };
 
+// Create a new department
+export const createDepartment = async (name: string) => {
+  return apiRequest('/departments', {
+    method: 'POST',
+    body: JSON.stringify({ Department: name }),
+  });
+};
+
+// Create a new division under a department (department can be name or id)
+export const createDivision = async (division: string, department: string | number) => {
+  return apiRequest('/divisions', {
+    method: 'POST',
+    body: JSON.stringify({ Division: division, Department: department }),
+  });
+};
+
 // Get dashboard stats - filtered by department for Admin
 export const getDashboardStats = async (userId?: number, role?: UserRole, userDepartment?: string) => {
   const params = new URLSearchParams();

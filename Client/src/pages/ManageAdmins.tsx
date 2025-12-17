@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { getUsers, createUser, getDepartments, getDivisions } from '@/services/api';
+import { createDepartment, createDivision } from '@/services/api';
 import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
@@ -48,10 +49,19 @@ const ManageAdmins: React.FC = () => {
     User_Name: '',
     Password: '',
   });
+  const [isDeptDialogOpen, setIsDeptDialogOpen] = useState(false);
+  const [isDivDialogOpen, setIsDivDialogOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDivName, setNewDivName] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Debug: log when department changes to help diagnose select issues
+  useEffect(() => {
+    console.debug('ManageAdmins: formData.Department changed ->', formData.Department);
+  }, [formData.Department]);
 
   const loadData = async () => {
     try {
@@ -74,7 +84,7 @@ const ManageAdmins: React.FC = () => {
   const loadDivisionsForDepartment = async (department: string) => {
     if (!department) {
       setDivisions([]);
-      setFormData({ ...formData, Division: '' });
+      setFormData((prev) => ({ ...prev, Division: '' }));
       return;
     }
 
@@ -82,9 +92,12 @@ const ManageAdmins: React.FC = () => {
       const divs = await getDivisions(department);
       setDivisions(divs);
       // If current selected division is not in the new list, clear it
-      if (!divs.includes(formData.Division)) {
-        setFormData({ ...formData, Division: '' });
-      }
+      setFormData((prev) => {
+        if (!divs.includes(prev.Division)) {
+          return { ...prev, Division: '' };
+        }
+        return prev;
+      });
     } catch (err: any) {
       console.error('Failed to load divisions for department', err);
       setDivisions([]);
@@ -225,7 +238,8 @@ const ManageAdmins: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="Division">Division *</Label>
-                  <Select
+                  <div className="flex items-center gap-2">
+                    <Select
                     value={formData.Division}
                     onValueChange={(value) => setFormData({ ...formData, Division: value })}
                   >
@@ -242,17 +256,31 @@ const ManageAdmins: React.FC = () => {
                         ))
                       )}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      type="button"
+                      disabled={!formData.Department}
+                      title={!formData.Department ? 'Select a department first' : 'Add division'}
+                      onClick={() => setIsDivDialogOpen(true)}
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="Department">Department *</Label>
-                  <Select
-                    value={formData.Department}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, Department: value });
-                      loadDivisionsForDepartment(value);
-                    }}
-                  >
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={formData.Department}
+                      onValueChange={(value) => {
+                        // Use functional update to avoid stale state
+                        setFormData((prev) => ({ ...prev, Department: value }));
+                        console.debug('ManageAdmins: department selected ->', value);
+                        loadDivisionsForDepartment(value);
+                      }}
+                    >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
@@ -261,7 +289,16 @@ const ManageAdmins: React.FC = () => {
                         <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setIsDeptDialogOpen(true)}
+                    >
+                      +
+                    </Button>
+                  </div>
                 </div>
               </div>
               
@@ -298,6 +335,76 @@ const ManageAdmins: React.FC = () => {
             </form>
           </DialogContent>
         </Dialog>
+          {/* Department creation dialog */}
+          <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Department</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <Label>Department Name</Label>
+                <Input value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setIsDeptDialogOpen(false); setNewDeptName(''); }}>Cancel</Button>
+                  <Button onClick={async () => {
+                    if (!newDeptName.trim()) {
+                      toast({ title: 'Validation', description: 'Please fill out the department name to proceed', variant: 'destructive' });
+                      return;
+                    }
+                    try {
+                      await createDepartment(newDeptName.trim());
+                      const depts = await getDepartments();
+                      setDepartments(depts);
+                      toast({ title: 'Success', description: 'Department created' });
+                      setIsDeptDialogOpen(false);
+                      setNewDeptName('');
+                    } catch (err: any) {
+                      toast({ title: 'Error', description: err.message || 'Failed to create department', variant: 'destructive' });
+                    }
+                  }}>
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Division creation dialog */}
+          <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Division</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <Label>Division Name</Label>
+                <Input value={newDivName} onChange={(e) => setNewDivName(e.target.value)} />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setIsDivDialogOpen(false); setNewDivName(''); }}>Cancel</Button>
+                  <Button onClick={async () => {
+                    if (!formData.Department) {
+                      toast({ title: 'Validation', description: 'Please select a department first', variant: 'destructive' });
+                      return;
+                    }
+                    if (!newDivName.trim()) {
+                      toast({ title: 'Validation', description: 'Please fill out the division name to proceed', variant: 'destructive' });
+                      return;
+                    }
+                    try {
+                      await createDivision(newDivName.trim(), formData.Department);
+                      await loadDivisionsForDepartment(formData.Department);
+                      toast({ title: 'Success', description: 'Division created' });
+                      setIsDivDialogOpen(false);
+                      setNewDivName('');
+                    } catch (err: any) {
+                      toast({ title: 'Error', description: err.message || 'Failed to create division', variant: 'destructive' });
+                    }
+                  }}>
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
       </div>
 
       <div className="rounded-lg border bg-card">

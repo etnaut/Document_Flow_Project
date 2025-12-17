@@ -50,3 +50,46 @@ router.get('/', async (req: Request, res: Response) => {
 
 export default router;
 
+// POST / - Create a new division under a department
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const { Division, Department } = req.body;
+    if (!Division || typeof Division !== 'string') {
+      return sendResponse(res, { error: 'Missing or invalid Division' }, 400);
+    }
+
+    if (!Department) {
+      return sendResponse(res, { error: 'Missing Department for Division' }, 400);
+    }
+
+    // Resolve department id
+    let deptResult;
+    if (typeof Department === 'number') {
+      deptResult = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE Department_Id = $1', [Department]);
+    } else {
+      deptResult = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE Department = $1', [Department]);
+    }
+
+    if (deptResult.rows.length === 0) {
+      return sendResponse(res, { error: 'Department not found' }, 400);
+    }
+
+    // Handle different column casing (Department_Id or department_id)
+    const deptRow = deptResult.rows[0];
+    const deptId = deptRow.Department_Id ?? deptRow.department_id ?? Object.values(deptRow)[0];
+
+    // Check division exists
+    const exists = await pool.query('SELECT Division_Id FROM Division_Tbl WHERE Division = $1 AND Department_Id = $2', [Division, deptId]);
+    if (exists.rows.length > 0) {
+      return sendResponse(res, { error: 'Division already exists in department' }, 409);
+    }
+
+    const insert = await pool.query('INSERT INTO Division_Tbl (Division, Department_Id) VALUES ($1, $2) RETURNING Division_Id, Division', [Division, deptId]);
+    const created = insert.rows[0];
+    sendResponse(res, created, 201);
+  } catch (error: any) {
+    console.error('Create division error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+

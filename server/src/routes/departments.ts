@@ -29,5 +29,28 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+    // POST / - Create a new department
+    router.post('/', async (req: Request, res: Response) => {
+      try {
+        const { Department } = req.body;
+        if (!Department || typeof Department !== 'string') {
+          return sendResponse(res, { error: 'Missing or invalid Department' }, 400);
+        }
+
+        // Check if already exists
+        const exists = await pool.query('SELECT Department_Id FROM Department_Tbl WHERE Department = $1', [Department]);
+        if (exists.rows.length > 0) {
+          return sendResponse(res, { error: 'Department already exists' }, 409);
+        }
+
+        const insert = await pool.query('INSERT INTO Department_Tbl (Department) VALUES ($1) RETURNING Department_Id, Department', [Department]);
+        const created = insert.rows[0];
+        sendResponse(res, created, 201);
+      } catch (error: any) {
+        console.error('Create department error:', error);
+        sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+      }
+    });
+
 export default router;
 
