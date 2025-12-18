@@ -286,3 +286,12 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
     body: JSON.stringify(userData),
   });
 };
+
+// Update user status (activate / deactivate)
+export const updateUserStatus = async (userId: number, status: boolean): Promise<User | null> => {
+  // Use a dedicated endpoint to avoid colliding with other user updates
+  return apiRequest('/users/status', {
+    method: 'PUT',
+    body: JSON.stringify({ User_Id: userId, Status: status }),
+  });
+};

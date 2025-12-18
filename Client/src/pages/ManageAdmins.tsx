@@ -29,6 +29,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { getUsers, createUser, getDepartments, getDivisions } from '@/services/api';
 import { createDepartment, createDivision } from '@/services/api';
+import { updateUserStatus } from '@/services/api';
 import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
@@ -54,6 +55,9 @@ const ManageAdmins: React.FC = () => {
   const [newDeptName, setNewDeptName] = useState('');
   const [newDivName, setNewDivName] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+  // For status change confirmation
+  const [statusTarget, setStatusTarget] = useState<{ userId: number; fullName: string; newStatus: boolean } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -146,6 +150,29 @@ const ManageAdmins: React.FC = () => {
       await loadData();
     } catch (error: any) {
       toast({ title: 'Error', description: error?.message || 'Failed to create admin account.', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleStatus = (userId: number, fullName: string, currentStatus: boolean) => {
+    // We ask the superadmin to confirm the inverse action (if active -> confirm deactivate)
+    setStatusTarget({ userId, fullName, newStatus: !currentStatus });
+    setIsStatusConfirmOpen(true);
+  };
+
+  const doToggleStatus = async () => {
+    if (!statusTarget) return;
+    setIsLoading(true);
+    try {
+      await updateUserStatus(statusTarget.userId, statusTarget.newStatus);
+      toast({ title: 'Success', description: `Account ${statusTarget.newStatus ? 'activated' : 'deactivated'} successfully.` });
+      setStatusTarget(null);
+      // Close the status confirmation dialog
+      setIsStatusConfirmOpen(false);
+      await loadData();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to update user status', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -380,6 +407,29 @@ const ManageAdmins: React.FC = () => {
               </DialogContent>
             </Dialog>
 
+            {/* Confirmation Dialog for status change (activate/deactivate) */}
+            <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Confirm Status Change</DialogTitle>
+                </DialogHeader>
+                <div className="mt-2">
+                  {statusTarget ? (
+                    <div>
+                      <p className="text-sm">You want to {statusTarget.newStatus ? 'activate' : 'deactivate'} this account:</p>
+                      <p className="font-medium">{statusTarget.fullName}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm">No user selected.</p>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => { setIsStatusConfirmOpen(false); setStatusTarget(null); }}>Cancel</Button>
+                  <Button onClick={() => { setIsStatusConfirmOpen(false); void doToggleStatus(); }} disabled={isLoading}>{isLoading ? 'Processing...' : 'Confirm'}</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
           {/* Division creation dialog */}
           <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
             <DialogContent className="max-w-md">
@@ -447,9 +497,20 @@ const ManageAdmins: React.FC = () => {
                   <TableCell>{admin.Division}</TableCell>
                   <TableCell>{admin.User_Role}</TableCell>
                   <TableCell>
-                    <span className={`rounded-full px-2 py-1 text-xs ${
-                      admin.Status ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      title={admin.Status ? 'Click to deactivate this account' : 'Click to activate this account'}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status);
+                        }
+                      }}
+                      onClick={() => handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status)}
+                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs ${
+                        admin.Status ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}
+                    >
                       {admin.Status ? 'Active' : 'Inactive'}
                     </span>
                   </TableCell>

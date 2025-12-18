@@ -241,5 +241,57 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /users/status - Update a user's active/inactive status
+router.put('/status', async (req: Request, res: Response) => {
+  try {
+    const input = getJsonInput<{ User_Id: number; Status: boolean }>(req.body);
+
+    if (input == null || typeof input.User_Id === 'undefined') {
+      return sendResponse(res, { error: 'Missing User_Id' }, 400);
+    }
+
+    const statusStr = input.Status ? 'active' : 'inactive';
+
+    await pool.query('UPDATE User_Tbl SET Status = $1 WHERE User_Id = $2', [statusStr, input.User_Id]);
+
+    // Return the updated user record
+    const userResult = await pool.query(
+      `
+      SELECT 
+        u.User_Id,
+        u.ID_Number,
+        u.Full_Name,
+        u.Gender,
+        u.Email,
+        d.Department AS Department,
+        dv.Division AS Division,
+        u.User_Role,
+        u.User_Name,
+        u.Status
+      FROM User_Tbl u
+      LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
+      LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
+      WHERE u.User_Id = $1
+    `,
+      [input.User_Id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendResponse(res, { error: 'User not found' }, 404);
+    }
+
+    const raw = userResult.rows[0];
+    const user: User = {
+      ...raw,
+      Status: (raw.Status ?? raw.status ?? '').toString().toLowerCase() === 'active',
+    };
+
+    sendResponse(res, user);
+  } catch (error: any) {
+    console.error('Update user status error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 export default router;
 
