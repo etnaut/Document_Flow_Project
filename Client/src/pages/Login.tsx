@@ -14,11 +14,13 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [remember, setRemember] = useState(false);
-  const { login, isAuthenticated, getDefaultRoute } = useAuth();
+  const { login, isAuthenticated, getDefaultRoute, user } = useAuth();
   const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    // Redirect using the normalized user from context so pre_assigned_role is respected
+    const route = user ? getDefaultRoute(user) : '/dashboard';
+    return <Navigate to={route} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,8 +35,8 @@ const Login: React.FC = () => {
     try {
       const authenticatedUser = await login(username.trim(), password);
       if (authenticatedUser) {
-        // Route based on role using context helper
-        const defaultRoute = getDefaultRoute(authenticatedUser.User_Role);
+        // Route based on the full user object so pre_assigned_role redirects are respected
+        const defaultRoute = getDefaultRoute(authenticatedUser);
         navigate(defaultRoute);
       } else {
         toast({ title: 'Authentication Failed', description: 'Invalid username or password.', variant: 'destructive' });

@@ -15,12 +15,14 @@ import AllDocuments from "./pages/AllDocuments";
 import PendingDocuments from "./pages/PendingDocuments";
 import ApprovedDocuments from "./pages/ApprovedDocuments";
 import RevisionDocuments from "./pages/RevisionDocuments";
-import ReleasedDocuments from "./pages/ReleasedDocuments";
 import ReceivedRequests from "./pages/ReceivedRequests";
-import DocumentResponses from "./pages/DocumentResponses";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ManageAdmins from "./pages/ManageAdmins";
-import ManageEmployees from "./pages/ManageEmployees";
+import HeadDashboard from "./pages/HeadDashboard";
+import RecordPage from "./pages/RecordPage";
+import RecordLayout from "./components/layout/RecordLayout";
+import DivisionHead from "./pages/DivisionHead";
+// Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 
 // Layout
@@ -48,14 +50,20 @@ const App = () => (
               <Route path="/pending" element={<PendingDocuments />} />
               <Route path="/approved" element={<ApprovedDocuments />} />
               <Route path="/revision" element={<RevisionDocuments />} />
-              <Route path="/released" element={<ReleasedDocuments />} />
               <Route path="/received" element={<ReceivedRequests />} />
-              <Route path="/responses" element={<DocumentResponses />} />
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />
+              {/* Head roles (DepartmentHead / DivisionHead / OfficerInCharge) */}
+              <Route path="/head" element={<HeadDashboard />} />
+              <Route path="/division-head" element={<DivisionHead />} />
+              <Route path="/division-head" element={<DivisionHead />} />
               {/* Admin Routes */}
-              <Route path="/manage-employees" element={<ManageEmployees />} />
+            </Route>
+
+            {/* Recorder-specific standalone layout (no sidebar) */}
+            <Route element={<RecordLayout />}>
+              <Route path="/records" element={<RecordPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

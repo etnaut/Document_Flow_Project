@@ -34,7 +34,8 @@ router.post('/', async (req: Request, res: Response) => {
         u.User_Role     AS "User_Role",
         u.User_Name     AS "User_Name",
         u.Status        AS "Status",
-        u.Password      AS "Password"
+          u.Password      AS "Password",
+          u.pre_assigned_role AS "pre_assigned_role"
       FROM User_Tbl u
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -73,12 +74,14 @@ router.post('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Invalid credentials' }, 401);
     }
 
-    // Normalize role casing
+    // Normalize role casing and preserve head roles
     const roleRaw = String(user.User_Role || user.user_role || '').toLowerCase();
-    const normalizedRole =
-      roleRaw === 'superadmin' ? 'SuperAdmin' :
-      roleRaw === 'admin' ? 'Admin' :
-      'Employee';
+    let normalizedRole = 'Employee';
+    if (roleRaw === 'superadmin') normalizedRole = 'SuperAdmin';
+    else if (roleRaw === 'admin') normalizedRole = 'Admin';
+    else if (roleRaw === 'departmenthead') normalizedRole = 'DepartmentHead';
+    else if (roleRaw === 'divisionhead') normalizedRole = 'DivisionHead';
+    else if (roleRaw === 'officerincharge' || roleRaw === 'officer_in_charge' || roleRaw === 'oic') normalizedRole = 'OfficerInCharge';
 
     // Remove password from response
     delete user.Password;
@@ -95,6 +98,7 @@ router.post('/', async (req: Request, res: Response) => {
       User_Name: user.User_Name ?? user.user_name,
       User_Role: normalizedRole as User['User_Role'],
       Status: (user.Status ?? user.status) === 'active',
+      pre_assigned_role: user.pre_assigned_role ?? user.pre_assignedRole ?? ''
     };
 
     sendResponse(res, userResponse);

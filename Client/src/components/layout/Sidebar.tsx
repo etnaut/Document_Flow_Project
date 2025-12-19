@@ -40,14 +40,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   const adminLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/manage-employees', icon: User, label: 'Manage Employees' },
     { to: '/all-documents', icon: FileText, label: 'All Documents' },
     { to: '/pending', icon: FileText, label: 'Pending' },
     { to: '/approved', icon: CheckCircle, label: 'Approved' },
     { to: '/revision', icon: RotateCcw, label: 'For Revision' },
-    { to: '/released', icon: Archive, label: 'Released' },
     { to: '/received', icon: Inbox, label: 'Received Requests' },
-    { to: '/responses', icon: MessageCircle, label: 'Responses' },
   ];
 
   const superAdminLinks = [
@@ -55,7 +52,32 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/manage-admins', icon: User, label: 'Manage Admins' },
   ];
 
-  const links = isSuperAdmin ? superAdminLinks : isAdmin ? adminLinks : employeeLinks;
+  const headLinks = [
+    { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
+    { to: '/division-head', icon: User, label: 'Manage Employees' },
+    { to: '/all-documents', icon: FileText, label: 'All Documents' },
+    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
+  ];
+
+  const recorderLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/all-documents', icon: FileText, label: 'All Documents' },
+    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/records', icon: Archive, label: 'Recorded' },
+  ];
+
+  const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
+  const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
+  const links = isSuperAdmin
+    ? superAdminLinks
+    : isHead
+    ? headLinks
+    : isRecorder
+    ? recorderLinks
+    : isAdmin
+    ? adminLinks
+    : employeeLinks;
 
   const ToggleIcon = collapsed ? ChevronRight : ChevronLeft;
 

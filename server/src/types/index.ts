@@ -6,9 +6,10 @@ export interface User {
   Email: string;
   Department: string;
   Division: string;
-  User_Role: 'SuperAdmin' | 'Admin' | 'Employee';
+  User_Role: 'SuperAdmin' | 'Admin' | 'Employee' | 'DepartmentHead' | 'DivisionHead' | 'OfficerInCharge';
   User_Name: string;
   Status: boolean;
+  pre_assigned_role?: string;
 }
 
 export interface Document {
@@ -36,7 +37,7 @@ export interface CreateUserInput {
   Email: string;
   Department: string;
   Division: string;
-  User_Role: 'SuperAdmin' | 'Admin' | 'Employee';
+  User_Role: 'SuperAdmin' | 'Admin' | 'Employee' | 'DepartmentHead' | 'DivisionHead' | 'OfficerInCharge';
   User_Name: string;
   Password: string;
   Status: boolean;
