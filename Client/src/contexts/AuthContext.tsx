@@ -36,8 +36,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const getDefaultRoute = (role: string) => {
-    const normalizedRole = role?.toLowerCase();
+    const normalizedRole = (role || '').toLowerCase();
     if (normalizedRole === 'superadmin') return '/super-admin';
+    // Head roles map to the head dashboard
+    if (['departmenthead', 'divisionhead', 'officerincharge'].includes(normalizedRole)) return '/head';
+    // Admins and employees use the regular dashboard
     return '/dashboard';
   };
 

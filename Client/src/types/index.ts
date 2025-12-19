@@ -1,4 +1,11 @@
-export type UserRole = 'SuperAdmin' | 'Admin' | 'Employee';
+// Extend roles to include department/division heads and officer-in-charge
+export type UserRole =
+  | 'SuperAdmin'
+  | 'Admin'
+  | 'Employee'
+  | 'DepartmentHead'
+  | 'DivisionHead'
+  | 'OfficerInCharge';
 
 export interface User {
   User_Id: number;
@@ -11,6 +18,7 @@ export interface User {
   User_Role: UserRole;
   User_Name: string;
   Status: boolean;
+  pre_assigned_role?: string;
 }
 
 export interface Document {

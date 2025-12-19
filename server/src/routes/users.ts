@@ -23,7 +23,8 @@ router.get('/', async (req: Request, res: Response) => {
         dv.Division AS Division,
         u.User_Role,
         u.User_Name,
-        u.Status
+        u.Status,
+        u.pre_assigned_role
       FROM User_Tbl u
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -213,7 +214,8 @@ router.post('/', async (req: Request, res: Response) => {
         dv.Division AS Division,
         u.User_Role,
         u.User_Name,
-        u.Status
+        u.Status,
+        u.pre_assigned_role
       FROM User_Tbl u
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -267,7 +269,8 @@ router.put('/status', async (req: Request, res: Response) => {
         dv.Division AS Division,
         u.User_Role,
         u.User_Name,
-        u.Status
+        u.Status,
+        u.pre_assigned_role
       FROM User_Tbl u
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -289,6 +292,61 @@ router.put('/status', async (req: Request, res: Response) => {
     sendResponse(res, user);
   } catch (error: any) {
     console.error('Update user status error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
+// PUT /users/assign - Update a user's pre_assigned_role (e.g., Recorder / Releaser)
+router.put('/assign', async (req: Request, res: Response) => {
+  try {
+    const input = getJsonInput<{ User_Id: number; pre_assigned_role?: string; pre_assigned_to_id?: number; pre_assigned_to_name?: string }>(req.body);
+
+    if (input == null || typeof input.User_Id === 'undefined') {
+      return sendResponse(res, { error: 'Missing User_Id' }, 400);
+    }
+
+
+    const role = input.pre_assigned_role ? String(input.pre_assigned_role).trim() : null;
+
+    // Update only pre_assigned_role
+    await pool.query('UPDATE User_Tbl SET pre_assigned_role = $1 WHERE User_Id = $2', [role, input.User_Id]);
+
+    // Return the updated user record
+    const userResult = await pool.query(
+      `
+      SELECT 
+        u.User_Id,
+        u.ID_Number,
+        u.Full_Name,
+        u.Gender,
+        u.Email,
+        d.Department AS Department,
+        dv.Division AS Division,
+        u.User_Role,
+        u.User_Name,
+        u.Status,
+        u.pre_assigned_role
+      FROM User_Tbl u
+      LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
+      LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
+      WHERE u.User_Id = $1
+    `,
+      [input.User_Id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return sendResponse(res, { error: 'User not found' }, 404);
+    }
+
+    const raw = userResult.rows[0];
+    const user: any = {
+      ...raw,
+      Status: (raw.Status ?? raw.status ?? '').toString().toLowerCase() === 'active',
+    };
+
+    sendResponse(res, user);
+  } catch (error: any) {
+    console.error('Update user assign error:', error);
     sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
 });

@@ -73,12 +73,14 @@ router.post('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Invalid credentials' }, 401);
     }
 
-    // Normalize role casing
+    // Normalize role casing and preserve head roles
     const roleRaw = String(user.User_Role || user.user_role || '').toLowerCase();
-    const normalizedRole =
-      roleRaw === 'superadmin' ? 'SuperAdmin' :
-      roleRaw === 'admin' ? 'Admin' :
-      'Employee';
+    let normalizedRole = 'Employee';
+    if (roleRaw === 'superadmin') normalizedRole = 'SuperAdmin';
+    else if (roleRaw === 'admin') normalizedRole = 'Admin';
+    else if (roleRaw === 'departmenthead') normalizedRole = 'DepartmentHead';
+    else if (roleRaw === 'divisionhead') normalizedRole = 'DivisionHead';
+    else if (roleRaw === 'officerincharge' || roleRaw === 'officer_in_charge' || roleRaw === 'oic') normalizedRole = 'OfficerInCharge';
 
     // Remove password from response
     delete user.Password;

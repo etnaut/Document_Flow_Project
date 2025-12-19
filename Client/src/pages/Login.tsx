@@ -18,7 +18,11 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    // Redirect to the role-based default route
+    const stored = localStorage.getItem('dms_user');
+    const parsed = stored ? JSON.parse(stored) : null;
+    const route = parsed?.User_Role ? getDefaultRoute(parsed.User_Role) : '/dashboard';
+    return <Navigate to={route} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

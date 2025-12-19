@@ -49,6 +49,7 @@ const ManageAdmins: React.FC = () => {
     Division: '',
     User_Name: '',
     Password: '',
+    Role: 'Admin',
   });
   const [isDeptDialogOpen, setIsDeptDialogOpen] = useState(false);
   const [isDivDialogOpen, setIsDivDialogOpen] = useState(false);
@@ -116,7 +117,7 @@ const ManageAdmins: React.FC = () => {
   // on submit: validate then show confirmation dialog
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.Full_Name || !formData.Email || !formData.User_Name || !formData.Password || !formData.Department || !formData.Division) {
+    if (!formData.Full_Name || !formData.Email || !formData.User_Name || !formData.Password || !formData.Department || !formData.Division || !formData.Role) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields.',
@@ -124,6 +125,24 @@ const ManageAdmins: React.FC = () => {
       });
       return;
     }
+
+    // Local duplicate checks to reduce chance of DB unique constraint errors
+    const idNum = parseInt(formData.ID_Number, 10);
+    if (!isNaN(idNum) && admins.some((a) => Number(a.ID_Number) === idNum)) {
+      toast({ title: 'Duplicate ID', description: 'ID Number already exists. Please use a different ID.', variant: 'destructive' });
+      return;
+    }
+
+    if (admins.some((a) => a.User_Name && a.User_Name.toLowerCase() === formData.User_Name.trim().toLowerCase())) {
+      toast({ title: 'Duplicate Username', description: 'Username already exists. Please choose another username.', variant: 'destructive' });
+      return;
+    }
+
+    if (admins.some((a) => a.Email && a.Email.toLowerCase() === formData.Email.trim().toLowerCase())) {
+      toast({ title: 'Duplicate Email', description: 'Email already exists. Please use a different email.', variant: 'destructive' });
+      return;
+    }
+
     setIsConfirmOpen(true);
   };
 
@@ -138,18 +157,32 @@ const ManageAdmins: React.FC = () => {
         Email: formData.Email,
         Department: formData.Department,
         Division: formData.Division,
-        User_Role: 'Admin',
+        User_Role: (formData.Role as any) || 'Admin',
         User_Name: formData.User_Name,
         Password: formData.Password,
         Status: true,
       });
 
       toast({ title: 'Success', description: 'Admin account created successfully.' });
-      setIsOpen(false);
-      setFormData({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: '', Division: '', User_Name: '', Password: '' });
+  setIsOpen(false);
+  setFormData({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: '', Division: '', User_Name: '', Password: '', Role: 'Admin' });
       await loadData();
     } catch (error: any) {
-      toast({ title: 'Error', description: error?.message || 'Failed to create admin account.', variant: 'destructive' });
+      // Detect common duplicate-key database error messages and display a friendlier toast
+      const msg = error?.message || '';
+      if (typeof msg === 'string' && /duplicate key value/i.test(msg)) {
+        // Try to extract the key name and value from Postgres-style message
+        const m = msg.match(/Key \(([^)]+)\)=\(([^)]+)\)/i);
+        if (m) {
+          const key = m[1];
+          const val = m[2];
+          toast({ title: 'Duplicate value', description: `${key} '${val}' already exists. Please use a different ${key}.`, variant: 'destructive' });
+        } else {
+          toast({ title: 'Duplicate value', description: 'An account with that information already exists.', variant: 'destructive' });
+        }
+      } else {
+        toast({ title: 'Error', description: msg || 'Failed to create admin account.', variant: 'destructive' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -199,7 +232,7 @@ const ManageAdmins: React.FC = () => {
                 <Shield className="h-5 w-5" />
                 Create Admin Account
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">Note: This form creates Admin accounts only. Role is set automatically.</p>
+              <p className="text-sm text-muted-foreground mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -340,6 +373,24 @@ const ManageAdmins: React.FC = () => {
                 </div>
               </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="Role">Role *</Label>
+                  <Select
+                    value={formData.Role}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, Role: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="DepartmentHead">Department Head</SelectItem>
+                      <SelectItem value="DivisionHead">Division Head</SelectItem>
+                      <SelectItem value="OfficerInCharge">Officer In Charge</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
               {/* Role is implicit: only Admin accounts are created by this flow. UI hides the role input. */}
               
               <div className="flex justify-end gap-2 pt-4">
@@ -398,7 +449,7 @@ const ManageAdmins: React.FC = () => {
                   <div><strong>Email:</strong> {formData.Email}</div>
                   <div><strong>Department:</strong> {formData.Department}</div>
                   <div><strong>Division:</strong> {formData.Division}</div>
-                  <div><strong>Role:</strong> Admin</div>
+                  <div><strong>Role:</strong> {formData.Role}</div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                   <Button variant="outline" onClick={() => setIsConfirmOpen(false)}>Cancel</Button>

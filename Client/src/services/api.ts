@@ -20,6 +20,8 @@ const normalizeUser = (u: any): User => {
     User_Role: (u.User_Role ?? u.user_role ?? 'Employee') as UserRole,
     User_Name: u.User_Name ?? u.user_name ?? '',
     Status: status,
+    // optional pre-assigned role (e.g., Recorder / Releaser)
+    pre_assigned_role: (u.pre_assigned_role ?? u.preAssignedRole ?? u.preAssigned_Role ?? '') as any,
   };
 };
 
@@ -293,5 +295,13 @@ export const updateUserStatus = async (userId: number, status: boolean): Promise
   return apiRequest('/users/status', {
     method: 'PUT',
     body: JSON.stringify({ User_Id: userId, Status: status }),
+  });
+};
+
+// Update user's pre-assigned role (e.g., Recorder / Releaser)
+export const updateUserAssignment = async (userId: number, role: string): Promise<User | null> => {
+  return apiRequest('/users/assign', {
+    method: 'PUT',
+    body: JSON.stringify({ User_Id: userId, pre_assigned_role: role }),
   });
 };
