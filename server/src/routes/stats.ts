@@ -37,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Get counts by status
     const statuses = ['Pending', 'Approved', 'Revision', 'Released'];
-    const stats: DashboardStats = { total };
+  const stats: DashboardStats = { total, pending: 0, approved: 0, revision: 0, released: 0, received: 0 };
 
     for (const status of statuses) {
       const statusParams = [...params, status];

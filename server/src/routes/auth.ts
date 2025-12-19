@@ -34,7 +34,8 @@ router.post('/', async (req: Request, res: Response) => {
         u.User_Role     AS "User_Role",
         u.User_Name     AS "User_Name",
         u.Status        AS "Status",
-        u.Password      AS "Password"
+          u.Password      AS "Password",
+          u.pre_assigned_role AS "pre_assigned_role"
       FROM User_Tbl u
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -97,6 +98,7 @@ router.post('/', async (req: Request, res: Response) => {
       User_Name: user.User_Name ?? user.user_name,
       User_Role: normalizedRole as User['User_Role'],
       Status: (user.Status ?? user.status) === 'active',
+      pre_assigned_role: user.pre_assigned_role ?? user.pre_assignedRole ?? ''
     };
 
     sendResponse(res, userResponse);

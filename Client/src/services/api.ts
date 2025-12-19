@@ -1,7 +1,7 @@
 import { User, Document, UserRole, DocumentResponse } from '@/types';
 
 // Normalize different backend casing (snake_case / lower-case) to the client `User` shape
-const normalizeUser = (u: any): User => {
+export const normalizeUser = (u: any): User => {
   const statusRaw = u.Status ?? u.status ?? u.Status;
   const status = (() => {
     if (typeof statusRaw === 'boolean') return statusRaw;
@@ -21,7 +21,7 @@ const normalizeUser = (u: any): User => {
     User_Name: u.User_Name ?? u.user_name ?? '',
     Status: status,
     // optional pre-assigned role (e.g., Recorder / Releaser)
-    pre_assigned_role: (u.pre_assigned_role ?? u.preAssignedRole ?? u.preAssigned_Role ?? '') as any,
+    pre_assigned_role: String(u.pre_assigned_role ?? u.preAssignedRole ?? u.preAssigned_Role ?? '').trim() as any,
   };
 };
 
@@ -65,10 +65,14 @@ const apiRequest = async (endpoint: string, options?: RequestInit) => {
 
 // Authentication
 export const loginUser = async (username: string, password: string): Promise<User | null> => {
-  return apiRequest('/login', {
+  const data = await apiRequest('/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
+
+  if (!data) return null;
+  // The login endpoint returns a user-like object; normalize to client User shape
+  return normalizeUser(data as any);
 };
 
 // Get all documents - filtered by user's department for Admin

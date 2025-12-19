@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '@/types';
-import { loginUser } from '@/services/api';
+import defaultRouteHelper from '@/utils/getDefaultRoute';
+import { loginUser, normalizeUser } from '@/services/api';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -13,7 +14,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedUser = localStorage.getItem('dms_user');
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
+      // Normalize in case an older stored object lacks pre_assigned_role
+      const normalized = normalizeUser(parsedUser);
+      console.debug('[Auth] Loaded stored normalized user:', normalized);
+      setUser(normalized);
       setIsAuthenticated(true);
     }
   }, []);
@@ -21,6 +25,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (username: string, password: string): Promise<User | null> => {
     const authenticatedUser = await loginUser(username, password);
     if (authenticatedUser) {
+      console.debug('[Auth] Successful login, normalized user:', authenticatedUser);
       setUser(authenticatedUser);
       setIsAuthenticated(true);
       localStorage.setItem('dms_user', JSON.stringify(authenticatedUser));
@@ -35,14 +40,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('dms_user');
   };
 
-  const getDefaultRoute = (role: string) => {
-    const normalizedRole = (role || '').toLowerCase();
-    if (normalizedRole === 'superadmin') return '/super-admin';
-    // Head roles map to the head dashboard
-    if (['departmenthead', 'divisionhead', 'officerincharge'].includes(normalizedRole)) return '/head';
-    // Admins and employees use the regular dashboard
-    return '/dashboard';
-  };
+  // Use the shared helper for default route logic
+  const getDefaultRoute = (userOrRole: any) => defaultRouteHelper(userOrRole);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated, getDefaultRoute }}>

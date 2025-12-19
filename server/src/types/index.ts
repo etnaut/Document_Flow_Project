@@ -9,6 +9,7 @@ export interface User {
   User_Role: 'SuperAdmin' | 'Admin' | 'Employee' | 'DepartmentHead' | 'DivisionHead' | 'OfficerInCharge';
   User_Name: string;
   Status: boolean;
+  pre_assigned_role?: string;
 }
 
 export interface Document {

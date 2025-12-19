@@ -31,8 +31,8 @@ const RecordPage: React.FC = () => {
       setAllDocs(all || []);
       setPendingDocs(pending || []);
 
-      // Recorded: documents with Status 'Recorded' (or 'Archived' depending on your schema)
-      const recorded = (all || []).filter((d) => d.Status === 'Recorded' || d.Status === 'Archived');
+  // Recorded: derive from documents that are archived (or other statuses if your schema changes)
+  const recorded = (all || []).filter((d) => d.Status === 'Archived');
       setRecordedDocs(recorded);
     } catch (err: any) {
       console.error('RecordPage load error', err);

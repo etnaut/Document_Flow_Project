@@ -20,6 +20,7 @@ import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import ManageAdmins from "./pages/ManageAdmins";
 import HeadDashboard from "./pages/HeadDashboard";
 import RecordPage from "./pages/RecordPage";
+import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/DivisionHead";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
@@ -55,9 +56,14 @@ const App = () => (
               <Route path="/manage-admins" element={<ManageAdmins />} />
               {/* Head roles (DepartmentHead / DivisionHead / OfficerInCharge) */}
               <Route path="/head" element={<HeadDashboard />} />
-              <Route path="/records" element={<RecordPage />} />
+              <Route path="/division-head" element={<DivisionHead />} />
               <Route path="/division-head" element={<DivisionHead />} />
               {/* Admin Routes */}
+            </Route>
+
+            {/* Recorder-specific standalone layout (no sidebar) */}
+            <Route element={<RecordLayout />}>
+              <Route path="/records" element={<RecordPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
