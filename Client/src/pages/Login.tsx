@@ -146,7 +146,7 @@ const Login: React.FC = () => {
                 <Checkbox id="remember" checked={remember} onCheckedChange={(v) => setRemember(Boolean(v))} />
                 <Label htmlFor="remember" className="text-sm text-black font-semibold">Remember me</Label>
               </div>
-              <a className="text-sm font-semibold text-primary text-black hover:underline" href="#">Forgot password?</a>
+              <a className="text-sm font-bold text-primary-black hover:underline" href="#">Forgot password?</a>
             </div>
 
             <div className="flex justify-center">
@@ -173,9 +173,9 @@ const Login: React.FC = () => {
 
 
           <div className="mt-4 rounded-lg bg-muted p-3">
-            <p className="text-sm font-medium text-muted-foreground">DocuFlow</p>
+            <p className="text-sm font-medium text-muted-foreground-black">DocuFlow</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              <code className="rounded bg-background px-1">A Document Flow System that helps you manage your documents efficiently.</code>
+              <code className="text-black rounded bg-background px-1">A Document Flow System that helps you manage your documents efficiently.</code>
             </p>
           </div>
         </div>
