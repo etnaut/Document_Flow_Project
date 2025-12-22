@@ -2,12 +2,16 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
+import { hasSenderStatusColumn } from '../utils/schema.js';
 
 const router = Router();
 
 // GET /documents - Get all documents with optional filters
 router.get('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? 'sd.Status' : `'Pending' AS Status`;
+
     const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
     const role = req.query.role as string | undefined;
     const department = req.query.department as string | undefined;
@@ -18,7 +22,7 @@ router.get('/', async (req: Request, res: Response) => {
         sd.Document_Id,
         sd.Type,
         sd.User_Id,
-        sd.Status,
+  ${statusSelect},
         sd.Priority,
         sd.Document,
         u.Full_Name AS sender_name,
@@ -40,10 +44,12 @@ router.get('/', async (req: Request, res: Response) => {
     const params: any[] = [];
     let paramCount = 1;
 
-    if (status) {
+    if (status && hasStatus) {
       sql += ` AND sd.Status = $${paramCount}`;
       params.push(status);
       paramCount++;
+    } else if (status && !hasStatus) {
+      console.warn('Status filter requested but sender_document_tbl.status column is missing; ignoring filter');
     }
 
     // If Admin, filter by their department name
@@ -82,6 +88,8 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /documents - Create a new document
 router.post('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? 'sd.Status' : `'Pending' AS Status`;
     const input = getJsonInput<CreateDocumentInput>(req.body);
 
     const required = ['Type', 'User_Id', 'Priority'];
@@ -97,14 +105,17 @@ router.post('/', async (req: Request, res: Response) => {
       fileData = Buffer.from(input.Document, 'base64');
     }
 
-    const result = await pool.query(
-      `
-      INSERT INTO Sender_Document_Tbl (Type, User_Id, Status, Priority, Document)
-      VALUES ($1, $2, 'Pending', $3, $4)
-      RETURNING Document_Id
-    `,
-      [input.Type, input.User_Id, input.Priority, fileData]
-    );
+    const { sql: insertSql, params: insertParams } = hasStatus
+      ? {
+          sql: `INSERT INTO Sender_Document_Tbl (Type, User_Id, Status, Priority, Document) VALUES ($1, $2, 'Pending', $3, $4) RETURNING Document_Id`,
+          params: [input.Type, input.User_Id, input.Priority, fileData],
+        }
+      : {
+          sql: `INSERT INTO Sender_Document_Tbl (Type, User_Id, Priority, Document) VALUES ($1, $2, $3, $4) RETURNING Document_Id`,
+          params: [input.Type, input.User_Id, input.Priority, fileData],
+        };
+
+    const result = await pool.query(insertSql, insertParams);
 
     const documentId = result.rows[0].Document_Id;
 
@@ -115,7 +126,7 @@ router.post('/', async (req: Request, res: Response) => {
         sd.Document_Id,
         sd.Type,
         sd.User_Id,
-        sd.Status,
+  ${statusSelect},
         sd.Priority,
         sd.Document,
         u.Full_Name AS sender_name,
@@ -157,6 +168,8 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /documents - Update a document
 router.put('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? 'sd.Status' : `'Pending' AS Status`;
     const input = getJsonInput<UpdateDocumentInput>(req.body);
 
     if (!input.Document_Id) {
@@ -168,7 +181,10 @@ router.put('/', async (req: Request, res: Response) => {
     let paramCount = 1;
 
     // Build dynamic update query
-    const allowedFields = ['Status', 'Priority', 'Type'];
+    const allowedFields = hasStatus ? ['Status', 'Priority', 'Type'] : ['Priority', 'Type'];
+    if (!hasStatus && input.Status !== undefined) {
+      return sendResponse(res, { error: 'Status column not available in sender_document_tbl' }, 400);
+    }
     for (const field of allowedFields) {
       if (field in input && input[field as keyof UpdateDocumentInput] !== undefined) {
         updates.push(`${field} = $${paramCount}`);
@@ -199,7 +215,7 @@ router.put('/', async (req: Request, res: Response) => {
         sd.Document_Id,
         sd.Type,
         sd.User_Id,
-        sd.Status,
+  ${statusSelect},
         sd.Priority,
         sd.Document,
         u.Full_Name AS sender_name,

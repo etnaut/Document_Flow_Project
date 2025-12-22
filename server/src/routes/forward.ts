@@ -2,11 +2,14 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { ForwardDocumentInput, Document } from '../types/index.js';
+import { hasSenderStatusColumn } from '../utils/schema.js';
 
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? 'sd.Status' : `'Pending' AS Status`;
     const input = getJsonInput<ForwardDocumentInput>(req.body);
 
     if (!input.documentId) {
@@ -16,11 +19,10 @@ router.post('/', async (req: Request, res: Response) => {
     const documentId = parseInt(String(input.documentId));
     const notes = input.notes || null;
 
-    // Update document status to Received
-    await pool.query(
-      `UPDATE Sender_Document_Tbl SET Status = 'Received' WHERE Document_Id = $1`,
-      [documentId]
-    );
+    // Update document status to Received if column exists
+    if (hasStatus) {
+      await pool.query(`UPDATE Sender_Document_Tbl SET Status = 'Received' WHERE Document_Id = $1`, [documentId]);
+    }
 
     // Fetch updated document
     const result = await pool.query(
@@ -29,7 +31,7 @@ router.post('/', async (req: Request, res: Response) => {
         sd.Document_Id,
         sd.Type,
         sd.User_Id,
-        sd.Status,
+  ${statusSelect},
         sd.Priority,
         sd.Document,
         u.Full_Name AS sender_name,

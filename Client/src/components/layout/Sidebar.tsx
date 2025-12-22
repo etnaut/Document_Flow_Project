@@ -69,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
+  const displayRole = isRecorder ? 'Employee/Recorder' : user?.User_Role;
   const links = isSuperAdmin
     ? superAdminLinks
     : isHead
@@ -120,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
-                <p className="text-xs text-sidebar-foreground/70">{user?.User_Role}</p>
+                <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>
               </div>
             </div>
             <div className="mt-3 space-y-1.5">

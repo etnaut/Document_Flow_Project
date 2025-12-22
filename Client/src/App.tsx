@@ -18,10 +18,10 @@ import RevisionDocuments from "./pages/admin/RevisionDocuments";
 import ReceivedRequests from "./pages/Employees/ReceivedRequests";
 import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
 import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
-import HeadDashboard from "./pages/SuperAdmin/HeadDashboard";
+import HeadDashboard from "./pages/Heads/HeadDashboard";
 import RecordPage from "./pages/Recorder/RecordPage";
 import RecordLayout from "./components/layout/RecordLayout";
-import DivisionHead from "./pages/SuperAdmin/DivisionHead";
+import DivisionHead from "./pages/Heads/DivisionHead";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 

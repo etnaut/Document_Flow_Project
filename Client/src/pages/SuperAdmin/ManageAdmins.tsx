@@ -211,6 +211,8 @@ const ManageAdmins: React.FC = () => {
     }
   };
 
+  const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -532,7 +534,7 @@ const ManageAdmins: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {admins.length === 0 ? (
+            {visibleAdmins.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
@@ -540,7 +542,7 @@ const ManageAdmins: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              admins.map((admin) => (
+              visibleAdmins.map((admin) => (
                 <TableRow key={admin.User_Id}>
                   <TableCell className="font-medium">{admin.Full_Name}</TableCell>
                   <TableCell>{admin.Email}</TableCell>
