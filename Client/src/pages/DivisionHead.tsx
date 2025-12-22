@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { getUsers, getEmployeesByDepartment } from '@/services/api';
+import { getUsers, getEmployeesByDepartment, updateUserStatus } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { updateUserAssignment } from '@/services/api';
@@ -89,6 +89,7 @@ const DivisionHead: React.FC = () => {
 							<th className="px-2 py-2">Email</th>
 							<th className="px-2 py-2">Department</th>
 							<th className="px-2 py-2">Division</th>
+							<th className="px-2 py-2">Status</th>
 							<th className="px-2 py-2">Assigned</th>
 						</tr>
 					</thead>
@@ -104,6 +105,24 @@ const DivisionHead: React.FC = () => {
 									<td className="px-2 py-3">{emp.Email}</td>
 									<td className="px-2 py-3">{emp.Department}</td>
 									<td className="px-2 py-3">{emp.Division}</td>
+									<td className="px-2 py-3">
+										<select
+											value={emp.Status ? 'active' : 'inactive'}
+											onChange={async (e) => {
+												const val = e.target.value === 'active';
+												try {
+													await updateUserStatus(emp.User_Id, val);
+													setEmployees((prev) => prev.map((p) => p.User_Id === emp.User_Id ? ({ ...p, Status: val }) : p));
+													toast({ title: 'Saved', description: `User ${val ? 'activated' : 'deactivated'}` });
+												} catch (err: any) {
+													toast({ title: 'Error', description: err?.message || 'Failed to update status', variant: 'destructive' });
+												}
+											}}
+										>
+											<option value="active">Active</option>
+											<option value="inactive">Inactive</option>
+										</select>
+									</td>
 									<td className="px-2 py-3">
 										<select
 											value={(emp as any).pre_assigned_role || ''}

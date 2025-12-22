@@ -67,14 +67,24 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/records', icon: Archive, label: 'Recorded' },
   ];
 
+  const releaserLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/all-documents', icon: FileText, label: 'All Documents' },
+    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/releases', icon: Archive, label: 'Released' },
+  ];
+
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
+  const isReleaser = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser';
   const links = isSuperAdmin
     ? superAdminLinks
     : isHead
     ? headLinks
     : isRecorder
     ? recorderLinks
+    : isReleaser
+    ? releaserLinks
     : isAdmin
     ? adminLinks
     : employeeLinks;
@@ -120,7 +130,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
-                <p className="text-xs text-sidebar-foreground/70">{user?.User_Role}</p>
+                {(() => {
+                  const isEmp = user?.User_Role === 'Employee';
+                  const assigned = String(user?.pre_assigned_role ?? '').trim().toLowerCase();
+                  if (isEmp && assigned === 'recorder') return <p className="text-xs text-sidebar-foreground/70">Employee / Recorder</p>;
+                  if (isEmp && assigned === 'releaser') return <p className="text-xs text-sidebar-foreground/70">Employee / Releaser</p>;
+                  const displayRole = user?.User_Role ?? '';
+                  return <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>;
+                })()}
               </div>
             </div>
             <div className="mt-3 space-y-1.5">

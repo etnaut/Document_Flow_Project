@@ -21,6 +21,8 @@ import ManageAdmins from "./pages/ManageAdmins";
 import HeadDashboard from "./pages/HeadDashboard";
 import RecordPage from "./pages/RecordPage";
 import RecordLayout from "./components/layout/RecordLayout";
+import ReleasePage from "./pages/ReleasePage";
+import ReleaseLayout from "./components/layout/ReleaseLayout";
 import DivisionHead from "./pages/DivisionHead";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
@@ -64,6 +66,11 @@ const App = () => (
             {/* Recorder-specific standalone layout (no sidebar) */}
             <Route element={<RecordLayout />}>
               <Route path="/records" element={<RecordPage />} />
+            </Route>
+
+            {/* Releaser-specific layout */}
+            <Route element={<ReleaseLayout />}>
+              <Route path="/releases" element={<ReleasePage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
