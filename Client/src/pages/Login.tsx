@@ -106,22 +106,22 @@ const Login: React.FC = () => {
                 </div>
               </div>
             </div>
-            <h2 className="text-3xl font-extrabold text-foreground">Welcome to Document Flow System</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">Sign in to continue.</p>
+            <h2 className="text-3xl font-extrabold text-foreground-black">Welcome to Document Flow System</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground-gray">Sign in to continue.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-3 space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="username" className="text-sm">Username</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
                 <Input
                   id="username"
                   type="text"
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="pl-11 py-2.5 text-sm rounded-xl"
+                  className="pl-11 py-2.5 text-sm rounded-xl- placeholder:text-gray-500"
                   disabled={isLoading}
                 />
               </div>
@@ -130,14 +130,14 @@ const Login: React.FC = () => {
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-sm">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 py-2.5 text-sm rounded-xl"
+                  className="pl-11 py-2.5 text-sm rounded-xl placeholder:text-gray-500"
                   disabled={isLoading}
                 />
               </div>

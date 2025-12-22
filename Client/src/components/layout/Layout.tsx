@@ -12,7 +12,7 @@ const Layout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />
       <main
         className={`min-h-screen p-6 transition-[margin-left] duration-200 ${collapsed ? 'ml-16' : 'ml-64'}`}
