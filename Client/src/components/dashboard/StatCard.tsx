@@ -29,14 +29,14 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, variant =
   return (
     <div
       className={cn(
-        'rounded-xl border p-6 shadow-card transition-all duration-300 hover:shadow-elevated animate-fade-in',
+        'rounded-xl border p-6 shadow-card transition-all duration-300 hover:shadow-elevated animate-fade-in backdrop-blur-md',
         variantStyles[variant]
       )}
     >
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+        <div className="flex-1 text-center">
+          <p className="text-base font-medium text-muted-foreground">{title}</p>
+          <p className="mt-2 text-4xl font-bold text-foreground">{value}</p>
         </div>
         <div className={cn('rounded-xl p-3', iconStyles[variant])}>
           <Icon className="h-6 w-6" />

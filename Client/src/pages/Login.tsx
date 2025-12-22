@@ -100,7 +100,7 @@ const Login: React.FC = () => {
                   }
                 `}</style>
                 <div className="coin-3d relative w-16 h-16 mx-auto">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-accent to-primary shadow-[0_0_25px_rgba(0,0,0,0.4),0_15px_35px_rgba(0,0,0,0.3),inset_0_3px_15px_rgba(255,255,255,0.4),inset_0_-3px_15px_rgba(0,0,0,0.2)] dark:shadow-[0_0_25px_rgba(0,0,0,0.6),0_15px_35px_rgba(0,0,0,0.5),inset_0_3px_15px_rgba(255,255,255,0.3),inset_0_-3px_15px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-accent to-primary dark:shadow-[0_0_25px_rgba(0,0,0,0.6),0_15px_35px_rgba(0,0,0,0.5),inset_0_3px_15px_rgba(255,255,255,0.3),inset_0_-3px_15px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20">
                     <FileText className="h-8 w-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
                   </div>
                 </div>
@@ -177,7 +177,7 @@ const Login: React.FC = () => {
           <div className="mt-4 rounded-lg bg-muted p-3">
             <p className="text-sm font-medium text-muted-foreground-black">DocuFlow</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              <code className="text-black rounded bg-background px-1">A Document Flow System that helps you manage your documents efficiently.</code>
+              <code className="text-black rounded bg-background px-1">A Document Flow System that helps you manage/track your documents efficiently.</code>
             </p>
           </div>
         </div>
