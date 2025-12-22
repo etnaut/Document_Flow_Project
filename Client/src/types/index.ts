@@ -28,6 +28,7 @@ export interface Document {
   User_Id: number;
   Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived';
   Priority: string;
+  Document?: string | null; // base64-encoded file payload (optional)
   sender_name?: string;
   sender_department?: string;
   target_department: string; // The department this document is sent TO
