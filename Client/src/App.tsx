@@ -11,6 +11,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Employees/Dashboard";
 import SendDocument from "./pages/Employees/SendDocument";
 import MyDocuments from "./pages/Employees/MyDocuments";
+import MyPendingDocuments from "./pages/Employees/MyPendingDocuments";
+import MyApprovedDocuments from "./pages/Employees/MyApprovedDocuments";
 import AllDocuments from "./pages/admin/AllDocuments";
 import PendingDocuments from "./pages/admin/PendingDocuments";
 import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/send-document" element={<SendDocument />} />
               <Route path="/my-documents" element={<MyDocuments />} />
+              <Route path="/my-documents/pending" element={<MyPendingDocuments />} />
+              <Route path="/my-documents/approved" element={<MyApprovedDocuments />} />
               <Route path="/all-documents" element={<AllDocuments />} />
               <Route path="/pending" element={<PendingDocuments />} />
               <Route path="/approved" element={<ApprovedDocuments />} />

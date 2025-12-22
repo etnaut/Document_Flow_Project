@@ -83,6 +83,15 @@ const SendDocument: React.FC = () => {
       return;
     }
 
+    if (!user?.User_Id) {
+      toast({
+        title: 'User not found',
+        description: 'Your session is missing user information. Please log in again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -94,6 +103,7 @@ const SendDocument: React.FC = () => {
         User_Id: user?.User_Id,
         sender_name: user?.Full_Name,
         sender_department: user?.Department,
+        description: formData.description.trim() || undefined,
         Document: documentFile,
       });
 
@@ -104,9 +114,10 @@ const SendDocument: React.FC = () => {
 
       navigate('/my-documents');
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit document. Please try again.';
       toast({
         title: 'Error',
-        description: 'Failed to submit document. Please try again.',
+        description: message,
         variant: 'destructive',
       });
     } finally {

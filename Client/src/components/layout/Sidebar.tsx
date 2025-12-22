@@ -37,6 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/send-document', icon: Send, label: 'Send Document' },
     { to: '/my-documents', icon: FileText, label: 'My Documents' },
+    { to: '/my-documents/pending', icon: Clock, label: 'Pending Documents' },
+    { to: '/my-documents/approved', icon: CheckCircle, label: 'Approved Documents' },
   ];
 
   const adminLinks = [

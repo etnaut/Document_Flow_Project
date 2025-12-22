@@ -34,6 +34,7 @@ export interface Document {
   target_department: string; // The department this document is sent TO
   created_at?: string;
   comments?: string;
+  description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin
