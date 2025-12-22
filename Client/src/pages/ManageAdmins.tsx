@@ -215,7 +215,7 @@ const ManageAdmins: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Manage Admins</h1>
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-white">Manage Admins</h1>
           <p className="text-muted-foreground">Create and manage department admin accounts</p>
         </div>
         
@@ -226,13 +226,13 @@ const ManageAdmins: React.FC = () => {
               Add Admin
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
                 Create Admin Account
               </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
+              <p className="text-sm text-slate-600-black mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -406,7 +406,7 @@ const ManageAdmins: React.FC = () => {
         </Dialog>
           {/* Department creation dialog */}
           <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
               <DialogHeader>
                 <DialogTitle>Create Department</DialogTitle>
               </DialogHeader>
@@ -440,7 +440,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for creating admin */}
             <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Create Admin</DialogTitle>
                 </DialogHeader>
@@ -460,7 +460,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for status change (activate/deactivate) */}
             <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Status Change</DialogTitle>
                 </DialogHeader>
@@ -483,7 +483,7 @@ const ManageAdmins: React.FC = () => {
 
           {/* Division creation dialog */}
           <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
               <DialogHeader>
                 <DialogTitle>Create Division</DialogTitle>
               </DialogHeader>
@@ -520,21 +520,21 @@ const ManageAdmins: React.FC = () => {
       </div>
 
       <div className="rounded-lg border bg-card">
-        <Table>
+        <Table className="text-white">
           <TableHeader>
             <TableRow>
-              <TableHead>Full Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Division</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="uppercase text-white">Full Name</TableHead>
+              <TableHead className="uppercase text-white">Email</TableHead>
+              <TableHead className="uppercase text-white">Department</TableHead>
+              <TableHead className="uppercase text-white">Division</TableHead>
+              <TableHead className="uppercase text-white">Role</TableHead>
+              <TableHead className="uppercase text-white">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {admins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-white/80">
                   <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
                   No admin accounts found.
                 </TableCell>
@@ -542,11 +542,11 @@ const ManageAdmins: React.FC = () => {
             ) : (
               admins.map((admin) => (
                 <TableRow key={admin.User_Id}>
-                  <TableCell className="font-medium">{admin.Full_Name}</TableCell>
-                  <TableCell>{admin.Email}</TableCell>
-                  <TableCell>{admin.Department}</TableCell>
-                  <TableCell>{admin.Division}</TableCell>
-                  <TableCell>{admin.User_Role}</TableCell>
+                  <TableCell className="font-medium text-white">{admin.Full_Name}</TableCell>
+                  <TableCell className="text-white">{admin.Email}</TableCell>
+                  <TableCell className="text-white">{admin.Department}</TableCell>
+                  <TableCell className="text-white">{admin.Division}</TableCell>
+                  <TableCell className="text-white">{admin.User_Role}</TableCell>
                   <TableCell>
                     <span
                       role="button"
@@ -558,8 +558,8 @@ const ManageAdmins: React.FC = () => {
                         }
                       }}
                       onClick={() => handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status)}
-                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs ${
-                        admin.Status ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs border border-white/20 ${
+                        admin.Status ? 'bg-green-500/20 text-white' : 'bg-red-500/20 text-white'
                       }`}
                     >
                       {admin.Status ? 'Active' : 'Inactive'}
