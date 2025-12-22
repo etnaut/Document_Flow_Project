@@ -46,6 +46,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const { user } = useAuth();
   const isAdmin = user?.User_Role === 'Admin';
+  const isReleaser = user?.User_Role === 'Releaser' || String(user?.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser';
+  const canRelease = (isAdmin || isReleaser) && onRelease;
 
   return (
     <div className="rounded-xl border bg-card shadow-card overflow-hidden">
@@ -153,9 +155,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         </>
                       )}
 
-                      {isAdmin && doc.Status === 'Approved' && (
+                      {canRelease && doc.Status === 'Approved' && (
                         <>
-                          {onForward && (
+                          {isAdmin && onForward && (
                             <Button
                               variant="ghost"
                               size="sm"

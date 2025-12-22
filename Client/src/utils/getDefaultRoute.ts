@@ -5,13 +5,16 @@ export const getDefaultRoute = (userOrRole: User | string) => {
   const user = userOrRole && typeof userOrRole === 'object' ? userOrRole : null;
   const role = user ? user.User_Role : (userOrRole || '');
 
-  if (user && user.pre_assigned_role && String(user.pre_assigned_role).trim().toLowerCase() === 'recorder') {
-    return '/records';
+  if (user && user.pre_assigned_role) {
+    const assigned = String(user.pre_assigned_role).trim().toLowerCase();
+    if (assigned === 'recorder') return '/records';
+    if (assigned === 'releaser') return '/releaser';
   }
 
   const roleString = typeof role === 'string' ? role : '';
   const normalizedRole = (roleString || '').toLowerCase();
   if (normalizedRole === 'superadmin') return '/super-admin';
+  if (normalizedRole === 'releaser') return '/releaser';
   if (['departmenthead', 'divisionhead', 'officerincharge'].includes(normalizedRole)) return '/head';
   return '/dashboard';
 };

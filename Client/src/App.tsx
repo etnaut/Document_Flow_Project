@@ -15,7 +15,6 @@ import AllDocuments from "./pages/admin/AllDocuments";
 import PendingDocuments from "./pages/admin/PendingDocuments";
 import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
 import RevisionDocuments from "./pages/admin/RevisionDocuments";
-import ReceivedRequests from "./pages/Employees/ReceivedRequests";
 import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
 import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
@@ -23,6 +22,10 @@ import RecordPage from "./pages/Recorder/RecordPage";
 import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/Heads/DivisionHead";
+import ReleaserDashboard from "./pages/Releaser/ReleaserDashboard";
+import ReleaserAllDocuments from "./pages/Releaser/ReleaserAllDocuments";
+import ReleaserPendingDocuments from "./pages/Releaser/ReleaserPendingDocuments";
+import ReleaserReleasedDocuments from "./pages/Releaser/ReleaserReleasedDocuments";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 
@@ -51,7 +54,6 @@ const App = () => (
               <Route path="/pending" element={<PendingDocuments />} />
               <Route path="/approved" element={<ApprovedDocuments />} />
               <Route path="/revision" element={<RevisionDocuments />} />
-              <Route path="/received" element={<ReceivedRequests />} />
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />
@@ -59,6 +61,11 @@ const App = () => (
               <Route path="/head" element={<HeadDashboard />} />
               <Route path="/division-head" element={<DivisionHead />} />
               <Route path="/division-head" element={<DivisionHead />} />
+              {/* Releaser Routes */}
+              <Route path="/releaser" element={<ReleaserDashboard />} />
+              <Route path="/releaser/all" element={<ReleaserAllDocuments />} />
+              <Route path="/releaser/pending" element={<ReleaserPendingDocuments />} />
+              <Route path="/releaser/released" element={<ReleaserReleasedDocuments />} />
               {/* Admin Routes */}
             </Route>
 

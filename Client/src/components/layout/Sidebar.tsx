@@ -8,6 +8,7 @@ import {
   CheckCircle,
   RotateCcw,
   Archive,
+  Clock,
   LogOut,
   User,
   Building2,
@@ -66,15 +67,25 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/records', icon: Archive, label: 'Recorded' },
   ];
 
+  const releaserLinks = [
+    { to: '/releaser', icon: LayoutDashboard, label: 'Releaser Dashboard' },
+    { to: '/releaser/all', icon: FileText, label: 'All Documents' },
+    { to: '/releaser/pending', icon: Clock, label: 'Pending Release' },
+    { to: '/releaser/released', icon: CheckCircle, label: 'Released' },
+  ];
+
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
-  const displayRole = isRecorder ? 'Employee/Recorder' : user?.User_Role;
+  const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
+  const displayRole = isRecorder ? 'Employee/Recorder' : isReleaser ? 'Employee/Releaser' : user?.User_Role;
   const links = isSuperAdmin
     ? superAdminLinks
     : isHead
     ? headLinks
     : isRecorder
     ? recorderLinks
+    : isReleaser
+    ? releaserLinks
     : isAdmin
     ? adminLinks
     : employeeLinks;

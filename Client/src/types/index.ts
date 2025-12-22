@@ -5,7 +5,8 @@ export type UserRole =
   | 'Employee'
   | 'DepartmentHead'
   | 'DivisionHead'
-  | 'OfficerInCharge';
+  | 'OfficerInCharge'
+  | 'Releaser';
 
 export interface User {
   User_Id: number;
