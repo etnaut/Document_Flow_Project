@@ -8,20 +8,20 @@ import { AuthProvider } from "@/contexts/AuthContext";
 // Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import SendDocument from "./pages/SendDocument";
-import MyDocuments from "./pages/MyDocuments";
-import AllDocuments from "./pages/AllDocuments";
-import PendingDocuments from "./pages/PendingDocuments";
-import ApprovedDocuments from "./pages/ApprovedDocuments";
-import RevisionDocuments from "./pages/RevisionDocuments";
-import ReceivedRequests from "./pages/ReceivedRequests";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import ManageAdmins from "./pages/ManageAdmins";
-import HeadDashboard from "./pages/HeadDashboard";
-import RecordPage from "./pages/RecordPage";
+import Dashboard from "./pages/Employees/Dashboard";
+import SendDocument from "./pages/Employees/SendDocument";
+import MyDocuments from "./pages/Employees/MyDocuments";
+import AllDocuments from "./pages/admin/AllDocuments";
+import PendingDocuments from "./pages/admin/PendingDocuments";
+import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
+import RevisionDocuments from "./pages/admin/RevisionDocuments";
+import ReceivedRequests from "./pages/Employees/ReceivedRequests";
+import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
+import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
+import HeadDashboard from "./pages/SuperAdmin/HeadDashboard";
+import RecordPage from "./pages/Recorder/RecordPage";
 import RecordLayout from "./components/layout/RecordLayout";
-import DivisionHead from "./pages/DivisionHead";
+import DivisionHead from "./pages/SuperAdmin/DivisionHead";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 
