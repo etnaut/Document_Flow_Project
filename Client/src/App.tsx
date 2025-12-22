@@ -20,6 +20,7 @@ import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
 import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
 import RecordPage from "./pages/Recorder/RecordPage";
+import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/Heads/DivisionHead";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
@@ -64,6 +65,7 @@ const App = () => (
             {/* Recorder-specific standalone layout (no sidebar) */}
             <Route element={<RecordLayout />}>
               <Route path="/records" element={<RecordPage />} />
+              <Route path="/records/all" element={<AllRecorderDocuments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

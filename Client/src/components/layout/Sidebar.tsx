@@ -61,9 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   ];
 
   const recorderLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
+    { to: '/records/all', icon: FileText, label: 'All Documents' },
     { to: '/records', icon: Archive, label: 'Recorded' },
   ];
 
