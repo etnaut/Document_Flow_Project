@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments } from '@/services/api';
+import { getDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { toast } from '@/hooks/use-toast';
@@ -28,7 +28,29 @@ const AllDocuments: React.FC = () => {
     }
   };
 
-  // No action handlers needed for this simplified view
+  const handleApprove = async (id: number) => {
+    if (!user) return;
+    try {
+      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
+      toast({ title: 'Document approved.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Approve failed', error);
+      toast({ title: 'Failed to approve document', variant: 'destructive' });
+    }
+  };
+
+  const handleRevision = async (id: number) => {
+    if (!user) return;
+    try {
+      await updateDocumentStatus(id, 'Revision', undefined, user.Full_Name);
+      toast({ title: 'Sent back for revision.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Revision failed', error);
+      toast({ title: 'Failed to update document', variant: 'destructive' });
+    }
+  };
 
   if (loading) {
     return (
@@ -51,14 +73,8 @@ const AllDocuments: React.FC = () => {
         documents={documents}
         showPriority={true}
         showDescription={true}
-        onApprove={(id) => {
-          // Pass through to reuse Admin status actions if needed elsewhere
-          // parent can handle side effects; here we optimistically filter
-          setDocuments((prev) => prev.map((d) => (d.Document_Id === id ? { ...d, Status: 'Approved' } : d)));
-        }}
-        onRevision={(id) => {
-          setDocuments((prev) => prev.map((d) => (d.Document_Id === id ? { ...d, Status: 'Revision' } : d)));
-        }}
+        onApprove={handleApprove}
+        onRevision={handleRevision}
       />
     </div>
   );

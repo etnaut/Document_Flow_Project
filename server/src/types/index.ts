@@ -60,6 +60,7 @@ export interface UpdateDocumentInput {
   Document?: string; // base64 encoded
   comments?: string;
   description?: string;
+  admin?: string;
 }
 
 export interface LoginInput {

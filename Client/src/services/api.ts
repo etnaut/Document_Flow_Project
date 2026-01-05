@@ -106,7 +106,8 @@ export const createDocument = async (document: Partial<Document>): Promise<Docum
 export const updateDocumentStatus = async (
   documentId: number,
   status: Document['Status'],
-  comments?: string
+  comments?: string,
+  admin?: string
 ): Promise<Document | null> => {
   return apiRequest('/documents', {
     method: 'PUT',
@@ -114,6 +115,7 @@ export const updateDocumentStatus = async (
       Document_Id: documentId,
       Status: status,
       comments,
+      admin,
     }),
   });
 };

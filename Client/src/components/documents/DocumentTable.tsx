@@ -314,7 +314,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         {doc.Status}
                       </Badge>
                     </Button>
-                  ) : onApprove || onRevision ? (
+                  ) : (onApprove || onRevision) && doc.Status?.toLowerCase() !== 'approved' ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="px-0">

@@ -252,15 +252,29 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /documents - Update a document
+// PUT /documents - Update a document (and persist approvals)
 router.put('/', async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
   try {
-  const hasStatus = await hasSenderStatusColumn();
-  const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
+    const hasStatus = await hasSenderStatusColumn();
+    const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
     const input = getJsonInput<UpdateDocumentInput>(req.body);
 
     if (!input.Document_Id) {
+      client.release();
       return sendResponse(res, { error: 'Document_Id is required' }, 400);
+    }
+
+    // Preload sender/user for approved insert
+    const existingDoc = await client.query(
+      'SELECT document_id, user_id FROM sender_document_tbl WHERE document_id = $1 LIMIT 1',
+      [input.Document_Id]
+    );
+
+    if (existingDoc.rows.length === 0) {
+      client.release();
+      return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
     const updates: string[] = [];
@@ -270,12 +284,21 @@ router.put('/', async (req: Request, res: Response) => {
     // Build dynamic update query
     const allowedFields = hasStatus ? ['Status', 'Priority', 'Type', 'description'] : ['Priority', 'Type', 'description'];
     if (!hasStatus && input.Status !== undefined) {
+      client.release();
       return sendResponse(res, { error: 'Status column not available in sender_document_tbl' }, 400);
     }
+
     for (const field of allowedFields) {
       if (field in input && input[field as keyof UpdateDocumentInput] !== undefined) {
+        let value = input[field as keyof UpdateDocumentInput];
+
+        // Normalize status casing to satisfy DB check constraints
+        if (field === 'Status' && typeof value === 'string') {
+          value = (value as string).toLowerCase();
+        }
+
         updates.push(`${field} = $${paramCount}`);
-        params.push(input[field as keyof UpdateDocumentInput]);
+        params.push(value);
         paramCount++;
       }
     }
@@ -287,16 +310,38 @@ router.put('/', async (req: Request, res: Response) => {
     }
 
     if (updates.length === 0) {
+      client.release();
       return sendResponse(res, { error: 'No fields to update' }, 400);
     }
 
     params.push(input.Document_Id);
     const sql = `UPDATE Sender_Document_Tbl SET ${updates.join(', ')} WHERE Document_Id = $${paramCount}`;
 
-    await pool.query(sql, params);
+    await client.query('BEGIN');
+    await client.query(sql, params);
+
+    // If approved, persist to approved_document_tbl (avoid duplicates)
+    const statusValue = (input.Status || '').toLowerCase();
+    if (statusValue === 'approved') {
+      const approvedCheck = await client.query(
+        'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+        [input.Document_Id]
+      );
+
+      if (approvedCheck.rows.length === 0) {
+        await client.query(
+          'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+          [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
+        );
+      } else if (input.admin) {
+        await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+      }
+    }
+
+    await client.query('COMMIT');
 
     // Fetch updated document
-    const docResult = await pool.query(
+    const docResult = await client.query(
       `
       SELECT 
         sd.document_id AS "Document_Id",
@@ -325,6 +370,7 @@ router.put('/', async (req: Request, res: Response) => {
     );
 
     if (docResult.rows.length === 0) {
+      client.release();
       return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
@@ -342,8 +388,15 @@ router.put('/', async (req: Request, res: Response) => {
       description: updatedRow.description || null,
     };
 
+    client.release();
     sendResponse(res, document);
   } catch (error: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Rollback failed:', rollbackError);
+    }
+    client.release();
     console.error('Update document error:', error);
     sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
