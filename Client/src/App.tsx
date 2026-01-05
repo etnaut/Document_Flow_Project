@@ -8,22 +8,26 @@ import { AuthProvider } from "@/contexts/AuthContext";
 // Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import SendDocument from "./pages/SendDocument";
-import MyDocuments from "./pages/MyDocuments";
-import AllDocuments from "./pages/AllDocuments";
-import PendingDocuments from "./pages/PendingDocuments";
-import ApprovedDocuments from "./pages/ApprovedDocuments";
-import RevisionDocuments from "./pages/RevisionDocuments";
-import ReceivedRequests from "./pages/ReceivedRequests";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import ManageAdmins from "./pages/ManageAdmins";
-import HeadDashboard from "./pages/HeadDashboard";
-import RecordPage from "./pages/RecordPage";
+import Dashboard from "./pages/Employees/Dashboard";
+import SendDocument from "./pages/Employees/SendDocument";
+import MyDocuments from "./pages/Employees/MyDocuments";
+import MyPendingDocuments from "./pages/Employees/MyPendingDocuments";
+import MyApprovedDocuments from "./pages/Employees/MyApprovedDocuments";
+import AllDocuments from "./pages/admin/AllDocuments";
+import PendingDocuments from "./pages/admin/PendingDocuments";
+import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
+import RevisionDocuments from "./pages/admin/RevisionDocuments";
+import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
+import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
+import HeadDashboard from "./pages/Heads/HeadDashboard";
+import RecordPage from "./pages/Recorder/RecordPage";
+import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
-import ReleasePage from "./pages/ReleasePage";
-import ReleaseLayout from "./components/layout/ReleaseLayout";
-import DivisionHead from "./pages/DivisionHead";
+import DivisionHead from "./pages/Heads/DivisionHead";
+import ReleaserDashboard from "./pages/Releaser/ReleaserDashboard";
+import ReleaserAllDocuments from "./pages/Releaser/ReleaserAllDocuments";
+import ReleaserPendingDocuments from "./pages/Releaser/ReleaserPendingDocuments";
+import ReleaserReleasedDocuments from "./pages/Releaser/ReleaserReleasedDocuments";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 
@@ -48,29 +52,30 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/send-document" element={<SendDocument />} />
               <Route path="/my-documents" element={<MyDocuments />} />
+              <Route path="/my-documents/pending" element={<MyPendingDocuments />} />
+              <Route path="/my-documents/approved" element={<MyApprovedDocuments />} />
               <Route path="/all-documents" element={<AllDocuments />} />
               <Route path="/pending" element={<PendingDocuments />} />
               <Route path="/approved" element={<ApprovedDocuments />} />
               <Route path="/revision" element={<RevisionDocuments />} />
-              <Route path="/received" element={<ReceivedRequests />} />
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />
               {/* Head roles (DepartmentHead / DivisionHead / OfficerInCharge) */}
               <Route path="/head" element={<HeadDashboard />} />
               <Route path="/division-head" element={<DivisionHead />} />
-              <Route path="/division-head" element={<DivisionHead />} />
+              {/* Releaser Routes */}
+              <Route path="/releaser" element={<ReleaserDashboard />} />
+              <Route path="/releaser/all" element={<ReleaserAllDocuments />} />
+              <Route path="/releaser/pending" element={<ReleaserPendingDocuments />} />
+              <Route path="/releaser/released" element={<ReleaserReleasedDocuments />} />
               {/* Admin Routes */}
             </Route>
 
             {/* Recorder-specific standalone layout (no sidebar) */}
             <Route element={<RecordLayout />}>
               <Route path="/records" element={<RecordPage />} />
-            </Route>
-
-            {/* Releaser-specific layout */}
-            <Route element={<ReleaseLayout />}>
-              <Route path="/releases" element={<ReleasePage />} />
+              <Route path="/records/all" element={<AllRecorderDocuments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

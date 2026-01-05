@@ -46,44 +46,36 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const { user } = useAuth();
   const isAdmin = user?.User_Role === 'Admin';
+  const isReleaser = user?.User_Role === 'Releaser' || String(user?.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser';
+  const canRelease = (isAdmin || isReleaser) && onRelease;
+  const columnsCount = showActions ? 7 : 6;
 
   return (
     <div className="rounded-xl border bg-card shadow-card overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="font-semibold">ID</TableHead>
             <TableHead className="font-semibold">Type</TableHead>
             <TableHead className="font-semibold">Sender</TableHead>
-            <TableHead className="font-semibold">From Dept.</TableHead>
-            <TableHead className="font-semibold">To Dept.</TableHead>
             <TableHead className="font-semibold">Priority</TableHead>
-            <TableHead className="font-semibold">Status</TableHead>
+            <TableHead className="font-semibold">Document</TableHead>
             <TableHead className="font-semibold">Date</TableHead>
+            <TableHead className="font-semibold">Status</TableHead>
             {showActions && <TableHead className="font-semibold text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {documents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={columnsCount} className="h-24 text-center text-muted-foreground">
                 No documents found.
               </TableCell>
             </TableRow>
           ) : (
             documents.map((doc) => (
               <TableRow key={doc.Document_Id} className="animate-fade-in">
-                <TableCell className="font-medium">#{doc.Document_Id}</TableCell>
                 <TableCell>{doc.Type}</TableCell>
                 <TableCell>{doc.sender_name}</TableCell>
-                <TableCell>
-                  <span className="text-xs text-muted-foreground">{doc.sender_department}</span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="text-xs">
-                    {doc.target_department}
-                  </Badge>
-                </TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -98,9 +90,16 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusVariants[doc.Status] || 'default'}>{doc.Status}</Badge>
+                  {doc.Document ? (
+                    <Badge variant="secondary" className="text-xs">Attached</Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">None</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{doc.created_at}</TableCell>
+                <TableCell>
+                  <Badge variant={statusVariants[doc.Status] || 'default'}>{doc.Status}</Badge>
+                </TableCell>
                 {showActions && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -153,9 +152,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         </>
                       )}
 
-                      {isAdmin && doc.Status === 'Approved' && (
+                      {canRelease && doc.Status === 'Approved' && (
                         <>
-                          {onForward && (
+                          {isAdmin && onForward && (
                             <Button
                               variant="ghost"
                               size="sm"

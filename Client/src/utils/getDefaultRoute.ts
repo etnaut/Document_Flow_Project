@@ -8,12 +8,13 @@ export const getDefaultRoute = (userOrRole: User | string) => {
   if (user && user.pre_assigned_role) {
     const assigned = String(user.pre_assigned_role).trim().toLowerCase();
     if (assigned === 'recorder') return '/records';
-    if (assigned === 'releaser') return '/releases';
+    if (assigned === 'releaser') return '/releaser';
   }
 
   const roleString = typeof role === 'string' ? role : '';
   const normalizedRole = (roleString || '').toLowerCase();
   if (normalizedRole === 'superadmin') return '/super-admin';
+  if (normalizedRole === 'releaser') return '/releaser';
   if (['departmenthead', 'divisionhead', 'officerincharge'].includes(normalizedRole)) return '/head';
   return '/dashboard';
 };

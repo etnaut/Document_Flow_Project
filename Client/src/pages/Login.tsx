@@ -100,28 +100,28 @@ const Login: React.FC = () => {
                   }
                 `}</style>
                 <div className="coin-3d relative w-16 h-16 mx-auto">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-accent to-primary shadow-[0_0_25px_rgba(0,0,0,0.4),0_15px_35px_rgba(0,0,0,0.3),inset_0_3px_15px_rgba(255,255,255,0.4),inset_0_-3px_15px_rgba(0,0,0,0.2)] dark:shadow-[0_0_25px_rgba(0,0,0,0.6),0_15px_35px_rgba(0,0,0,0.5),inset_0_3px_15px_rgba(255,255,255,0.3),inset_0_-3px_15px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20">
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-accent to-primary dark:shadow-[0_0_25px_rgba(0,0,0,0.6),0_15px_35px_rgba(0,0,0,0.5),inset_0_3px_15px_rgba(255,255,255,0.3),inset_0_-3px_15px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20">
                     <FileText className="h-8 w-8 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" />
                   </div>
                 </div>
               </div>
             </div>
-            <h2 className="text-3xl font-extrabold text-foreground">Welcome to Document Flow System</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">Sign in to continue.</p>
+            <h2 className="text-3xl font-extrabold text-foreground-black">Welcome to Document Flow System</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground-gray">Sign in to continue.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-3 space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="username" className="text-sm">Username</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
                 <Input
                   id="username"
                   type="text"
                   placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="pl-11 py-2.5 text-sm rounded-xl"
+                  className="pl-11 py-2.5 text-sm rounded-xl- placeholder:text-gray-500"
                   disabled={isLoading}
                 />
               </div>
@@ -130,14 +130,14 @@ const Login: React.FC = () => {
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-sm">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 py-2.5 text-sm rounded-xl"
+                  className="pl-11 py-2.5 text-sm rounded-xl placeholder:text-gray-500"
                   disabled={isLoading}
                 />
               </div>
@@ -148,7 +148,7 @@ const Login: React.FC = () => {
                 <Checkbox id="remember" checked={remember} onCheckedChange={(v) => setRemember(Boolean(v))} />
                 <Label htmlFor="remember" className="text-sm text-black font-semibold">Remember me</Label>
               </div>
-              <a className="text-sm font-semibold text-primary text-black hover:underline" href="#">Forgot password?</a>
+              <a className="text-sm font-bold text-primary-black hover:underline" href="#">Forgot password?</a>
             </div>
 
             <div className="flex justify-center">
@@ -175,9 +175,9 @@ const Login: React.FC = () => {
 
 
           <div className="mt-4 rounded-lg bg-muted p-3">
-            <p className="text-sm font-medium text-muted-foreground">DocuFlow</p>
+            <p className="text-sm font-medium text-muted-foreground-black">DocuFlow</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              <code className="rounded bg-background px-1">A Document Flow System that helps you manage your documents efficiently.</code>
+              <code className="text-black rounded bg-background px-1">A Document Flow System that helps you manage/track your documents efficiently.</code>
             </p>
           </div>
         </div>

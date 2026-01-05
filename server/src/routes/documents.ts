@@ -2,12 +2,16 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
+import { hasSenderStatusColumn } from '../utils/schema.js';
 
 const router = Router();
 
 // GET /documents - Get all documents with optional filters
 router.get('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
+
     const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
     const role = req.query.role as string | undefined;
     const department = req.query.department as string | undefined;
@@ -15,12 +19,14 @@ router.get('/', async (req: Request, res: Response) => {
 
     let sql = `
       SELECT 
-        sd.Document_Id,
-        sd.Type,
-        sd.User_Id,
-        sd.Status,
-        sd.Priority,
-        sd.Document,
+        sd.document_id AS "Document_Id",
+        sd.type AS "Type",
+        sd.user_id AS "User_Id",
+  ${statusSelect} AS "Status",
+        sd.priority AS "Priority",
+        sd.document AS "Document",
+        sd.description AS "description",
+        sd.date AS "created_at",
         u.Full_Name AS sender_name,
         d.Department AS sender_department,
         dv.Division AS sender_division,
@@ -28,8 +34,7 @@ router.get('/', async (req: Request, res: Response) => {
         NULL AS comments,
         NULL AS forwarded_from,
         NULL AS forwarded_by_admin,
-        NULL AS is_forwarded_request,
-        NULL AS created_at
+        NULL AS is_forwarded_request
       FROM Sender_Document_Tbl sd
       LEFT JOIN User_Tbl u ON sd.User_Id = u.User_Id
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
@@ -40,10 +45,12 @@ router.get('/', async (req: Request, res: Response) => {
     const params: any[] = [];
     let paramCount = 1;
 
-    if (status) {
-      sql += ` AND sd.Status = $${paramCount}`;
+    if (status && hasStatus) {
+      sql += ` AND LOWER(sd.Status) = LOWER($${paramCount})`;
       params.push(status);
       paramCount++;
+    } else if (status && !hasStatus) {
+      console.warn('Status filter requested but sender_document_tbl.status column is missing; ignoring filter');
     }
 
     // If Admin, filter by their department name
@@ -70,6 +77,7 @@ router.get('/', async (req: Request, res: Response) => {
       forwarded_by_admin: doc.forwarded_by_admin || null,
       is_forwarded_request: doc.is_forwarded_request || null,
       created_at: doc.created_at || null,
+      description: doc.description || null,
     }));
 
     sendResponse(res, documents);
@@ -82,13 +90,42 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /documents - Create a new document
 router.post('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
     const input = getJsonInput<CreateDocumentInput>(req.body);
 
-    const required = ['Type', 'User_Id', 'Priority'];
+  const required = ['Type', 'Priority'];
     for (const field of required) {
       if (!(field in input)) {
         return sendResponse(res, { error: `Missing required field: ${field}` }, 400);
       }
+    }
+
+    // Ensure we have a valid user id (FK to user_tbl). If not provided, try to resolve by full name.
+    let userId = input.User_Id;
+
+    if (!userId) {
+      const name = (input as any).sender_name as string | undefined;
+      if (name) {
+        const userResult = await pool.query(
+          `SELECT user_id FROM user_tbl WHERE LOWER(full_name) = LOWER($1) LIMIT 1`,
+          [name]
+        );
+
+        if (userResult.rows.length > 0) {
+          userId = userResult.rows[0].user_id;
+        }
+      }
+    }
+
+    if (!userId) {
+      return sendResponse(res, { error: 'User_Id is required and must reference user_tbl' }, 400);
+    }
+
+    // Double-check FK exists
+    const userExists = await pool.query(`SELECT 1 FROM user_tbl WHERE user_id = $1`, [userId]);
+    if (userExists.rows.length === 0) {
+      return sendResponse(res, { error: 'User_Id not found in user_tbl' }, 400);
     }
 
     let fileData: Buffer | null = null;
@@ -97,36 +134,49 @@ router.post('/', async (req: Request, res: Response) => {
       fileData = Buffer.from(input.Document, 'base64');
     }
 
-    const result = await pool.query(
-      `
-      INSERT INTO Sender_Document_Tbl (Type, User_Id, Status, Priority, Document)
-      VALUES ($1, $2, 'Pending', $3, $4)
-      RETURNING Document_Id
-    `,
-      [input.Type, input.User_Id, input.Priority, fileData]
-    );
+    const pendingValue = 'pending';
 
-    const documentId = result.rows[0].Document_Id;
+    const { sql: insertSql, params: insertParams } = hasStatus
+      ? {
+          sql: `INSERT INTO Sender_Document_Tbl (Type, User_Id, Status, Priority, Document, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING Document_Id`,
+          params: [input.Type, userId, pendingValue, input.Priority, fileData, input.description ?? null],
+        }
+      : {
+          sql: `INSERT INTO Sender_Document_Tbl (Type, User_Id, Priority, Document, description) VALUES ($1, $2, $3, $4, $5) RETURNING Document_Id`,
+          params: [input.Type, userId, input.Priority, fileData, input.description ?? null],
+        };
+
+    const result = await pool.query(insertSql, insertParams);
+
+    const documentId =
+      result.rows?.[0]?.Document_Id ??
+      result.rows?.[0]?.document_id ??
+      result.rows?.[0]?.documentid;
+
+    if (!documentId) {
+      return sendResponse(res, { error: 'Insert succeeded but no Document_Id returned' }, 500);
+    }
 
     // Fetch the created document
     const docResult = await pool.query(
       `
-      SELECT 
-        sd.Document_Id,
-        sd.Type,
-        sd.User_Id,
-        sd.Status,
-        sd.Priority,
-        sd.Document,
-        u.Full_Name AS sender_name,
-        d.Department AS sender_department,
-        dv.Division AS sender_division,
-        NULL AS target_department,
-        NULL AS comments,
-        NULL AS forwarded_from,
-        NULL AS forwarded_by_admin,
-        NULL AS is_forwarded_request,
-        NULL AS created_at
+  SELECT 
+    sd.document_id AS "Document_Id",
+    sd.type AS "Type",
+    sd.user_id AS "User_Id",
+  ${statusSelect} AS "Status",
+    sd.priority AS "Priority",
+    sd.document AS "Document",
+    sd.description AS "description",
+    sd.date AS "created_at",
+    u.Full_Name AS sender_name,
+    d.Department AS sender_department,
+    dv.Division AS sender_division,
+    NULL AS target_department,
+    NULL AS comments,
+    NULL AS forwarded_from,
+    NULL AS forwarded_by_admin,
+    NULL AS is_forwarded_request
       FROM Sender_Document_Tbl sd
       LEFT JOIN User_Tbl u ON sd.User_Id = u.User_Id
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
@@ -136,15 +186,22 @@ router.post('/', async (req: Request, res: Response) => {
       [documentId]
     );
 
+    if (docResult.rows.length === 0) {
+      return sendResponse(res, { error: 'Created document not found after insert' }, 500);
+    }
+
+    const createdRow = docResult.rows[0];
+
     const document: Document = {
-      ...docResult.rows[0],
-      Document: docResult.rows[0].Document ? Buffer.from(docResult.rows[0].Document) : null,
+      ...createdRow,
+      Document: createdRow.Document ? Buffer.from(createdRow.Document) : null,
       target_department: null,
       comments: null,
       forwarded_from: null,
       forwarded_by_admin: null,
       is_forwarded_request: null,
-      created_at: null,
+      created_at: createdRow.created_at || null,
+      description: createdRow.description || null,
     };
 
     sendResponse(res, document, 201);
@@ -157,6 +214,8 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /documents - Update a document
 router.put('/', async (req: Request, res: Response) => {
   try {
+  const hasStatus = await hasSenderStatusColumn();
+  const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
     const input = getJsonInput<UpdateDocumentInput>(req.body);
 
     if (!input.Document_Id) {
@@ -168,7 +227,10 @@ router.put('/', async (req: Request, res: Response) => {
     let paramCount = 1;
 
     // Build dynamic update query
-    const allowedFields = ['Status', 'Priority', 'Type'];
+    const allowedFields = hasStatus ? ['Status', 'Priority', 'Type', 'description'] : ['Priority', 'Type', 'description'];
+    if (!hasStatus && input.Status !== undefined) {
+      return sendResponse(res, { error: 'Status column not available in sender_document_tbl' }, 400);
+    }
     for (const field of allowedFields) {
       if (field in input && input[field as keyof UpdateDocumentInput] !== undefined) {
         updates.push(`${field} = $${paramCount}`);
@@ -196,12 +258,14 @@ router.put('/', async (req: Request, res: Response) => {
     const docResult = await pool.query(
       `
       SELECT 
-        sd.Document_Id,
-        sd.Type,
-        sd.User_Id,
-        sd.Status,
-        sd.Priority,
-        sd.Document,
+        sd.document_id AS "Document_Id",
+        sd.type AS "Type",
+        sd.user_id AS "User_Id",
+  ${statusSelect} AS "Status",
+        sd.priority AS "Priority",
+        sd.document AS "Document",
+        sd.description AS "description",
+        sd.date AS "created_at",
         u.Full_Name AS sender_name,
         d.Department AS sender_department,
         dv.Division AS sender_division,
@@ -209,8 +273,7 @@ router.put('/', async (req: Request, res: Response) => {
         NULL AS comments,
         NULL AS forwarded_from,
         NULL AS forwarded_by_admin,
-        NULL AS is_forwarded_request,
-        NULL AS created_at
+        NULL AS is_forwarded_request
       FROM Sender_Document_Tbl sd
       LEFT JOIN User_Tbl u ON sd.User_Id = u.User_Id
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
@@ -224,15 +287,18 @@ router.put('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
+    const updatedRow = docResult.rows[0];
+
     const document: Document = {
-      ...docResult.rows[0],
-      Document: docResult.rows[0].Document ? Buffer.from(docResult.rows[0].Document) : null,
+      ...updatedRow,
+      Document: updatedRow.Document ? Buffer.from(updatedRow.Document) : null,
       target_department: null,
       comments: input.comments || null,
       forwarded_from: null,
       forwarded_by_admin: null,
       is_forwarded_request: null,
-      created_at: null,
+      created_at: updatedRow.created_at || null,
+      description: updatedRow.description || null,
     };
 
     sendResponse(res, document);

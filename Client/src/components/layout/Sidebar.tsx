@@ -8,6 +8,7 @@ import {
   CheckCircle,
   RotateCcw,
   Archive,
+  Clock,
   LogOut,
   User,
   Building2,
@@ -36,6 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/send-document', icon: Send, label: 'Send Document' },
     { to: '/my-documents', icon: FileText, label: 'My Documents' },
+    { to: '/my-documents/pending', icon: Clock, label: 'Pending Documents' },
+    { to: '/my-documents/approved', icon: CheckCircle, label: 'Approved Documents' },
   ];
 
   const adminLinks = [
@@ -61,22 +64,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   ];
 
   const recorderLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
+    { to: '/records/all', icon: FileText, label: 'All Documents' },
     { to: '/records', icon: Archive, label: 'Recorded' },
   ];
 
   const releaserLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
-    { to: '/releases', icon: Archive, label: 'Released' },
+    { to: '/releaser', icon: LayoutDashboard, label: 'Releaser Dashboard' },
+    { to: '/releaser/all', icon: FileText, label: 'All Documents' },
+    { to: '/releaser/pending', icon: Clock, label: 'Pending Release' },
+    { to: '/releaser/released', icon: CheckCircle, label: 'Released' },
   ];
 
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
-  const isReleaser = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser';
+  const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
+  const displayRole = isRecorder ? 'Employee/Recorder' : isReleaser ? 'Employee/Releaser' : user?.User_Role;
   const links = isSuperAdmin
     ? superAdminLinks
     : isHead
@@ -130,6 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
+<<<<<<< HEAD
                 {(() => {
                   const isEmp = user?.User_Role === 'Employee';
                   const assigned = String(user?.pre_assigned_role ?? '').trim().toLowerCase();
@@ -138,6 +142,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                   const displayRole = user?.User_Role ?? '';
                   return <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>;
                 })()}
+=======
+                <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>
+>>>>>>> 781b62bb2b5993984baa04d709947b843eaaf808
               </div>
             </div>
             <div className="mt-3 space-y-1.5">

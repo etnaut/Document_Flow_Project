@@ -5,7 +5,8 @@ export type UserRole =
   | 'Employee'
   | 'DepartmentHead'
   | 'DivisionHead'
-  | 'OfficerInCharge';
+  | 'OfficerInCharge'
+  | 'Releaser';
 
 export interface User {
   User_Id: number;
@@ -27,11 +28,13 @@ export interface Document {
   User_Id: number;
   Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived';
   Priority: string;
+  Document?: string | null; // base64-encoded file payload (optional)
   sender_name?: string;
   sender_department?: string;
   target_department: string; // The department this document is sent TO
   created_at?: string;
   comments?: string;
+  description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin

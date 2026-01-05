@@ -28,6 +28,7 @@ export interface Document {
   forwarded_by_admin: string | null;
   is_forwarded_request: boolean | null;
   created_at: string | null;
+  description: string | null;
 }
 
 export interface CreateUserInput {
@@ -48,6 +49,7 @@ export interface CreateDocumentInput {
   User_Id: number;
   Priority: string;
   Document?: string; // base64 encoded
+  description?: string;
 }
 
 export interface UpdateDocumentInput {
@@ -57,6 +59,7 @@ export interface UpdateDocumentInput {
   Type?: string;
   Document?: string; // base64 encoded
   comments?: string;
+  description?: string;
 }
 
 export interface LoginInput {
