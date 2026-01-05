@@ -51,6 +51,14 @@ const AllDocuments: React.FC = () => {
         documents={documents}
         showPriority={true}
         showDescription={true}
+        onApprove={(id) => {
+          // Pass through to reuse Admin status actions if needed elsewhere
+          // parent can handle side effects; here we optimistically filter
+          setDocuments((prev) => prev.map((d) => (d.Document_Id === id ? { ...d, Status: 'Approved' } : d)));
+        }}
+        onRevision={(id) => {
+          setDocuments((prev) => prev.map((d) => (d.Document_Id === id ? { ...d, Status: 'Revision' } : d)));
+        }}
       />
     </div>
   );

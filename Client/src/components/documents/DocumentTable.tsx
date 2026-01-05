@@ -27,6 +27,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -52,6 +58,8 @@ const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'rele
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
   documents,
+  onApprove,
+  onRevision,
   onEdit,
   renderActions,
   showPriority = true,
@@ -306,6 +314,28 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         {doc.Status}
                       </Badge>
                     </Button>
+                  ) : onApprove || onRevision ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="px-0">
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {doc.Status}
+                          </Badge>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        {onApprove && (
+                          <DropdownMenuItem onSelect={() => onApprove(doc.Document_Id)}>
+                            Approve
+                          </DropdownMenuItem>
+                        )}
+                        {onRevision && (
+                          <DropdownMenuItem onSelect={() => onRevision(doc.Document_Id)}>
+                            Send for Revision
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : (
                     <Badge variant={statusVariants[doc.Status] || 'default'}>{doc.Status}</Badge>
                   )}
