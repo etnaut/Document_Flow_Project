@@ -238,9 +238,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           <TableRow className="bg-muted/50">
             <TableHead className="font-semibold">Type</TableHead>
             <TableHead className="font-semibold">Sender</TableHead>
-            <TableHead className="font-semibold">Priority</TableHead>
+            {showPriority && <TableHead className="font-semibold">Priority</TableHead>}
             <TableHead className="font-semibold">Document</TableHead>
             <TableHead className="font-semibold">Date</TableHead>
+            {showDescription && <TableHead className="font-semibold">Description</TableHead>}
             <TableHead className="font-semibold">Status</TableHead>
             {renderActions && <TableHead className="font-semibold">Actions</TableHead>}
           </TableRow>

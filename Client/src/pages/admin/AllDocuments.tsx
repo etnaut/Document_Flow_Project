@@ -49,7 +49,7 @@ const AllDocuments: React.FC = () => {
 
       <DocumentTable
         documents={documents}
-        showPriority={false}
+        showPriority={true}
         showDescription={true}
       />
     </div>
