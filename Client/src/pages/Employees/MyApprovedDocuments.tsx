@@ -48,7 +48,7 @@ const MyApprovedDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable documents={documents} showActions={false} />
+  <DocumentTable documents={documents} />
     </div>
   );
 };

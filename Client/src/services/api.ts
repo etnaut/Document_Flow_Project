@@ -26,7 +26,7 @@ export const normalizeUser = (u: any): User => {
 };
 
 // Base URL for the TypeScript backend API
-const API_BASE_URL = 'http://localhost:3001/api';
+export const API_BASE_URL = 'http://localhost:3001/api';
 
 // API helper for making requests with basic error handling
 const apiRequest = async (endpoint: string, options?: RequestInit) => {

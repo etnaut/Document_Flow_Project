@@ -38,6 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/send-document', icon: Send, label: 'Send Document' },
     { to: '/my-documents', icon: FileText, label: 'My Documents' },
     { to: '/my-documents/pending', icon: Clock, label: 'Pending Documents' },
+    { to: '/my-documents/revision', icon: RotateCcw, label: 'Needs Revision' },
     { to: '/my-documents/approved', icon: CheckCircle, label: 'Approved Documents' },
   ];
 

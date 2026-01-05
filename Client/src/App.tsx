@@ -13,10 +13,12 @@ import SendDocument from "./pages/Employees/SendDocument";
 import MyDocuments from "./pages/Employees/MyDocuments";
 import MyPendingDocuments from "./pages/Employees/MyPendingDocuments";
 import MyApprovedDocuments from "./pages/Employees/MyApprovedDocuments";
+import MyRevisionDocuments from "./pages/Employees/MyRevisionDocuments";
 import AllDocuments from "./pages/admin/AllDocuments";
 import PendingDocuments from "./pages/admin/PendingDocuments";
 import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
 import RevisionDocuments from "./pages/admin/RevisionDocuments";
+import ReceivedRequests from "./pages/admin/ReceivedRequests";
 import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
 import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
@@ -54,10 +56,12 @@ const App = () => (
               <Route path="/my-documents" element={<MyDocuments />} />
               <Route path="/my-documents/pending" element={<MyPendingDocuments />} />
               <Route path="/my-documents/approved" element={<MyApprovedDocuments />} />
+              <Route path="/my-documents/revision" element={<MyRevisionDocuments />} />
               <Route path="/all-documents" element={<AllDocuments />} />
               <Route path="/pending" element={<PendingDocuments />} />
               <Route path="/approved" element={<ApprovedDocuments />} />
               <Route path="/revision" element={<RevisionDocuments />} />
+              <Route path="/received" element={<ReceivedRequests />} />
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />

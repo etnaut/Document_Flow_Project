@@ -3,8 +3,54 @@ import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
 import { hasSenderStatusColumn } from '../utils/schema.js';
+import { createRequire } from 'module';
+import { promisify } from 'util';
 
 const router = Router();
+
+const require = createRequire(import.meta.url);
+// libreoffice-convert requires LibreOffice (soffice) installed in the runtime environment
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const libre = require('libreoffice-convert');
+const libreConvert = promisify(libre.convert);
+
+const isPdfBuffer = (buf: Buffer) => buf.length >= 4 && buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46;
+
+// GET /documents/:id/preview - Convert office docs to PDF for inline preview
+router.get('/:id/preview', async (req: Request, res: Response) => {
+  const documentId = Number(req.params.id);
+  if (!Number.isFinite(documentId)) {
+    return sendResponse(res, { error: 'Invalid document id' }, 400);
+  }
+
+  try {
+    const result = await pool.query('SELECT document FROM sender_document_tbl WHERE document_id = $1 LIMIT 1', [documentId]);
+    if (result.rows.length === 0 || !result.rows[0].document) {
+      return sendResponse(res, { error: 'Document not found' }, 404);
+    }
+
+    const buffer: Buffer = Buffer.from(result.rows[0].document);
+
+    // If already PDF, return directly
+    if (isPdfBuffer(buffer)) {
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(buffer);
+    }
+
+    // Convert to PDF using LibreOffice
+    try {
+      const pdfBuf: Buffer = await libreConvert(buffer, '.pdf', undefined) as Buffer;
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(pdfBuf);
+    } catch (convertError) {
+      console.error('LibreOffice conversion error:', convertError);
+      return sendResponse(res, { error: 'Failed to generate preview' }, 500);
+    }
+  } catch (error: any) {
+    console.error('Preview generation error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
 
 // GET /documents - Get all documents with optional filters
 router.get('/', async (req: Request, res: Response) => {
@@ -53,13 +99,8 @@ router.get('/', async (req: Request, res: Response) => {
       console.warn('Status filter requested but sender_document_tbl.status column is missing; ignoring filter');
     }
 
-    // If Admin, filter by their department name
-    if (role === 'Admin' && department) {
-      sql += ` AND d.Department = $${paramCount}`;
-      params.push(department);
-      paramCount++;
-    } else if (role === 'Employee' && userId) {
-      // If Employee, only their own documents
+    // If Employee, only their own documents; Admin sees all (no department filter)
+    if (role === 'Employee' && userId) {
       sql += ` AND sd.User_Id = $${paramCount}`;
       params.push(userId);
       paramCount++;
