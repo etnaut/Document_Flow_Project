@@ -1,4 +1,5 @@
 import { User, Document, UserRole, DocumentResponse } from '@/types';
+import { RevisionEntry } from '@/types';
 
 // Normalize different backend casing (snake_case / lower-case) to the client `User` shape
 export const normalizeUser = (u: any): User => {
@@ -187,6 +188,11 @@ export const respondToDocument = async (
     Response_Message: message,
     Response_Date: new Date().toISOString().split('T')[0],
   };
+};
+
+// Get revision entries
+export const getRevisions = async (): Promise<RevisionEntry[]> => {
+  return apiRequest('/documents/revisions', { method: 'GET' });
 };
 
 // Get responses for documents sent from this department

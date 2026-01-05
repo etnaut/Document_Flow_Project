@@ -38,7 +38,7 @@ interface DocumentTableProps {
   documents: Document[];
   onApprove?: (id: number) => void;
   onReject?: (id: number) => void;
-  onRevision?: (id: number) => void;
+  onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onForward?: (doc: Document) => void;
   onView?: (doc: Document) => void;
@@ -74,6 +74,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
+  const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
+  const [revisionComment, setRevisionComment] = React.useState('');
 
   const mimeFromChoice = (choice: 'pdf' | 'word' | 'excel' | 'auto') => {
     switch (choice) {
@@ -330,7 +332,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           </DropdownMenuItem>
                         )}
                         {onRevision && (
-                          <DropdownMenuItem onSelect={() => onRevision(doc.Document_Id)}>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setRevisionDialogDoc(doc);
+                              setRevisionComment('');
+                            }}
+                          >
                             Send for Revision
                           </DropdownMenuItem>
                         )}
@@ -423,6 +430,61 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           <DialogFooter>
             <Button variant="outline" onClick={() => setFileDialogDoc(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revision comment dialog */}
+      <Dialog
+        open={!!revisionDialogDoc}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRevisionDialogDoc(null);
+            setRevisionComment('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send for Revision</DialogTitle>
+            <DialogDescription>
+              Optionally add a note for the sender before marking this document for revision.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <p className="text-sm font-medium">Document</p>
+              <p className="text-sm text-muted-foreground">{revisionDialogDoc?.Type} — {revisionDialogDoc?.sender_name}</p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Comment (optional)</p>
+              <textarea
+                className="w-full rounded-md border bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                rows={3}
+                value={revisionComment}
+                onChange={(e) => setRevisionComment(e.target.value)}
+                placeholder="Add a note for the sender (optional)"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRevisionDialogDoc(null); setRevisionComment(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (revisionDialogDoc && onRevision) {
+                  onRevision(revisionDialogDoc.Document_Id, revisionComment.trim() || undefined);
+                }
+                setRevisionDialogDoc(null);
+                setRevisionComment('');
+              }}
+            >
+              Send for Revision
             </Button>
           </DialogFooter>
         </DialogContent>

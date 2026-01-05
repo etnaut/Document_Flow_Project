@@ -62,6 +62,15 @@ export interface RevisionDocument {
   comments?: string;
 }
 
+export interface RevisionEntry {
+  document_id: number;
+  user_id: number;
+  comment: string | null;
+  admin: string | null;
+  document_type: string | null;
+  sender_name: string | null;
+}
+
 export interface ResponseDocument {
   Respond_Doc_Id: number;
   Document_Id: number;

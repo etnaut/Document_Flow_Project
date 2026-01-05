@@ -1,25 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus } from '@/services/api';
-import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
 import { RotateCcw } from 'lucide-react';
+import { getRevisions } from '@/services/api';
+import { RevisionEntry } from '@/types';
 
 const RevisionDocuments: React.FC = () => {
-  const { user } = useAuth();
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [user]);
+    fetchRevisions();
+  }, []);
 
-  const fetchDocuments = async () => {
-    if (!user) return;
+  const fetchRevisions = async () => {
     try {
-      // Filter by user's department - Admin sees revision docs sent TO their department
-      const data = await getDocumentsByStatus('Revision', user.Department, user.User_Role);
-      setDocuments(data);
+      const data = await getRevisions();
+      setRevisions(data);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -45,13 +40,44 @@ const RevisionDocuments: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">For Revision</h1>
             <p className="text-muted-foreground">
-              Documents returned for revision ({user?.Department}).
+              Documents returned for revision.
             </p>
           </div>
         </div>
       </div>
 
-      <DocumentTable documents={documents} showActions={false} />
+      <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold">Document</th>
+                <th className="px-4 py-2 text-left font-semibold">Sender</th>
+                <th className="px-4 py-2 text-left font-semibold">Admin</th>
+                <th className="px-4 py-2 text-left font-semibold">Comment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revisions.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                    No revision entries found.
+                  </td>
+                </tr>
+              ) : (
+                revisions.map((rev) => (
+                  <tr key={`${rev.document_id}-${rev.user_id}-${rev.comment ?? ''}`} className="border-t">
+                    <td className="px-4 py-2">{rev.document_type || '—'}</td>
+                    <td className="px-4 py-2">{rev.sender_name || '—'}</td>
+                    <td className="px-4 py-2">{rev.admin || '—'}</td>
+                    <td className="px-4 py-2 max-w-[320px] break-words text-muted-foreground">{rev.comment || '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

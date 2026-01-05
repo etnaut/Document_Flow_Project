@@ -51,9 +51,9 @@ const PendingDocuments: React.FC = () => {
     }
   };
 
-  const handleRevision = async (id: number) => {
+  const handleRevision = async (id: number, comment?: string) => {
     try {
-      await updateDocumentStatus(id, 'Revision', undefined, user?.Full_Name);
+      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name);
       toast({ title: 'Document sent for revision.' });
       fetchDocuments();
     } catch (error) {

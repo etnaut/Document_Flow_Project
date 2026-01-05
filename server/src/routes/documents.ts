@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -55,20 +55,22 @@ router.get('/:id/preview', async (req: Request, res: Response) => {
 // GET /documents - Get all documents with optional filters
 router.get('/', async (req: Request, res: Response) => {
   try {
-  const hasStatus = await hasSenderStatusColumn();
-  const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
+    const hasStatus = await hasSenderStatusColumn();
+    const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
 
     const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
     const role = req.query.role as string | undefined;
     const department = req.query.department as string | undefined;
     const status = req.query.status as string | undefined;
 
+    const derivedStatus = `CASE WHEN EXISTS (SELECT 1 FROM revision_document_tbl r WHERE r.document_id = sd.document_id) THEN 'Revision' ELSE ${statusSelect} END`;
+
     let sql = `
       SELECT 
         sd.document_id AS "Document_Id",
         sd.type AS "Type",
         sd.user_id AS "User_Id",
-  ${statusSelect} AS "Status",
+        ${derivedStatus} AS "Status",
         sd.priority AS "Priority",
         sd.document AS "Document",
         sd.description AS "description",
@@ -91,12 +93,10 @@ router.get('/', async (req: Request, res: Response) => {
     const params: any[] = [];
     let paramCount = 1;
 
-    if (status && hasStatus) {
-      sql += ` AND LOWER(sd.Status) = LOWER($${paramCount})`;
+    if (status) {
+      sql += ` AND LOWER(${derivedStatus}) = LOWER($${paramCount})`;
       params.push(status);
       paramCount++;
-    } else if (status && !hasStatus) {
-      console.warn('Status filter requested but sender_document_tbl.status column is missing; ignoring filter');
     }
 
     // If Employee, only their own documents; Admin sees all (no department filter)
@@ -124,6 +124,35 @@ router.get('/', async (req: Request, res: Response) => {
     sendResponse(res, documents);
   } catch (error: any) {
     console.error('Get documents error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
+// GET /documents/revisions - list revision entries
+router.get('/revisions', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT r.document_id, r.user_id, r.comment, r.admin,
+              sd.type AS document_type,
+              u.full_name AS sender_name
+         FROM revision_document_tbl r
+         LEFT JOIN sender_document_tbl sd ON r.document_id = sd.document_id
+         LEFT JOIN user_tbl u ON r.user_id = u.user_id
+         ORDER BY r.revision_doc_id DESC`
+    );
+
+    const revisions = result.rows.map((row) => ({
+      document_id: row.document_id,
+      user_id: row.user_id,
+      comment: row.comment ?? null,
+      admin: row.admin ?? null,
+      document_type: row.document_type ?? null,
+      sender_name: row.sender_name ?? null,
+    }));
+
+    sendResponse(res, revisions);
+  } catch (error: any) {
+    console.error('Get revisions error:', error);
     sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
 });
@@ -257,7 +286,7 @@ router.put('/', async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
-    const hasStatus = await hasSenderStatusColumn();
+  const hasStatus = await hasSenderStatusColumn();
     const statusSelect = hasStatus ? "COALESCE(sd.Status, 'pending')" : `'Pending'`;
     const input = getJsonInput<UpdateDocumentInput>(req.body);
 
@@ -277,68 +306,120 @@ router.put('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
-    const updates: string[] = [];
-    const params: any[] = [];
-    let paramCount = 1;
+    const statusValue = (input.Status || '').toLowerCase();
+    const senderAllowedStatuses = ['pending', 'approved', 'revise'];
 
-    // Build dynamic update query
-    const allowedFields = hasStatus ? ['Status', 'Priority', 'Type', 'description'] : ['Priority', 'Type', 'description'];
+    if (statusValue === 'revision' && hasStatus) {
+      await ensureReviseStatusAllowed();
+    }
+
     if (!hasStatus && input.Status !== undefined) {
       client.release();
       return sendResponse(res, { error: 'Status column not available in sender_document_tbl' }, 400);
     }
 
-    for (const field of allowedFields) {
-      if (field in input && input[field as keyof UpdateDocumentInput] !== undefined) {
-        let value = input[field as keyof UpdateDocumentInput];
+    const buildUpdates = (includeStatus: boolean) => {
+      const updates: string[] = [];
+      const params: any[] = [];
+      let paramCount = 1;
+      const allowedFields = hasStatus ? ['Status', 'Priority', 'Type', 'description'] : ['Priority', 'Type', 'description'];
 
-        // Normalize status casing to satisfy DB check constraints
-        if (field === 'Status' && typeof value === 'string') {
-          value = (value as string).toLowerCase();
+      for (const field of allowedFields) {
+        if (field === 'Status' && !includeStatus) continue;
+        if (field in input && input[field as keyof UpdateDocumentInput] !== undefined) {
+          let value = input[field as keyof UpdateDocumentInput];
+
+          if (field === 'Status' && typeof value === 'string') {
+            const normalized = (value as string).toLowerCase();
+            const mapped = normalized === 'revision' ? 'revise' : normalized;
+            if (!senderAllowedStatuses.includes(mapped)) {
+              continue;
+            }
+            value = mapped;
+          }
+
+          updates.push(`${field} = $${paramCount}`);
+          params.push(value);
+          paramCount++;
         }
+      }
 
-        updates.push(`${field} = $${paramCount}`);
-        params.push(value);
+      if (input.Document) {
+        updates.push(`Document = $${paramCount}`);
+        params.push(Buffer.from(input.Document, 'base64'));
         paramCount++;
       }
-    }
 
-    if (input.Document) {
-      updates.push(`Document = $${paramCount}`);
-      params.push(Buffer.from(input.Document, 'base64'));
-      paramCount++;
-    }
+      return { updates, params, paramCount };
+    };
 
-    if (updates.length === 0) {
+    const { updates, params, paramCount } = buildUpdates(true);
+
+    if (updates.length === 0 && !statusValue) {
       client.release();
       return sendResponse(res, { error: 'No fields to update' }, 400);
     }
 
-    params.push(input.Document_Id);
-    const sql = `UPDATE Sender_Document_Tbl SET ${updates.join(', ')} WHERE Document_Id = $${paramCount}`;
+    const runUpdate = async (u: string[], p: any[]) => {
+      if (u.length === 0) return;
+      const sql = `UPDATE Sender_Document_Tbl SET ${u.join(', ')} WHERE Document_Id = $${u.length + 1}`;
+      await client.query(sql, [...p, input.Document_Id]);
+    };
 
-    await client.query('BEGIN');
-    await client.query(sql, params);
+    let updated = false;
 
-    // If approved, persist to approved_document_tbl (avoid duplicates)
-    const statusValue = (input.Status || '').toLowerCase();
-    if (statusValue === 'approved') {
-      const approvedCheck = await client.query(
-        'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
-        [input.Document_Id]
-      );
+    try {
+      await client.query('BEGIN');
+      await runUpdate(updates, params);
 
-      if (approvedCheck.rows.length === 0) {
-        await client.query(
-          'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
-          [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
+      // Persist side effects based on status
+      if (statusValue === 'approved') {
+        const approvedCheck = await client.query(
+          'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+          [input.Document_Id]
         );
-      } else if (input.admin) {
-        await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+
+        if (approvedCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
+          );
+        } else if (input.admin) {
+          await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+        }
+      }
+
+      if (statusValue === 'revision') {
+        await client.query(
+          'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
+          [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null]
+        );
+      }
+
+      await client.query('COMMIT');
+      updated = true;
+    } catch (error: any) {
+      await client.query('ROLLBACK');
+      // If revision caused check constraint on status, retry without status column
+      if (statusValue === 'revision' && error?.code === '23514') {
+        const { updates: updatesNoStatus, params: paramsNoStatus } = buildUpdates(false);
+        try {
+          await client.query('BEGIN');
+          await runUpdate(updatesNoStatus, paramsNoStatus);
+          await client.query(
+            'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null]
+          );
+          await client.query('COMMIT');
+          updated = true;
+        } catch (retryError) {
+          await client.query('ROLLBACK');
+          throw retryError;
+        }
+      } else {
+        throw error;
       }
     }
-
-    await client.query('COMMIT');
 
     // Fetch updated document
     const docResult = await client.query(
@@ -387,6 +468,10 @@ router.put('/', async (req: Request, res: Response) => {
       created_at: updatedRow.created_at || null,
       description: updatedRow.description || null,
     };
+
+    if (statusValue === 'revision') {
+      document.Status = 'Revision';
+    }
 
     client.release();
     sendResponse(res, document);
