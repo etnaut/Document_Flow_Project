@@ -249,7 +249,7 @@ const ManageAdmins: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Gender">Gender *</Label>
+                  <Label htmlFor="Gender">Gender</Label>
                   <Select
                     value={formData.Gender}
                     onValueChange={(value) => setFormData({ ...formData, Gender: value })}
@@ -266,7 +266,7 @@ const ManageAdmins: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="Full_Name">Full Name *</Label>
+                <Label htmlFor="Full_Name">Full Name</Label>
                 <Input
                   id="Full_Name"
                   value={formData.Full_Name}
@@ -276,7 +276,7 @@ const ManageAdmins: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="Email">Email *</Label>
+                <Label htmlFor="Email">Email</Label>
                 <Input
                   id="Email"
                   type="email"
@@ -288,7 +288,7 @@ const ManageAdmins: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="Division">Division *</Label>
+                  <Label htmlFor="Division">Division</Label>
                   <div className="flex items-center gap-2">
                     <Select
                     value={formData.Division}
@@ -321,7 +321,7 @@ const ManageAdmins: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Department">Department *</Label>
+                  <Label htmlFor="Department">Department</Label>
                   <div className="flex items-center gap-2">
                     <Select
                       value={formData.Department}
@@ -355,7 +355,7 @@ const ManageAdmins: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="User_Name">Username *</Label>
+                  <Label htmlFor="User_Name">Username</Label>
                   <Input
                     id="User_Name"
                     value={formData.User_Name}
@@ -364,7 +364,7 @@ const ManageAdmins: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Password">Password *</Label>
+                  <Label htmlFor="Password">Password</Label>
                   <Input
                     id="Password"
                     type="password"
@@ -376,7 +376,7 @@ const ManageAdmins: React.FC = () => {
               </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="Role">Role *</Label>
+                  <Label htmlFor="Role">Role</Label>
                   <Select
                     value={formData.Role}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, Role: value }))}
