@@ -58,6 +58,8 @@ const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'rele
   Received: 'default',
   'Not Forwarded': 'default',
   Forwarded: 'approved',
+  Recorded: 'approved',
+  'Not Recorded': 'default',
 };
 
 const DocumentTable: React.FC<DocumentTableProps> = ({

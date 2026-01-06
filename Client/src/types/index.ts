@@ -26,7 +26,7 @@ export interface Document {
   Document_Id: number;
   Type: string;
   User_Id: number;
-  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived' | 'Forwarded' | 'Not Forwarded';
+  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived' | 'Forwarded' | 'Not Forwarded' | 'Recorded' | 'Not Recorded';
   Priority: string;
   Document?: string | null; // base64-encoded file payload (optional)
   sender_name?: string;

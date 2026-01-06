@@ -479,6 +479,26 @@ router.put('/', async (req: Request, res: Response) => {
         }
       }
 
+      // When marking as recorded, persist to approved_document_tbl
+      if (statusValue === 'recorded') {
+        const approvedCheck = await client.query(
+          'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+          [input.Document_Id]
+        );
+
+        if (approvedCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
+          );
+        } else {
+          await client.query(
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            ['recorded', input.admin ?? null, input.Document_Id]
+          );
+        }
+      }
+
       if (statusValue === 'revision') {
         await client.query(
           'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
