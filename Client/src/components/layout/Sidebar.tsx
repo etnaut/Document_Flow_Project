@@ -68,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
     { to: '/records/all', icon: FileText, label: 'All Documents' },
     { to: '/records/not-recorded', icon: Clock, label: 'Not Recorded' },
+    { to: '/records/recorded', icon: CheckCircle, label: 'Recorded' },
   ];
 
   const releaserLinks = [

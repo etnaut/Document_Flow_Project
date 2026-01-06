@@ -28,6 +28,7 @@ import HeadForwarded from "./pages/Heads/HeadForwarded";
 import RecorderDashboard from "./pages/Recorder/RecorderDashboard";
 import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import NotRecordedDocuments from "./pages/Recorder/NotRecordedDocuments";
+import RecordedDocuments from "./pages/Recorder/RecordedDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/Heads/DivisionHead";
 import ReleaserDashboard from "./pages/Releaser/ReleaserDashboard";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/records" element={<RecorderDashboard />} />
               <Route path="/records/all" element={<AllRecorderDocuments />} />
               <Route path="/records/not-recorded" element={<NotRecordedDocuments />} />
+              <Route path="/records/recorded" element={<RecordedDocuments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
