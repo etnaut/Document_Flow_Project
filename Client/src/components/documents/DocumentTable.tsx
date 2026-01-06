@@ -56,12 +56,15 @@ const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'rele
   Revision: 'revision',
   Released: 'released',
   Received: 'default',
+  'Not Forwarded': 'default',
+  Forwarded: 'approved',
 };
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
   documents,
   onApprove,
   onRevision,
+  onForward,
   onEdit,
   renderActions,
   showPriority = true,
@@ -321,6 +324,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           size="sm"
                           className="px-0 text-info hover:text-info"
                           onClick={() => onEdit(doc)}
+                        >
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {statusLabel}
+                          </Badge>
+                        </Button>
+                      );
+                    }
+
+                    // Head/Admin forwarding: allow forwarding when status is Not Forwarded
+                    if (onForward && statusLower === 'not forwarded') {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-info hover:text-info"
+                          onClick={() => onForward(doc)}
                         >
                           <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
                             {statusLabel}

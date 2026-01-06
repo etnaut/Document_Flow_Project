@@ -24,6 +24,7 @@ import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
 import HeadAllDocuments from "./pages/Heads/HeadAllDocuments";
 import HeadNotForwarded from "./pages/Heads/HeadNotForwarded";
+import HeadForwarded from "./pages/Heads/HeadForwarded";
 import RecordPage from "./pages/Recorder/RecordPage";
 import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/head" element={<HeadDashboard />} />
               <Route path="/head/all-documents" element={<HeadAllDocuments />} />
               <Route path="/head/not-forwarded" element={<HeadNotForwarded />} />
+              <Route path="/head/forwarded" element={<HeadForwarded />} />
               <Route path="/division-head" element={<DivisionHead />} />
               <Route path="/division-head" element={<DivisionHead />} />
               {/* Releaser Routes */}

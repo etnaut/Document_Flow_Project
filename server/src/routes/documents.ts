@@ -376,7 +376,7 @@ router.put('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
-    const statusValue = (input.Status || '').toLowerCase();
+  const statusValue: string = (input.Status || '').toLowerCase();
     const senderAllowedStatuses = ['pending', 'approved', 'revise'];
 
     if (statusValue === 'revision' && hasStatus) {
@@ -456,6 +456,26 @@ router.put('/', async (req: Request, res: Response) => {
           );
         } else if (input.admin) {
           await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+        }
+      }
+
+      // When marking as forwarded, update approved_document_tbl status accordingly
+      if (statusValue === 'forwarded') {
+        const approvedCheck = await client.query(
+          'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+          [input.Document_Id]
+        );
+
+        if (approvedCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
+          );
+        } else {
+          await client.query(
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            ['forwarded', input.admin ?? null, input.Document_Id]
+          );
         }
       }
 

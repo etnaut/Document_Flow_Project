@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/division-head', icon: User, label: 'Manage Employees' },
     { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
     { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
-    { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
+    { to: '/head/forwarded', icon: Inbox, label: 'Forwarded Documents' },
   ];
 
   const recorderLinks = [

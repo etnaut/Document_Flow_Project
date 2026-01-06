@@ -16,7 +16,7 @@ export interface Document {
   Document_Id: number;
   Type: string;
   User_Id: number;
-  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received';
+  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received' | 'Forwarded' | 'Not Forwarded';
   Priority: string;
   Document: Buffer | null;
   sender_name: string;
@@ -54,7 +54,7 @@ export interface CreateDocumentInput {
 
 export interface UpdateDocumentInput {
   Document_Id: number;
-  Status?: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received';
+  Status?: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received' | 'Forwarded' | 'Not Forwarded';
   Priority?: string;
   Type?: string;
   Document?: string; // base64 encoded
