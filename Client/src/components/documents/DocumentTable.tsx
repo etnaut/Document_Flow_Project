@@ -305,47 +305,62 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </TableCell>
                 )}
                 <TableCell>
-                  {doc.Status === 'Revision' && onEdit ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="px-0 text-info hover:text-info"
-                      onClick={() => onEdit(doc)}
-                    >
-                      <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
-                        {doc.Status}
-                      </Badge>
-                    </Button>
-                  ) : (onApprove || onRevision) && doc.Status?.toLowerCase() !== 'approved' && doc.Status?.toLowerCase() !== 'revision' ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="px-0">
+                  {(() => {
+                    const statusLabel = doc.Status === 'Revision' ? 'Needs Revision' : doc.Status;
+                    const statusLower = doc.Status?.toLowerCase();
+
+                    // Employee-side: clickable status when edit handler provided and no approve/revision controls
+                    if (onEdit && !onApprove && !onRevision && statusLower !== 'approved' && statusLower !== 'pending') {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-info hover:text-info"
+                          onClick={() => onEdit(doc)}
+                        >
                           <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
-                            {doc.Status}
+                            {statusLabel}
                           </Badge>
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        {onApprove && (
-                          <DropdownMenuItem onSelect={() => onApprove(doc.Document_Id)}>
-                            Approve
-                          </DropdownMenuItem>
-                        )}
-                        {onRevision && (
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setRevisionDialogDoc(doc);
-                              setRevisionComment('');
-                            }}
-                          >
-                            Send for Revision
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <Badge variant={statusVariants[doc.Status] || 'default'}>{doc.Status}</Badge>
-                  )}
+                      );
+                    }
+
+                    // Approver-side: show approve/revision dropdown except for already approved/revision
+                    if ((onApprove || onRevision) && doc.Status?.toLowerCase() !== 'approved' && doc.Status?.toLowerCase() !== 'revision') {
+                      return (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="px-0">
+                              <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                                {statusLabel}
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            {onApprove && (
+                              <DropdownMenuItem onSelect={() => onApprove(doc.Document_Id)}>
+                                Approve
+                              </DropdownMenuItem>
+                            )}
+                            {onRevision && (
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  setRevisionDialogDoc(doc);
+                                  setRevisionComment('');
+                                }}
+                              >
+                                Send for Revision
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    }
+
+                    return (
+                      <Badge variant={statusVariants[doc.Status] || 'default'}>{statusLabel}</Badge>
+                    );
+                  })()}
                 </TableCell>
                 {renderActions && (
                   <TableCell className="space-x-2 whitespace-nowrap">

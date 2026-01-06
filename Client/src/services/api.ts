@@ -1,5 +1,4 @@
-import { User, Document, UserRole, DocumentResponse } from '@/types';
-import { RevisionEntry } from '@/types';
+import { User, Document, UserRole, DocumentResponse, RevisionEntry } from '@/types';
 
 // Normalize different backend casing (snake_case / lower-case) to the client `User` shape
 export const normalizeUser = (u: any): User => {
@@ -130,6 +129,11 @@ export const updateDocument = async (
     method: 'PUT',
     body: JSON.stringify({ Document_Id: documentId, ...updates }),
   });
+};
+
+// Delete a document
+export const deleteDocument = async (documentId: number): Promise<{ success: boolean }> => {
+  return apiRequest(`/documents/${documentId}`, { method: 'DELETE' });
 };
 
 // Forward document to another department (Admin to Admin)
