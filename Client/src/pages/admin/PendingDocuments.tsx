@@ -91,6 +91,7 @@ const PendingDocuments: React.FC = () => {
         onApprove={handleApprove}
         onReject={handleReject}
         onRevision={handleRevision}
+        showDescription
       />
     </div>
   );

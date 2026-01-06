@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { deleteDocument, getDocumentsByStatus, updateDocument } from '@/services/api';
+import { deleteDocument, getDocumentsByStatus, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { RotateCcw } from 'lucide-react';
@@ -53,9 +53,22 @@ const MyRevisionDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      const data = await getDocumentsByStatus('Revision', undefined, user.User_Role);
-      // Client-side guard: only docs belonging to this user
-      setDocuments(data.filter((d) => d.User_Id === user.User_Id));
+      const [docs, revisions] = await Promise.all([
+        getDocumentsByStatus('Revision', undefined, user.User_Role),
+        getRevisions(),
+      ]);
+
+      const revisionByDocId = new Map(revisions.map((r) => [r.document_id, r.comment]));
+
+      const merged = docs
+        .filter((d) => d.User_Id === user.User_Id)
+        .map((d) =>
+          d.Status === 'Revision'
+            ? { ...d, description: revisionByDocId.get(d.Document_Id) ?? d.description }
+            : d
+        );
+
+      setDocuments(merged);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -158,6 +171,7 @@ const MyRevisionDocuments: React.FC = () => {
           setSelectedFile(null);
           setEditForm({ type: doc.Type, priority: doc.Priority, notes: '' });
         }}
+        showDescription
       />
 
       <Dialog

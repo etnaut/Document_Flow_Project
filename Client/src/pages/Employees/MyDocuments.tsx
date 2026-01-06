@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { deleteDocument, getDocuments, updateDocument } from '@/services/api';
+import { deleteDocument, getDocuments, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -56,8 +56,20 @@ const MyDocuments: React.FC = () => {
     if (!user) return;
     
     try {
-      const data = await getDocuments(user.User_Id, user.User_Role);
-      setDocuments(data);
+      const [docs, revisions] = await Promise.all([
+        getDocuments(user.User_Id, user.User_Role),
+        getRevisions(),
+      ]);
+
+      const revisionByDocId = new Map(revisions.map((r) => [r.document_id, r.comment]));
+
+      const merged = docs.map((d) =>
+        d.Status === 'Revision'
+          ? { ...d, description: revisionByDocId.get(d.Document_Id) ?? d.description }
+          : d
+      );
+
+      setDocuments(merged);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -164,7 +176,7 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Table */}
-  <DocumentTable documents={documents} onEdit={handleEdit} />
+  <DocumentTable documents={documents} onEdit={handleEdit} showDescription />
 
       {/* Edit Dialog */}
       <Dialog

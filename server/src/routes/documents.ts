@@ -415,6 +415,11 @@ router.put('/', async (req: Request, res: Response) => {
         );
       }
 
+      // When resubmitting, remove any revision entry so the derived status returns to Pending
+      if (statusValue === 'pending') {
+        await client.query('DELETE FROM revision_document_tbl WHERE document_id = $1', [input.Document_Id]);
+      }
+
       await client.query('COMMIT');
       updated = true;
     } catch (error: any) {

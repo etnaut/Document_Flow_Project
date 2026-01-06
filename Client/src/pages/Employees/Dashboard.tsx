@@ -75,7 +75,7 @@ const Dashboard: React.FC = () => {
       {/* Recent Documents */}
       <div className="animate-slide-up">
         <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Documents</h2>
-        <DocumentTable documents={recentDocuments} showActions={false} />
+  <DocumentTable documents={recentDocuments} showDescription />
       </div>
     </div>
   );
