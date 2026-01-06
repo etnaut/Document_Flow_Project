@@ -63,9 +63,9 @@ const HeadDashboard: React.FC = () => {
       setAllDocs(mappedApproved);
       setPendingDocs(pending || []);
 
-      // forwardeds: derive as documents that were forwarded to this department
-  const forwarded = (approvedDocs || []).filter((d) => d.forwarded_from && d.Status !== 'Archived');
-  setForwardedDocs(forwarded);
+      // forwarded: derive by status from approved feed
+      const forwarded = (mappedApproved || []).filter((d) => (d.Status || '').toLowerCase() === 'forwarded');
+      setForwardedDocs(forwarded);
 
       setCounts({
         total: mappedApproved.length,
