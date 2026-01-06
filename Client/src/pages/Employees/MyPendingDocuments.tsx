@@ -49,7 +49,7 @@ const MyPendingDocuments: React.FC = () => {
         </div>
       </div>
 
-  <DocumentTable documents={documents} />
+  <DocumentTable documents={documents} showDescription />
     </div>
   );
 };

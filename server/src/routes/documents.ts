@@ -157,6 +157,25 @@ router.get('/revisions', async (_req: Request, res: Response) => {
   }
 });
 
+// DELETE /documents/:id - remove a document
+router.delete('/:id', async (req: Request, res: Response) => {
+  const documentId = Number(req.params.id);
+  if (!Number.isFinite(documentId)) {
+    return sendResponse(res, { error: 'Invalid Document_Id' }, 400);
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM sender_document_tbl WHERE document_id = $1 RETURNING document_id', [documentId]);
+    if (result.rowCount === 0) {
+      return sendResponse(res, { error: 'Document not found' }, 404);
+    }
+    sendResponse(res, { success: true, Document_Id: documentId });
+  } catch (error: any) {
+    console.error('Delete document error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 // POST /documents - Create a new document
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -394,6 +413,11 @@ router.put('/', async (req: Request, res: Response) => {
           'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
           [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null]
         );
+      }
+
+      // When resubmitting, remove any revision entry so the derived status returns to Pending
+      if (statusValue === 'pending') {
+        await client.query('DELETE FROM revision_document_tbl WHERE document_id = $1', [input.Document_Id]);
       }
 
       await client.query('COMMIT');
