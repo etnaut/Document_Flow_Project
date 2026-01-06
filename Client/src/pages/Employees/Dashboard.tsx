@@ -4,7 +4,7 @@ import { getDashboardStats, getDocuments } from '@/services/api';
 import { Document } from '@/types';
 import StatCard from '@/components/dashboard/StatCard';
 import DocumentTable from '@/components/documents/DocumentTable';
-import { FileText, Clock, CheckCircle, RotateCcw, Archive } from 'lucide-react';
+import { FileText, Clock, CheckCircle, RotateCcw } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -13,7 +13,6 @@ const Dashboard: React.FC = () => {
     pending: 0,
     approved: 0,
     revision: 0,
-    released: 0,
   });
   const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +28,13 @@ const Dashboard: React.FC = () => {
           getDocuments(user.User_Id, user.User_Role, user.Department),
         ]);
         
-        setStats(statsData);
+        // Keep only the fields we display (exclude released)
+        setStats({
+          total: statsData.total ?? 0,
+          pending: statsData.pending ?? 0,
+          approved: statsData.approved ?? 0,
+          revision: statsData.revision ?? 0,
+        });
         setRecentDocuments(docsData.slice(0, 5));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -64,12 +69,11 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Documents" value={stats.total} icon={FileText} variant="default" />
         <StatCard title="Pending" value={stats.pending} icon={Clock} variant="warning" />
         <StatCard title="Approved" value={stats.approved} icon={CheckCircle} variant="success" />
         <StatCard title="For Revision" value={stats.revision} icon={RotateCcw} variant="info" />
-        <StatCard title="Released" value={stats.released} icon={Archive} variant="primary" />
       </div>
 
       {/* Recent Documents */}
