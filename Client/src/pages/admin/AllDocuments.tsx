@@ -17,9 +17,13 @@ const AllDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      // Filter by user's department - Admin sees docs sent TO their department
-      const data = await getDocuments(undefined, user.User_Role, user.Department);
-      setDocuments(data);
+      // Show all documents from sender_document_tbl scoped to department (matches original source)
+      const docs = await getDocuments(undefined, user.User_Role, user.Department);
+      const mapped = (docs || []).map((d: any) => ({
+        ...d,
+        description: d.forwarded_by_admin || d.comments || d.sender_name || '',
+      }));
+      setDocuments(mapped);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({ title: 'Failed to load documents', variant: 'destructive' });
@@ -32,7 +36,7 @@ const AllDocuments: React.FC = () => {
     if (!user) return;
     try {
       await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
-      toast({ title: 'Document approved.' });
+      toast({ title: 'Document approved successfully.' });
       fetchDocuments();
     } catch (error) {
       console.error('Approve failed', error);
@@ -44,7 +48,7 @@ const AllDocuments: React.FC = () => {
     if (!user) return;
     try {
       await updateDocumentStatus(id, 'Revision', comment, user.Full_Name);
-      toast({ title: 'Sent back for revision.' });
+      toast({ title: 'Document sent for revision.' });
       fetchDocuments();
     } catch (error) {
       console.error('Revision failed', error);
@@ -71,10 +75,12 @@ const AllDocuments: React.FC = () => {
 
       <DocumentTable
         documents={documents}
-        showPriority={true}
-        showDescription={true}
         onApprove={handleApprove}
         onRevision={handleRevision}
+        showPriority
+        showDescription
+        descriptionLabel="Admin"
+        showDate={false}
       />
     </div>
   );

@@ -157,6 +157,57 @@ router.get('/revisions', async (_req: Request, res: Response) => {
   }
 });
 
+// GET /documents/approved - list approved documents with type/priority/document and user/admin info
+router.get('/approved', async (req: Request, res: Response) => {
+  try {
+    const department = req.query.department as string | undefined;
+
+    const params: any[] = [];
+    let where = '';
+
+    if (department) {
+      where = `WHERE LOWER(d.department) = LOWER($1)`;
+      params.push(department);
+    }
+
+    const result = await pool.query(
+    `SELECT 
+      a.document_id AS "Document_Id",
+      sd.type AS "Type",
+      sd.priority AS "Priority",
+      sd.document AS "Document",
+      INITCAP(REPLACE(COALESCE(a.status, 'not_forwarded'), '_', ' ')) AS "Status",
+      u.full_name AS sender_name,
+      a.admin AS approved_by,
+      a.status AS approved_status
+       FROM approved_document_tbl a
+       LEFT JOIN sender_document_tbl sd ON sd.document_id = a.document_id
+       LEFT JOIN user_tbl u ON u.user_id = a.user_id
+       LEFT JOIN department_tbl d ON u.department_id = d.department_id
+       ${where}
+       ORDER BY a.document_id DESC`,
+      params
+    );
+
+    const docs = result.rows.map((row) => ({
+      ...row,
+      Document: row.Document ? Buffer.from(row.Document) : null,
+      description: row.approved_by || row.approved_status || null,
+      target_department: null,
+      comments: null,
+      forwarded_from: null,
+      forwarded_by_admin: row.approved_by || null,
+      is_forwarded_request: null,
+      created_at: null,
+    }));
+
+    sendResponse(res, docs);
+  } catch (error: any) {
+    console.error('Get approved documents error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 // DELETE /documents/:id - remove a document
 router.delete('/:id', async (req: Request, res: Response) => {
   const documentId = Number(req.params.id);
