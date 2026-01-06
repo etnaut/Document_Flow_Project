@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import DocumentTable from '@/components/documents/DocumentTable';
-import { getDocuments, getDocumentsByStatus, createUser, getDepartments, getDivisions } from '@/services/api';
+import { getDocuments, getDocumentsByStatus, createUser, getDepartments, getDivisions, getApprovedDocuments } from '@/services/api';
 import { Document, User } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,11 @@ const HeadDashboard: React.FC = () => {
   const [allDocs, setAllDocs] = useState<Document[]>([]);
   const [pendingDocs, setPendingDocs] = useState<Document[]>([]);
   const [forwardedDocs, setForwardedDocs] = useState<Document[]>([]);
+  const [counts, setCounts] = useState({
+    total: 0,
+    approved: 0,
+    forwarded: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   // Add employee dialog state
@@ -44,16 +49,29 @@ const HeadDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [all, pending] = await Promise.all([
-        getDocuments(undefined, user?.User_Role, user?.Department),
+      const [approvedDocs, pending] = await Promise.all([
+        getApprovedDocuments(user?.Department),
         getDocumentsByStatus('Pending', user?.Department, user?.User_Role),
       ]);
-      setAllDocs(all || []);
+
+      // Map admin/status into description to surface in Comment column
+      const mappedApproved = (approvedDocs || []).map((d: any) => ({
+        ...d,
+        description: d.forwarded_by_admin || d.admin || '',
+      }));
+
+      setAllDocs(mappedApproved);
       setPendingDocs(pending || []);
 
       // forwardeds: derive as documents that were forwarded to this department
-      const forwarded = (all || []).filter((d) => d.forwarded_from && d.Status !== 'Archived');
-      setForwardedDocs(forwarded);
+  const forwarded = (approvedDocs || []).filter((d) => d.forwarded_from && d.Status !== 'Archived');
+  setForwardedDocs(forwarded);
+
+      setCounts({
+        total: mappedApproved.length,
+        approved: mappedApproved.length,
+        forwarded: forwarded.length,
+      });
 
       const depts = await getDepartments();
       setDepartments(depts);
@@ -202,19 +220,24 @@ const HeadDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">All Documents</h2>
-          <DocumentTable documents={allDocs} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-4 shadow-sm">
+          <p className="text-sm text-muted-foreground">Total Documents</p>
+          <p className="text-2xl font-bold text-foreground">{counts.total}</p>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold">Pending</h2>
-          <DocumentTable documents={pendingDocs} />
+        <div className="rounded-lg border bg-card p-4 shadow-sm">
+          <p className="text-sm text-muted-foreground">Approved Documents</p>
+          <p className="text-2xl font-bold text-foreground">{counts.approved}</p>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold">Forwarded Documents</h2>
-          <DocumentTable documents={forwardedDocs} />
+        <div className="rounded-lg border bg-card p-4 shadow-sm">
+          <p className="text-sm text-muted-foreground">Forwarded Documents</p>
+          <p className="text-2xl font-bold text-foreground">{counts.forwarded}</p>
         </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold">All Documents</h2>
+        <DocumentTable documents={allDocs} showDescription descriptionLabel="Admin" showDate={false} />
       </div>
     </div>
   );

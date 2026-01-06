@@ -59,8 +59,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const headLinks = [
     { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
     { to: '/division-head', icon: User, label: 'Manage Employees' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
+    { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
     { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
   ];
 

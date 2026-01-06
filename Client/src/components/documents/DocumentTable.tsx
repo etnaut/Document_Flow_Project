@@ -46,6 +46,8 @@ interface DocumentTableProps {
   renderActions?: (doc: Document) => React.ReactNode;
   showPriority?: boolean;
   showDescription?: boolean;
+  showDate?: boolean;
+  descriptionLabel?: string;
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'default'> = {
@@ -64,8 +66,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   renderActions,
   showPriority = true,
   showDescription = false,
+  showDate = true,
+  descriptionLabel = 'Comment',
 }) => {
-  const baseColumns = 5; // type, sender, document, date, status
+  const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
 
   const [fileDialogDoc, setFileDialogDoc] = React.useState<Document | null>(null);
@@ -250,8 +254,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             <TableHead className="font-semibold">Sender</TableHead>
             {showPriority && <TableHead className="font-semibold">Priority</TableHead>}
             <TableHead className="font-semibold">Document</TableHead>
-            <TableHead className="font-semibold">Date</TableHead>
-            {showDescription && <TableHead className="font-semibold">Comment</TableHead>}
+            {showDate && <TableHead className="font-semibold">Date</TableHead>}
+            {showDescription && <TableHead className="font-semibold">{descriptionLabel}</TableHead>}
             <TableHead className="font-semibold">Status</TableHead>
             {renderActions && <TableHead className="font-semibold">Actions</TableHead>}
           </TableRow>
@@ -298,7 +302,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     <span className="text-xs text-muted-foreground">None</span>
                   )}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{doc.created_at}</TableCell>
+                {showDate && <TableCell className="text-muted-foreground">{doc.created_at}</TableCell>}
                 {showDescription && (
                   <TableCell className="max-w-[240px] truncate text-muted-foreground" title={doc.description || ''}>
                     {doc.description || '—'}
@@ -325,8 +329,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                       );
                     }
 
-                    // Approver-side: show approve/revision dropdown except for already approved/revision
-                    if ((onApprove || onRevision) && doc.Status?.toLowerCase() !== 'approved' && doc.Status?.toLowerCase() !== 'revision') {
+                    // Approver-side: allow actions only when pending (matches Pending table behavior)
+                    if ((onApprove || onRevision) && statusLower === 'pending') {
                       return (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
