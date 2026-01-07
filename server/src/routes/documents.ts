@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -378,6 +378,10 @@ router.put('/', async (req: Request, res: Response) => {
 
   const statusValue: string = (input.Status || '').toLowerCase();
     const senderAllowedStatuses = ['pending', 'approved', 'revise'];
+
+    if (statusValue === 'forwarded' || statusValue === 'recorded' || statusValue === 'approved') {
+      await ensureApprovedStatusAllowed();
+    }
 
     if (statusValue === 'revision' && hasStatus) {
       await ensureReviseStatusAllowed();

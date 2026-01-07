@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentTable from '@/components/documents/DocumentTable';
-import { getApprovedDocuments } from '@/services/api';
+import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,18 @@ const AllRecorderDocuments: React.FC = () => {
     }
   };
 
+  const handleRecord = async (doc: Document) => {
+    if (!user) return;
+    try {
+      await updateDocumentStatus(doc.Document_Id, 'Recorded', undefined, user.Full_Name);
+      toast({ title: 'Document recorded' });
+      await loadDocuments();
+    } catch (error: any) {
+      console.error('Record document error', error);
+      toast({ title: 'Failed to record document', description: error?.message || 'Please try again', variant: 'destructive' });
+    }
+  };
+
   if (!user) return <Navigate to="/login" replace />;
   if (!isRecorder) return <Navigate to="/dashboard" replace />;
 
@@ -68,6 +80,7 @@ const AllRecorderDocuments: React.FC = () => {
           showDescription
           descriptionLabel="Admin"
           showDate={false}
+          onRecord={handleRecord}
         />
       )}
     </div>
