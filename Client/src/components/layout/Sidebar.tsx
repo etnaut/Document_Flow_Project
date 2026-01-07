@@ -56,9 +56,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/manage-admins', icon: User, label: 'Manage Admins' },
   ];
 
+  const manageEmployeesPath = user?.User_Role === 'DivisionHead' ? '/division-head' : '/head/manage-employees';
   const headLinks = [
     { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
-    { to: '/division-head', icon: User, label: 'Manage Employees' },
+    { to: manageEmployeesPath, icon: User, label: 'Manage Employees' },
     { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
     { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
     { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
@@ -156,12 +157,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <NavLink
               key={link.to}
               to={link.to}
+              end
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   collapsed && 'justify-center',
                   isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                    ? 'bg-sidebar-primary text-black'
                     : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )
               }

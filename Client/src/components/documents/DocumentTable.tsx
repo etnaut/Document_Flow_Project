@@ -291,7 +291,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   {doc.Document ? (
                     <Button
                       variant="link"
-                      className="px-0 text-xs"
+                      className="px-0 text-xs text-white hover:text-white"
                       onClick={() => {
                         void handleAttachmentClick(doc);
                       }}
@@ -391,9 +391,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[70vw]">
           <DialogHeader>
-            <DialogTitle>Open Attachment</DialogTitle>
+            <DialogTitle className="text-white">Open Attachment</DialogTitle>
             <DialogDescription>
               {mimeChoice === 'auto'
                 ? 'We will try to auto-detect the best viewer from the original file.'
@@ -404,17 +404,17 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           <div className="space-y-4 py-2">
             <div className="rounded-md border bg-muted/30 p-2">
               {previewLoading ? (
-                <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+                <div className="flex h-[65vh] items-center justify-center text-sm text-muted-foreground">
                   Generating PDF preview...
                 </div>
               ) : previewUrl ? (
                 <iframe
                   title="Attachment preview"
                   src={previewUrl}
-                  className="h-[420px] w-full rounded-sm border bg-background"
+                  className="h-[65vh] w-full rounded-sm border bg-background"
                 />
               ) : (
-                <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground text-center px-4">
+                <div className="flex h-[65vh] items-center justify-center text-sm text-muted-foreground text-center px-4">
                   {previewError
                     ? previewError
                     : 'Preview is generated as PDF. If this is a Word or Excel file, we convert it to PDF for preview only.'}
@@ -427,9 +427,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">View as:</span>
+                <span className="text-sm text-white">View as:</span>
                 <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] text-white">
                     <SelectValue placeholder="Choose format" />
                   </SelectTrigger>
                   <SelectContent>
@@ -447,7 +447,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFileDialogDoc(null)}>
+            <Button variant="outline" className="text-white border-white hover:text-white hover:bg-white/10" onClick={() => setFileDialogDoc(null)}>
               Close
             </Button>
           </DialogFooter>
@@ -466,7 +466,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Send for Revision</DialogTitle>
+            <DialogTitle className="text-white">Send for Revision</DialogTitle>
             <DialogDescription>
               Optionally add a note for the sender before marking this document for revision.
             </DialogDescription>
@@ -474,12 +474,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
           <div className="space-y-3 py-2">
             <div>
-              <p className="text-sm font-medium">Document</p>
+              <p className="text-sm font-medium text-white">Document</p>
               <p className="text-sm text-muted-foreground">{revisionDialogDoc?.Type} — {revisionDialogDoc?.sender_name}</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Comment (optional)</p>
+              <p className="text-sm font-medium text-white">Comment (optional)</p>
               <textarea
                 className="w-full rounded-md border bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 rows={3}
@@ -491,7 +491,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRevisionDialogDoc(null); setRevisionComment(''); }}>
+            <Button variant="outline" className="text-white border-white hover:text-white hover:bg-white/10" onClick={() => { setRevisionDialogDoc(null); setRevisionComment(''); }}>
               Cancel
             </Button>
             <Button

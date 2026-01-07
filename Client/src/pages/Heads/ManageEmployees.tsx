@@ -110,7 +110,7 @@ const ManageEmployees: React.FC = () => {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => void loadEmployees()} disabled={loading}>
+          <Button variant="outline" className="text-white" onClick={() => void loadEmployees()} disabled={loading}>
             {loading ? 'Loading…' : 'Refresh'}
           </Button>
         </div>
@@ -141,7 +141,7 @@ const ManageEmployees: React.FC = () => {
                   <td className="px-2 py-3">{emp.Department}</td>
                   <td className="px-2 py-3">{emp.Division || '—'}</td>
                   <td className="px-2 py-3">
-                    <Badge variant={emp.Status ? 'default' : 'secondary'} className={emp.Status ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : ''}>
+                    <Badge variant={emp.Status ? 'default' : 'secondary'} className={emp.Status ? 'bg-emerald-500/10 text-white border-emerald-200' : 'bg-red-500/10 text-red-500 border-red-200'}>
                       {emp.Status ? 'Active' : 'Inactive'}
                     </Badge>
                   </td>
@@ -150,12 +150,12 @@ const ManageEmployees: React.FC = () => {
                       value={emp.Status ? 'active' : 'inactive'}
                       onValueChange={(v) => void handleStatusChange(emp.User_Id, v === 'active')}
                     >
-                      <SelectTrigger className="w-[140px]">
+                      <SelectTrigger className={`w-[140px] ${emp.Status ? 'text-white' : 'text-red-500'}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="active" className="text-white">Active</SelectItem>
+                        <SelectItem value="inactive" className="text-red-500">Inactive</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>

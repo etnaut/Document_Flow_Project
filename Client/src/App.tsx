@@ -28,6 +28,7 @@ import RecordPage from "./pages/Recorder/RecordPage";
 import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/Heads/DivisionHead";
+import ManageEmployees from "./pages/Heads/ManageEmployees";
 import ReleaserDashboard from "./pages/Releaser/ReleaserDashboard";
 import ReleaserAllDocuments from "./pages/Releaser/ReleaserAllDocuments";
 import ReleaserPendingDocuments from "./pages/Releaser/ReleaserPendingDocuments";
@@ -72,7 +73,7 @@ const App = () => (
               <Route path="/head/all-documents" element={<HeadAllDocuments />} />
               <Route path="/head/not-forwarded" element={<HeadNotForwarded />} />
               <Route path="/division-head" element={<DivisionHead />} />
-              <Route path="/division-head" element={<DivisionHead />} />
+              <Route path="/head/manage-employees" element={<ManageEmployees />} />
               {/* Releaser Routes */}
               <Route path="/releaser" element={<ReleaserDashboard />} />
               <Route path="/releaser/all" element={<ReleaserAllDocuments />} />
