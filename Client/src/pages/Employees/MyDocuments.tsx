@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments, updateDocument } from '@/services/api';
+import { deleteDocument, getDocuments, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -44,6 +45,8 @@ const MyDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editingDoc, setEditingDoc] = useState<Document | null>(null);
   const [editForm, setEditForm] = useState({ type: '', priority: '', notes: '' });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -53,8 +56,20 @@ const MyDocuments: React.FC = () => {
     if (!user) return;
     
     try {
-      const data = await getDocuments(user.User_Id, user.User_Role);
-      setDocuments(data);
+      const [docs, revisions] = await Promise.all([
+        getDocuments(user.User_Id, user.User_Role),
+        getRevisions(),
+      ]);
+
+      const revisionByDocId = new Map(revisions.map((r) => [r.document_id, r.comment]));
+
+      const merged = docs.map((d) =>
+        d.Status === 'Revision'
+          ? { ...d, description: revisionByDocId.get(d.Document_Id) ?? d.description }
+          : d
+      );
+
+      setDocuments(merged);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -69,30 +84,70 @@ const MyDocuments: React.FC = () => {
       priority: doc.Priority,
       notes: '',
     });
+    setSelectedFile(null);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingDoc) return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+  };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] || result;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!editingDoc) return;
     try {
+      setSubmitting(true);
+      await deleteDocument(editingDoc.Document_Id);
+      toast({ title: 'Document deleted.' });
+      setEditingDoc(null);
+      setSelectedFile(null);
+      setEditForm({ type: '', priority: '', notes: '' });
+      fetchDocuments();
+    } catch (error) {
+      toast({ title: 'Failed to delete document', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResubmit = async () => {
+    if (!editingDoc) return;
+    try {
+      setSubmitting(true);
+      let encoded: string | undefined;
+      if (selectedFile) {
+        encoded = await fileToBase64(selectedFile);
+      }
+
       await updateDocument(editingDoc.Document_Id, {
+        Status: 'Pending',
+        Document: encoded,
+        description: editForm.notes || editingDoc.description,
         Type: editForm.type,
         Priority: editForm.priority,
       });
 
-      toast({
-        title: 'Success',
-        description: 'Document updated and resubmitted for review.',
-      });
-
+      toast({ title: 'Document resubmitted for review.' });
       setEditingDoc(null);
+      setSelectedFile(null);
+      setEditForm({ type: '', priority: '', notes: '' });
       fetchDocuments();
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update document.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Failed to resubmit document', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -121,15 +176,24 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Table */}
-      <DocumentTable documents={documents} onEdit={handleEdit} />
+  <DocumentTable documents={documents} onEdit={handleEdit} showDescription />
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingDoc} onOpenChange={() => setEditingDoc(null)}>
+      <Dialog
+        open={!!editingDoc}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingDoc(null);
+            setSelectedFile(null);
+            setEditForm({ type: '', priority: '', notes: '' });
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Document</DialogTitle>
+            <DialogTitle>Revision Options</DialogTitle>
             <DialogDescription>
-              Make changes to your document and resubmit for review.
+              Update your document, change its details, delete, or resubmit for review.
             </DialogDescription>
           </DialogHeader>
 
@@ -173,20 +237,32 @@ const MyDocuments: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Additional Notes</Label>
+              <Label>Upload new file (optional)</Label>
+              <Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg" onChange={handleFileChange} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
               <Textarea
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                placeholder="Add any notes about the revision..."
+                placeholder="Add notes for the reviewer"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingDoc(null)}>
-              Cancel
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+              Delete
             </Button>
-            <Button onClick={handleSaveEdit}>Save & Resubmit</Button>
+            <div className="flex gap-2 sm:justify-end">
+              <Button variant="outline" onClick={() => setEditingDoc(null)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleResubmit} disabled={submitting}>
+                Resubmit
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

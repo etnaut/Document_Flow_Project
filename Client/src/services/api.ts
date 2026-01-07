@@ -1,4 +1,4 @@
-import { User, Document, UserRole, DocumentResponse } from '@/types';
+import { User, Document, UserRole, DocumentResponse, RevisionEntry } from '@/types';
 
 // Normalize different backend casing (snake_case / lower-case) to the client `User` shape
 export const normalizeUser = (u: any): User => {
@@ -26,7 +26,7 @@ export const normalizeUser = (u: any): User => {
 };
 
 // Base URL for the TypeScript backend API
-const API_BASE_URL = 'http://localhost:3001/api';
+export const API_BASE_URL = 'http://localhost:3001/api';
 
 // API helper for making requests with basic error handling
 const apiRequest = async (endpoint: string, options?: RequestInit) => {
@@ -94,6 +94,14 @@ export const getDocumentsByStatus = async (status: string, userDepartment?: stri
   return apiRequest(`/documents?${params.toString()}`, { method: 'GET' });
 };
 
+// Get approved documents (for heads) sourced from approved_document_tbl
+export const getApprovedDocuments = async (department?: string): Promise<Document[]> => {
+  const params = new URLSearchParams();
+  if (department) params.append('department', department);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/documents/approved${query}`, { method: 'GET' });
+};
+
 // Create new document
 export const createDocument = async (document: Partial<Document>): Promise<Document> => {
   return apiRequest('/documents', {
@@ -106,7 +114,8 @@ export const createDocument = async (document: Partial<Document>): Promise<Docum
 export const updateDocumentStatus = async (
   documentId: number,
   status: Document['Status'],
-  comments?: string
+  comments?: string,
+  admin?: string
 ): Promise<Document | null> => {
   return apiRequest('/documents', {
     method: 'PUT',
@@ -114,6 +123,7 @@ export const updateDocumentStatus = async (
       Document_Id: documentId,
       Status: status,
       comments,
+      admin,
     }),
   });
 };
@@ -127,6 +137,11 @@ export const updateDocument = async (
     method: 'PUT',
     body: JSON.stringify({ Document_Id: documentId, ...updates }),
   });
+};
+
+// Delete a document
+export const deleteDocument = async (documentId: number): Promise<{ success: boolean }> => {
+  return apiRequest(`/documents/${documentId}`, { method: 'DELETE' });
 };
 
 // Forward document to another department (Admin to Admin)
@@ -185,6 +200,11 @@ export const respondToDocument = async (
     Response_Message: message,
     Response_Date: new Date().toISOString().split('T')[0],
   };
+};
+
+// Get revision entries
+export const getRevisions = async (): Promise<RevisionEntry[]> => {
+  return apiRequest('/documents/revisions', { method: 'GET' });
 };
 
 // Get responses for documents sent from this department

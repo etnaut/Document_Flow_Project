@@ -12,8 +12,6 @@ const RecordPage: React.FC = () => {
   // allow access to authenticated users only
   if (!user) return <Navigate to="/login" replace />;
 
-  const [allDocs, setAllDocs] = useState<Document[]>([]);
-  const [pendingDocs, setPendingDocs] = useState<Document[]>([]);
   const [recordedDocs, setRecordedDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,16 +22,9 @@ const RecordPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [all, pending] = await Promise.all([
-        getDocuments(undefined, user?.User_Role, user?.Department),
-        getDocumentsByStatus('Pending', user?.Department, user?.User_Role),
-      ]);
-      setAllDocs(all || []);
-      setPendingDocs(pending || []);
-
-  // Recorded: derive from documents that are archived (or other statuses if your schema changes)
-  const recorded = (all || []).filter((d) => d.Status === 'Archived');
-      setRecordedDocs(recorded);
+      // Load only recorded/archived documents
+      const recorded = await getDocumentsByStatus('Archived', user?.Department, user?.User_Role);
+      setRecordedDocs(recorded || []);
     } catch (err: any) {
       console.error('RecordPage load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load records', variant: 'destructive' });
@@ -54,28 +45,13 @@ const RecordPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Dashboard</h2>
-          <div className="p-4 border rounded">{/* Placeholder for quick stats */}
-            <div className="text-sm text-muted-foreground">Total documents: {allDocs.length}</div>
-            <div className="text-sm text-muted-foreground">Pending: {pendingDocs.length}</div>
-            <div className="text-sm text-muted-foreground">Recorded: {recordedDocs.length}</div>
-          </div>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">All Documents</h2>
-          <DocumentTable documents={allDocs} />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">Pending</h2>
-          <DocumentTable documents={pendingDocs} />
-        </div>
-      </div>
-
       <div>
         <h2 className="text-lg font-semibold">Recorded</h2>
-        <DocumentTable documents={recordedDocs} />
+        {loading ? (
+          <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+        ) : (
+          <DocumentTable documents={recordedDocs} />
+        )}
       </div>
     </div>
   );

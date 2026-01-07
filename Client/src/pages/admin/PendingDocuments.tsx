@@ -29,21 +29,37 @@ const PendingDocuments: React.FC = () => {
   };
 
   const handleApprove = async (id: number) => {
-    await updateDocumentStatus(id, 'Approved');
-    toast({ title: 'Document approved successfully.' });
-    fetchDocuments();
+    if (!user) return;
+    try {
+      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
+      toast({ title: 'Document approved successfully.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Approve failed', error);
+      toast({ title: 'Failed to approve document', variant: 'destructive' });
+    }
   };
 
   const handleReject = async (id: number) => {
-    await updateDocumentStatus(id, 'Received');
-    toast({ title: 'Document rejected.', variant: 'destructive' });
-    fetchDocuments();
+    try {
+      await updateDocumentStatus(id, 'Received');
+      toast({ title: 'Document rejected.', variant: 'destructive' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Reject failed', error);
+      toast({ title: 'Failed to reject document', variant: 'destructive' });
+    }
   };
 
-  const handleRevision = async (id: number) => {
-    await updateDocumentStatus(id, 'Revision');
-    toast({ title: 'Document sent for revision.' });
-    fetchDocuments();
+  const handleRevision = async (id: number, comment?: string) => {
+    try {
+      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name);
+      toast({ title: 'Document sent for revision.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Revision failed', error);
+      toast({ title: 'Failed to update document', variant: 'destructive' });
+    }
   };
 
   if (loading) {
@@ -75,6 +91,7 @@ const PendingDocuments: React.FC = () => {
         onApprove={handleApprove}
         onReject={handleReject}
         onRevision={handleRevision}
+        showDescription
       />
     </div>
   );

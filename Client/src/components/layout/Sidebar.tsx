@@ -8,6 +8,7 @@ import {
   CheckCircle,
   RotateCcw,
   Archive,
+  Clock,
   LogOut,
   User,
   Building2,
@@ -36,6 +37,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/send-document', icon: Send, label: 'Send Document' },
     { to: '/my-documents', icon: FileText, label: 'My Documents' },
+    { to: '/my-documents/pending', icon: Clock, label: 'Pending Documents' },
+    { to: '/my-documents/revision', icon: RotateCcw, label: 'Needs Revision' },
+    { to: '/my-documents/approved', icon: CheckCircle, label: 'Approved Documents' },
   ];
 
   const adminLinks = [
@@ -52,29 +56,40 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/manage-admins', icon: User, label: 'Manage Admins' },
   ];
 
+  const manageEmployeesPath = user?.User_Role === 'DivisionHead' ? '/division-head' : '/head/manage-employees';
   const headLinks = [
     { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
-    { to: '/division-head', icon: User, label: 'Manage Employees' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: manageEmployeesPath, icon: User, label: 'Manage Employees' },
+    { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
+    { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
     { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
   ];
 
   const recorderLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
+    { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
+    { to: '/records/all', icon: FileText, label: 'All Documents' },
     { to: '/records', icon: Archive, label: 'Recorded' },
+  ];
+
+  const releaserLinks = [
+    { to: '/releaser', icon: LayoutDashboard, label: 'Releaser Dashboard' },
+    { to: '/releaser/all', icon: FileText, label: 'All Documents' },
+    { to: '/releaser/pending', icon: Clock, label: 'Pending Release' },
+    { to: '/releaser/released', icon: CheckCircle, label: 'Released' },
   ];
 
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
+  const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
+  const displayRole = isRecorder ? 'Employee/Recorder' : isReleaser ? 'Employee/Releaser' : user?.User_Role;
   const links = isSuperAdmin
     ? superAdminLinks
     : isHead
     ? headLinks
     : isRecorder
     ? recorderLinks
+    : isReleaser
+    ? releaserLinks
     : isAdmin
     ? adminLinks
     : employeeLinks;
@@ -120,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
-                <p className="text-xs text-sidebar-foreground/70">{user?.User_Role}</p>
+                <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>
               </div>
             </div>
             <div className="mt-3 space-y-1.5">
@@ -142,12 +157,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <NavLink
               key={link.to}
               to={link.to}
+              end
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   collapsed && 'justify-center',
                   isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                    ? 'bg-sidebar-primary text-black'
                     : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )
               }

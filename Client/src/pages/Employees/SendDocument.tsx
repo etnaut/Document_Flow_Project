@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { createDocument, getDepartments } from '@/services/api';
+import { createDocument } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Send, FileText } from 'lucide-react';
+import { Send, FileText, Upload } from 'lucide-react';
 
 const documentTypes = [
   'Leave Request',
@@ -31,38 +32,61 @@ const SendDocument: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [departments, setDepartments] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     type: '',
+    otherType: '',
     priority: 'Medium',
-    target_department: '',
     description: '',
   });
 
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      const depts = await getDepartments();
-      setDepartments(depts);
-    };
-    fetchDepartments();
-  }, []);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const fileAcceptTypes = [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.csv',
+    '.ppt',
+    '.pptx',
+    '.txt',
+    '.rtf',
+    '.odt',
+    '.ods',
+    '.odp',
+  ].join(',');
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result?.toString() || '';
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.type) {
+    const resolvedType = (formData.type === 'Other' ? formData.otherType : formData.type).trim();
+
+    if (!resolvedType) {
       toast({
         title: 'Validation Error',
-        description: 'Please select a document type.',
+        description: 'Please select or enter a document type.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (!formData.target_department) {
+    if (!user?.User_Id) {
       toast({
-        title: 'Validation Error',
-        description: 'Please select the target department.',
+        title: 'User not found',
+        description: 'Your session is missing user information. Please log in again.',
         variant: 'destructive',
       });
       return;
@@ -71,13 +95,16 @@ const SendDocument: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
+
       await createDocument({
-        Type: formData.type,
+        Type: resolvedType,
         Priority: formData.priority,
         User_Id: user?.User_Id,
         sender_name: user?.Full_Name,
         sender_department: user?.Department,
-        target_department: formData.target_department,
+        description: formData.description.trim() || undefined,
+        Document: documentFile,
       });
 
       toast({
@@ -87,9 +114,10 @@ const SendDocument: React.FC = () => {
 
       navigate('/my-documents');
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit document. Please try again.';
       toast({
         title: 'Error',
-        description: 'Failed to submit document. Please try again.',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -125,7 +153,13 @@ const SendDocument: React.FC = () => {
               <Label htmlFor="type">Document Type *</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value) => setFormData({ ...formData, type: value })}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    type: value,
+                    otherType: value === 'Other' ? formData.otherType : '',
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -139,6 +173,18 @@ const SendDocument: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.type === 'Other' && (
+              <div className="space-y-2">
+                <Label htmlFor="otherType">Specify Type *</Label>
+                <Input
+                  id="otherType"
+                  placeholder="Enter document type"
+                  value={formData.otherType}
+                  onChange={(e) => setFormData({ ...formData, otherType: e.target.value })}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
@@ -161,25 +207,22 @@ const SendDocument: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="target_department">Send To Department *</Label>
-            <Select
-              value={formData.target_department}
-              onValueChange={(value) => setFormData({ ...formData, target_department: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select target department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>
-                    {dept}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="document">Upload Document</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="document"
+                type="file"
+                accept={fileAcceptTypes}
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              />
+              <Upload className="h-4 w-4 text-muted-foreground" />
+            </div>
             <p className="text-xs text-muted-foreground">
-              The admin of this department will review your document.
+              Accepts PDF, Word, Excel, and common document formats.
             </p>
+            {selectedFile && (
+              <p className="text-xs text-foreground">Selected: {selectedFile.name}</p>
+            )}
           </div>
 
           <div className="space-y-2">

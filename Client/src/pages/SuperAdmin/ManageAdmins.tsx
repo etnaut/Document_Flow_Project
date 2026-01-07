@@ -211,6 +211,8 @@ const ManageAdmins: React.FC = () => {
     }
   };
 
+  const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -226,13 +228,13 @@ const ManageAdmins: React.FC = () => {
               Add Admin
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
+          <DialogContent className="max-w-lg bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
                 Create Admin Account
               </DialogTitle>
-              <p className="text-sm text-slate-600-black mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
+              <p className="text-sm text-black mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -243,65 +245,65 @@ const ManageAdmins: React.FC = () => {
                     type="number"
                     value={formData.ID_Number}
                     onChange={(e) => setFormData({ ...formData, ID_Number: e.target.value })}
-                    placeholder="1001"
+                    
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Gender">Gender *</Label>
+                  <Label htmlFor="Gender">Gender</Label>
                   <Select
                     value={formData.Gender}
                     onValueChange={(value) => setFormData({ ...formData, Gender: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-black">
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
+                    <SelectContent className="text-black">
+                      <SelectItem value="Male" className="text-black">Male</SelectItem>
+                      <SelectItem value="Female" className="text-black">Female</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="Full_Name">Full Name *</Label>
+                <Label htmlFor="Full_Name">Full Name</Label>
                 <Input
                   id="Full_Name"
                   value={formData.Full_Name}
                   onChange={(e) => setFormData({ ...formData, Full_Name: e.target.value })}
-                  placeholder="John Doe"
+                  
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="Email">Email *</Label>
+                <Label htmlFor="Email">Email</Label>
                 <Input
                   id="Email"
                   type="email"
                   value={formData.Email}
                   onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
-                  placeholder="admin@company.com"
+                  
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="Division">Division *</Label>
+                  <Label htmlFor="Division">Division</Label>
                   <div className="flex items-center gap-2">
                     <Select
                     value={formData.Division}
                     onValueChange={(value) => setFormData({ ...formData, Division: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-black">
                       <SelectValue placeholder="Select division" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="text-black">
                       {divisions.length === 0 ? (
                         // empty list when no department selected
                         <div className="p-2 text-sm text-muted-foreground">No divisions available</div>
                       ) : (
                         divisions.map((div) => (
-                          <SelectItem key={div} value={div}>{div}</SelectItem>
+                          <SelectItem key={div} value={div} className="text-black">{div}</SelectItem>
                         ))
                       )}
                     </SelectContent>
@@ -319,7 +321,7 @@ const ManageAdmins: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Department">Department *</Label>
+                  <Label htmlFor="Department">Department</Label>
                   <div className="flex items-center gap-2">
                     <Select
                       value={formData.Department}
@@ -330,12 +332,12 @@ const ManageAdmins: React.FC = () => {
                         loadDivisionsForDepartment(value);
                       }}
                     >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-black">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="text-black">
                       {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        <SelectItem key={dept} value={dept} className="text-black">{dept}</SelectItem>
                       ))}
                     </SelectContent>
                     </Select>
@@ -353,40 +355,40 @@ const ManageAdmins: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="User_Name">Username *</Label>
+                  <Label htmlFor="User_Name">Username</Label>
                   <Input
                     id="User_Name"
                     value={formData.User_Name}
                     onChange={(e) => setFormData({ ...formData, User_Name: e.target.value })}
-                    placeholder="adminuser"
+                   
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Password">Password *</Label>
+                  <Label htmlFor="Password">Password</Label>
                   <Input
                     id="Password"
                     type="password"
                     value={formData.Password}
                     onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
-                    placeholder="••••••••"
+                    
                   />
                 </div>
               </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="Role">Role *</Label>
+                  <Label htmlFor="Role">Role</Label>
                   <Select
                     value={formData.Role}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, Role: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-black">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="DepartmentHead">Department Head</SelectItem>
-                      <SelectItem value="DivisionHead">Division Head</SelectItem>
-                      <SelectItem value="OfficerInCharge">Officer In Charge</SelectItem>
+                    <SelectContent className="text-black">
+                      <SelectItem value="Admin" className="text-black">Admin</SelectItem>
+                      <SelectItem value="DepartmentHead" className="text-black">Department Head</SelectItem>
+                      <SelectItem value="DivisionHead" className="text-black">Division Head</SelectItem>
+                      <SelectItem value="OfficerInCharge" className="text-black">Officer In Charge</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -406,7 +408,7 @@ const ManageAdmins: React.FC = () => {
         </Dialog>
           {/* Department creation dialog */}
           <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
-            <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
+            <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
               <DialogHeader>
                 <DialogTitle>Create Department</DialogTitle>
               </DialogHeader>
@@ -440,7 +442,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for creating admin */}
             <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-              <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
+              <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Create Admin</DialogTitle>
                 </DialogHeader>
@@ -460,7 +462,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for status change (activate/deactivate) */}
             <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
-              <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
+              <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Status Change</DialogTitle>
                 </DialogHeader>
@@ -483,7 +485,7 @@ const ManageAdmins: React.FC = () => {
 
           {/* Division creation dialog */}
           <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
-            <DialogContent className="max-w-md bg-white/40 border-white/30 backdrop-blur-md text-slate-900 shadow-xl">
+            <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
               <DialogHeader>
                 <DialogTitle>Create Division</DialogTitle>
               </DialogHeader>
@@ -532,7 +534,7 @@ const ManageAdmins: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {admins.length === 0 ? (
+            {visibleAdmins.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-white/80">
                   <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
@@ -540,7 +542,7 @@ const ManageAdmins: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              admins.map((admin) => (
+              visibleAdmins.map((admin) => (
                 <TableRow key={admin.User_Id}>
                   <TableCell className="font-medium text-white">{admin.Full_Name}</TableCell>
                   <TableCell className="text-white">{admin.Email}</TableCell>
