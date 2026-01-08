@@ -6,26 +6,32 @@
 
 @layer base {
   :root {
-    --background: 0 0% 0% / 0; /* Transparent background */
-    --foreground: 0 0% 100%; /* White text for readability */
+    /* Palette based on provided image */
+    /* Primary deep blue: #1B3C53 → hsl(205, 51%, 22%) */
+    /* Secondary steel blue: #456882 → hsl(206, 31%, 39%) */
+    /* Accent warm beige: #D2C1B6 → hsl(24, 24%, 77%) */
+    /* Background soft off-white: #F9F3EF → hsl(25, 45%, 96%) */
 
-    --card: 0 0% 100% / 0.25; /* Transparent glass card - increased opacity */
-    --card-foreground: 0 0% 100%; /* White text */
+    --background: 25 45% 96%;
+    --foreground: 205 40% 20%;
 
-    --popover: 0 0% 100% / 0.25; /* Transparent glass popover - increased opacity */
-    --popover-foreground: 0 0% 100%; /* White text */
+    --card: 0 0% 100% / 1; /* solid card for clarity */
+    --card-foreground: 205 40% 20%;
 
-    --primary: 174 60% 40%;
+    --popover: 0 0% 100% / 1;
+    --popover-foreground: 205 40% 20%;
+
+    --primary: 205 51% 22%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 100% / 0.3; /* Transparent glass secondary - increased opacity */
-    --secondary-foreground: 0 0% 100%; /* White text */
+    --secondary: 206 31% 39%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 100% / 0.25; /* Transparent glass muted - increased opacity */
-    --muted-foreground: 0 0% 95%; /* Light text */
+    --muted: 24 24% 90%;
+    --muted-foreground: 206 15% 35%;
 
-    --accent: 174 50% 50% / 0.3; /* Transparent accent - increased opacity */
-    --accent-foreground: 0 0% 100%; /* White text */
+    --accent: 24 24% 77%;
+    --accent-foreground: 205 40% 20%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -36,67 +42,67 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 199 89% 48%;
+    --info: 206 31% 39%;
     --info-foreground: 0 0% 100%;
 
-    --border: 0 0% 100% / 0.3; /* Transparent glass border - increased opacity */
-    --input: 0 0% 100% / 0.2; /* Transparent input bg - increased opacity */
-    --ring: 174 60% 40%;
+    --border: 206 31% 39% / 0.2;
+    --input: 206 31% 39% / 0.08;
+    --ring: 205 51% 22%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 0% / 0.8; /* Semi-transparent dark sidebar */
-    --sidebar-foreground: 0 0% 100%; /* White text */
-    --sidebar-primary: 174 60% 50%;
+    --sidebar-background: 205 51% 18%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 205 51% 22%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100% / 0.1; /* Transparent glass accent */
-    --sidebar-accent-foreground: 0 0% 100%; /* White text */
-    --sidebar-border: 0 0% 100% / 0.15; /* Transparent border */
-    --sidebar-ring: 174 60% 50%;
+    --sidebar-accent: 24 24% 77% / 0.2;
+    --sidebar-accent-foreground: 205 40% 20%;
+    --sidebar-border: 206 31% 39% / 0.25;
+    --sidebar-ring: 205 51% 22%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(174 60% 40%), hsl(174 60% 50%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.05));
-    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
-    --shadow-elevated: 0 12px 40px -8px hsl(0 0% 0% / 0.4);
+    --gradient-primary: linear-gradient(135deg, hsl(205 51% 22%), hsl(206 31% 39%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(24 24% 95%));
+    --shadow-card: 0 4px 20px -4px hsl(205 51% 22% / 0.15);
+    --shadow-elevated: 0 12px 40px -8px hsl(205 51% 22% / 0.25);
   }
 
   .dark {
-    --background: 0 0% 0% / 0; /* Transparent background */
-    --foreground: 0 0% 100%; /* White text */
+    --background: 205 51% 12%;
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100% / 0.25; /* Transparent glass card - increased opacity */
-    --card-foreground: 0 0% 100%; /* White text */
+    --card: 205 51% 16% / 1;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100% / 0.25; /* Transparent glass popover - increased opacity */
-    --popover-foreground: 0 0% 100%; /* White text */
+    --popover: 205 51% 16% / 1;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 174 60% 50%;
+    --primary: 206 31% 39%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 100% / 0.3; /* Transparent glass secondary - increased opacity */
-    --secondary-foreground: 0 0% 100%; /* White text */
+    --secondary: 205 51% 22%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 100% / 0.25; /* Transparent glass muted - increased opacity */
-    --muted-foreground: 0 0% 95%; /* Light text */
+    --muted: 205 51% 18%;
+    --muted-foreground: 0 0% 92%;
 
-    --accent: 174 40% 50% / 0.3; /* Transparent accent - increased opacity */
-    --accent-foreground: 0 0% 100%; /* White text */
+    --accent: 24 24% 68%;
+    --accent-foreground: 205 40% 20%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 100% / 0.3; /* Transparent glass border - increased opacity */
-    --input: 0 0% 100% / 0.2; /* Transparent input bg - increased opacity */
-    --ring: 174 60% 50%;
+    --border: 206 31% 39% / 0.35;
+    --input: 206 31% 39% / 0.25;
+    --ring: 206 31% 39%;
 
-    --sidebar-background: 0 0% 0% / 0.8; /* Semi-transparent dark sidebar */
-    --sidebar-foreground: 0 0% 100%; /* White text */
-    --sidebar-primary: 174 60% 50%;
+    --sidebar-background: 205 51% 10%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 206 31% 39%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100% / 0.1; /* Transparent glass accent */
-    --sidebar-accent-foreground: 0 0% 100%; /* White text */
-    --sidebar-border: 0 0% 100% / 0.15; /* Transparent border */
-    --sidebar-ring: 174 60% 50%;
+    --sidebar-accent: 24 24% 68% / 0.25;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 206 31% 39% / 0.3;
+    --sidebar-ring: 206 31% 39%;
   }
 }
 
@@ -115,11 +121,7 @@
   body {
     @apply font-sans antialiased;
     font-family: 'Manrope', system-ui, -apple-system, sans-serif;
-    background-image: url('./assets/bg.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
     min-height: 100vh;
     width: 100%;
     margin: 0;

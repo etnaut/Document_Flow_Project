@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { FileText, Lock, User } from 'lucide-react';
-import loginBackground from '@/assets/bg.jpg';
+// Background image removed per new palette rollout
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -55,23 +55,11 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Image - High Quality */}
-      <div 
-        className="absolute inset-0 -z-10"
-        style={{
-          backgroundImage: `url(${loginBackground})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center center',
-          backgroundRepeat: 'no-repeat',
-          imageRendering: 'auto',
-          transform: 'translateZ(0)',
-        } as React.CSSProperties}
-      />
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'hsl(var(--background))' }}>
 
       <div className="w-full max-w-sm animate-slide-up">
 
-        <div className="rounded-3xl border bg-white/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-md hover:shadow-xl hover:-translate-y-1 transition-transform duration-200 ring-1 ring-border">
+        <div className="rounded-3xl border bg-card p-6 shadow-card hover:shadow-elevated hover:-translate-y-1 transition-transform duration-200 ring-1 ring-border">
           <div className="mb-4 text-center">
             {/* Rotating Coin Logo */}
             <div className="flex justify-center mb-3">
@@ -106,15 +94,15 @@ const Login: React.FC = () => {
                 </div>
               </div>
             </div>
-            <h2 className="text-3xl font-extrabold text-foreground-black">Welcome to Document Flow System</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground-gray">Sign in to continue.</p>
+            <h2 className="text-3xl font-extrabold text-foreground">Welcome to Document Flow System</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">Sign in to continue.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-3 space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="username" className="text-sm">Username</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
+                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-foreground" />
                 <Input
                   id="username"
                   type="text"
@@ -130,7 +118,7 @@ const Login: React.FC = () => {
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-sm">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-black" />
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-foreground" />
                 <Input
                   id="password"
                   type="password"
@@ -146,9 +134,9 @@ const Login: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox id="remember" checked={remember} onCheckedChange={(v) => setRemember(Boolean(v))} />
-                <Label htmlFor="remember" className="text-sm text-black font-semibold">Remember me</Label>
+                <Label htmlFor="remember" className="text-sm text-foreground font-semibold">Remember me</Label>
               </div>
-              <a className="text-sm font-bold text-primary-black hover:underline" href="#">Forgot password?</a>
+              <a className="text-sm font-bold text-primary hover:underline" href="#">Forgot password?</a>
             </div>
 
             <div className="flex justify-center">
@@ -175,9 +163,9 @@ const Login: React.FC = () => {
 
 
           <div className="mt-4 rounded-lg bg-muted p-3">
-            <p className="text-sm font-medium text-muted-foreground-black">DocuFlow</p>
+            <p className="text-sm font-medium text-muted-foreground">DocuFlow</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              <code className="text-black rounded bg-background px-1">A Document Flow System that helps you manage/track your documents efficiently.</code>
+              <code className="text-foreground rounded bg-background px-1">A Document Flow System that helps you manage/track your documents efficiently.</code>
             </p>
           </div>
         </div>
