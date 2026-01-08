@@ -126,8 +126,8 @@ const SendDocument: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* Header */}
+    <div className="space-y-8">
+      {/* Header - full width, flush with content area */}
       <div className="animate-slide-up">
         <h1 className="text-3xl font-bold text-foreground">Send Document</h1>
         <p className="mt-1 text-muted-foreground">
@@ -136,7 +136,7 @@ const SendDocument: React.FC = () => {
       </div>
 
       {/* Form */}
-      <div className="animate-fade-in rounded-xl border bg-card p-8 shadow-card">
+      <div className="mx-auto max-w-2xl animate-fade-in rounded-xl border bg-card p-8 shadow-card">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
             <FileText className="h-6 w-6 text-primary" />
@@ -257,7 +257,7 @@ const SendDocument: React.FC = () => {
 
           <div className="flex gap-4">
             <Button
-              className='text-white'
+              className='text-primary'
               type="button"
               variant="outline"
               onClick={() => navigate(-1)}
