@@ -165,7 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                   collapsed && 'justify-center',
                   isActive
                     ? 'bg-white text-primary'
-                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white'
                 )
               }
             >
@@ -180,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           <Button
             variant="ghost"
             className={cn(
-              'w-full gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              'w-full gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white',
               collapsed ? 'justify-center px-2' : 'justify-start px-3'
             )}
             onClick={logout}
