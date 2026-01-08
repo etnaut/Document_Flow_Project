@@ -17,7 +17,7 @@ const badgeVariants = cva(
         info: "border-transparent bg-info text-info-foreground",
         pending: "border-transparent bg-warning/20 text-black",
         approved: "border-transparent bg-success/20 text-black",
-        revision: "border-transparent bg-info/20 text-black",
+        revision: "border-transparent bg-info/20 text-primary",
         released: "border-transparent bg-primary/20 text-black",
         received: "border-transparent bg-muted text-black",
       },
