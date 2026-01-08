@@ -42,10 +42,10 @@ const SuperAdminDashboard: React.FC = () => {
             <CardTitle className="text-base font-semibold text-muted-foreground">
               Total Admins
             </CardTitle>
-            <Shield className="h-7 w-7 text-white" />
+            <Shield className="h-7 w-7 text-primary" />
           </CardHeader>
           <CardContent className="text-center">
-            <div className="text-4xl font-bold">{stats.admins}</div>
+            <div className="text-4xl font-bold text-foreground">{stats.admins}</div>
             <p className="text-sm text-muted-foreground mt-1">Department administrators</p>
           </CardContent>
         </Card>
@@ -55,10 +55,10 @@ const SuperAdminDashboard: React.FC = () => {
             <CardTitle className="text-base font-semibold text-muted-foreground">
               Total Employees
             </CardTitle>
-            <Users className="h-7 w-7 text-white" />
+            <Users className="h-7 w-7 text-secondary" />
           </CardHeader>
           <CardContent className="text-center">
-            <div className="text-4xl font-bold">{stats.employees}</div>
+            <div className="text-4xl font-bold text-foreground">{stats.employees}</div>
             <p className="text-sm text-muted-foreground mt-1">Across all departments</p>
           </CardContent>
         </Card>
@@ -68,10 +68,10 @@ const SuperAdminDashboard: React.FC = () => {
             <CardTitle className="text-base font-semibold text-muted-foreground">
               Total Users
             </CardTitle>
-            <UserCog className="h-7 w-7 text-white" />
+            <UserCog className="h-7 w-7 text-accent" />
           </CardHeader>
           <CardContent className="text-center">
-            <div className="text-4xl font-bold">{stats.admins + stats.employees}</div>
+            <div className="text-4xl font-bold text-foreground">{stats.admins + stats.employees}</div>
             <p className="text-sm text-muted-foreground mt-1">System-wide</p>
           </CardContent>
         </Card>
@@ -80,9 +80,9 @@ const SuperAdminDashboard: React.FC = () => {
       {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Bar Chart - User Distribution */}
-        <Card className="bg-white/10 border-white/20 backdrop-blur-md">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="text-white">User Distribution</CardTitle>
+            <CardTitle className="text-foreground">User Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -90,30 +90,30 @@ const SuperAdminDashboard: React.FC = () => {
                 { name: 'Admins', count: stats.admins },
                 { name: 'Employees', count: stats.employees },
               ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-                <XAxis dataKey="name" stroke="white" />
-                <YAxis stroke="white" />
+                <CartesianGrid strokeDasharray="3 3" stroke={"hsl(var(--border))"} />
+                <XAxis dataKey="name" stroke={"hsl(var(--muted-foreground))"} />
+                <YAxis stroke={"hsl(var(--muted-foreground))"} />
                 <Tooltip
                   cursor={{ fill: 'transparent' }}
                   contentStyle={{
-                     backgroundColor: 'rgba(0,0,0,0.8)',
-                     border: '1px solid rgba(255,255,255,0.2)',
+                     backgroundColor: 'hsl(var(--popover))',
+                     border: '1px solid hsl(var(--border))',
                      borderRadius: '8px',
                    }}
-                  labelStyle={{ color: 'white' }}
-                  itemStyle={{ color: 'white' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 />
 
-                <Bar dataKey="count" fill="#2dd4bf" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="count" fill={"hsl(var(--primary))"} radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         {/* Pie Chart - User Percentage */}
-        <Card className="bg-white/10 border-white/20 backdrop-blur-md">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="text-white">User Percentage</CardTitle>
+            <CardTitle className="text-foreground">User Percentage</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -131,17 +131,17 @@ const SuperAdminDashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#2dd4bf" />
-                  <Cell fill="#818cf8" />
+                  <Cell fill={"hsl(var(--primary))"} />
+                  <Cell fill={"hsl(var(--secondary))"} />
                 </Pie>
                 <Tooltip
                      contentStyle={{
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                         }}
-                     itemStyle={{ color: '#ffffff' }}   // value text
-                     labelStyle={{ color: '#ffffff' }}  // label text
+                     itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                     labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 />
 
               </PieChart>
@@ -150,9 +150,9 @@ const SuperAdminDashboard: React.FC = () => {
         </Card>
 
         {/* Area Chart - Total Users */}
-        <Card className="bg-white/10 border-white/20 backdrop-blur-md">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="text-white">Total Users Overview</CardTitle>
+            <CardTitle className="text-foreground">Total Users Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -164,15 +164,15 @@ const SuperAdminDashboard: React.FC = () => {
                 { month: 'May', total: Math.floor((stats.admins + stats.employees) * 0.95) },
                 { month: 'Jun', total: stats.admins + stats.employees },
               ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-                <XAxis dataKey="month" stroke="white" />
-                <YAxis stroke="white" />
+                <CartesianGrid strokeDasharray="3 3" stroke={"hsl(var(--border))"} />
+                <XAxis dataKey="month" stroke={"hsl(var(--muted-foreground))"} />
+                <YAxis stroke={"hsl(var(--muted-foreground))"} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }}
-                  labelStyle={{ color: 'white' }}
-                  itemStyle={{ color: 'white' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 />
-                <Area type="monotone" dataKey="total" stroke="#f59e0b" fill="rgba(245, 158, 11, 0.4)" />
+                <Area type="monotone" dataKey="total" stroke={"hsl(var(--secondary))"} fill={"hsl(var(--accent) / 0.35)"} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
