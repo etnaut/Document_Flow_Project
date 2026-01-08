@@ -164,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   collapsed && 'justify-center',
                   isActive
-                    ? 'bg-sidebar-primary text-black'
+                    ? 'bg-white text-primary'
                     : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )
               }
