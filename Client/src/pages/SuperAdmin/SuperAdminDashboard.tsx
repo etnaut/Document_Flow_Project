@@ -93,11 +93,17 @@ const SuperAdminDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
                 <XAxis dataKey="name" stroke="white" />
                 <YAxis stroke="white" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }}
+                <Tooltip
+                  cursor={{ fill: 'transparent' }}
+                  contentStyle={{
+                     backgroundColor: 'rgba(0,0,0,0.8)',
+                     border: '1px solid rgba(255,255,255,0.2)',
+                     borderRadius: '8px',
+                   }}
                   labelStyle={{ color: 'white' }}
                   itemStyle={{ color: 'white' }}
                 />
+
                 <Bar dataKey="count" fill="#2dd4bf" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -128,9 +134,16 @@ const SuperAdminDashboard: React.FC = () => {
                   <Cell fill="#2dd4bf" />
                   <Cell fill="#818cf8" />
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: 'white' }}
+                <Tooltip
+                     contentStyle={{
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px',
+                        }}
+                     itemStyle={{ color: '#ffffff' }}   // value text
+                     labelStyle={{ color: '#ffffff' }}  // label text
                 />
+
               </PieChart>
             </ResponsiveContainer>
           </CardContent>

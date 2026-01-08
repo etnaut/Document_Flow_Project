@@ -51,12 +51,23 @@ interface DocumentTableProps {
   descriptionLabel?: string;
 }
 
-const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'default'> = {
+const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
+  // Lowercase keys
+  pending: 'pending',
+  approved: 'approved',
+  revision: 'revision',
+  released: 'released',
+  received: 'received',
+  'not forwarded': 'default',
+  forwarded: 'approved',
+  recorded: 'approved',
+  'not recorded': 'default',
+  // Title-cased keys (for places indexing with original Status)
   Pending: 'pending',
   Approved: 'approved',
   Revision: 'revision',
   Released: 'released',
-  Received: 'default',
+  Received: 'received',
   'Not Forwarded': 'default',
   Forwarded: 'approved',
   Recorded: 'approved',
@@ -258,20 +269,20 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="font-semibold">Type</TableHead>
-            <TableHead className="font-semibold">Sender</TableHead>
-            {showPriority && <TableHead className="font-semibold">Priority</TableHead>}
-            <TableHead className="font-semibold">Document</TableHead>
-            {showDate && <TableHead className="font-semibold">Date</TableHead>}
-            {showDescription && <TableHead className="font-semibold">{descriptionLabel}</TableHead>}
-            <TableHead className="font-semibold">Status</TableHead>
-            {renderActions && <TableHead className="font-semibold">Actions</TableHead>}
+            <TableHead>Type</TableHead>
+            <TableHead>Sender</TableHead>
+            {showPriority && <TableHead>Priority</TableHead>}
+            <TableHead>Document</TableHead>
+            {showDate && <TableHead>Date</TableHead>}
+            {showDescription && <TableHead>{descriptionLabel}</TableHead>}
+            <TableHead>Status</TableHead>
+            {renderActions && <TableHead>Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {documents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columnsCount} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={columnsCount} className="h-24 text-center text-black/80">
                 No documents found.
               </TableCell>
             </TableRow>
@@ -299,7 +310,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   {doc.Document ? (
                     <Button
                       variant="link"
-                      className="px-0 text-xs text-white hover:text-white"
+                      className="px-0 text-xs text-black hover:underline"
                       onClick={() => {
                         void handleAttachmentClick(doc);
                       }}
@@ -310,16 +321,16 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     <span className="text-xs text-muted-foreground">None</span>
                   )}
                 </TableCell>
-                {showDate && <TableCell className="text-muted-foreground">{doc.created_at}</TableCell>}
+                {showDate && <TableCell>{doc.created_at}</TableCell>}
                 {showDescription && (
-                  <TableCell className="max-w-[240px] truncate text-muted-foreground" title={doc.description || ''}>
+                  <TableCell className="max-w-[240px] truncate" title={doc.description || ''}>
                     {doc.description || '—'}
                   </TableCell>
                 )}
                 <TableCell>
                   {(() => {
-                    const statusLabel = doc.Status === 'Revision' ? 'Needs Revision' : doc.Status;
                     const statusLower = doc.Status?.toLowerCase();
+                    const statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
 
                     // Recorder: click to mark as Recorded
                     if (onRecord && statusLower === 'not recorded') {
@@ -343,10 +354,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="px-0 text-info hover:text-info"
+                          className="px-0"
                           onClick={() => onEdit(doc)}
                         >
-                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                          <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
                             {statusLabel}
                           </Badge>
                         </Button>
@@ -391,7 +402,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="px-0">
-                              <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                              <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
                                 {statusLabel}
                               </Badge>
                             </Button>
@@ -418,7 +429,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     }
 
                     return (
-                      <Badge variant={statusVariants[doc.Status] || 'default'}>{statusLabel}</Badge>
+                      <Badge variant={statusVariants[statusLower || ''] || 'default'}>{statusLabel}</Badge>
                     );
                   })()}
                 </TableCell>

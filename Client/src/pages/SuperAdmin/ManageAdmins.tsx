@@ -223,8 +223,8 @@ const ManageAdmins: React.FC = () => {
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="text-black">
+              <Plus className="mr-2 h-4 w-4 text-black" />
               Add Admin
             </Button>
           </DialogTrigger>
@@ -522,21 +522,21 @@ const ManageAdmins: React.FC = () => {
       </div>
 
       <div className="rounded-lg border bg-card">
-        <Table className="text-white">
+        <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="uppercase text-white">Full Name</TableHead>
-              <TableHead className="uppercase text-white">Email</TableHead>
-              <TableHead className="uppercase text-white">Department</TableHead>
-              <TableHead className="uppercase text-white">Division</TableHead>
-              <TableHead className="uppercase text-white">Role</TableHead>
-              <TableHead className="uppercase text-white">Status</TableHead>
+              <TableHead className="uppercase">Full Name</TableHead>
+              <TableHead className="uppercase">Email</TableHead>
+              <TableHead className="uppercase">Department</TableHead>
+              <TableHead className="uppercase">Division</TableHead>
+              <TableHead className="uppercase">Role</TableHead>
+              <TableHead className="uppercase">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visibleAdmins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-white/80">
+                <TableCell colSpan={6} className="h-24 text-center text-black/80">
                   <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
                   No admin accounts found.
                 </TableCell>
@@ -544,11 +544,11 @@ const ManageAdmins: React.FC = () => {
             ) : (
               visibleAdmins.map((admin) => (
                 <TableRow key={admin.User_Id}>
-                  <TableCell className="font-medium text-white">{admin.Full_Name}</TableCell>
-                  <TableCell className="text-white">{admin.Email}</TableCell>
-                  <TableCell className="text-white">{admin.Department}</TableCell>
-                  <TableCell className="text-white">{admin.Division}</TableCell>
-                  <TableCell className="text-white">{admin.User_Role}</TableCell>
+                  <TableCell className="font-medium">{admin.Full_Name}</TableCell>
+                  <TableCell>{admin.Email}</TableCell>
+                  <TableCell>{admin.Department}</TableCell>
+                  <TableCell>{admin.Division}</TableCell>
+                  <TableCell>{admin.User_Role}</TableCell>
                   <TableCell>
                     <span
                       role="button"
@@ -560,8 +560,8 @@ const ManageAdmins: React.FC = () => {
                         }
                       }}
                       onClick={() => handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status)}
-                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs border border-white/20 ${
-                        admin.Status ? 'bg-green-500/20 text-white' : 'bg-red-500/20 text-white'
+                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs border border-black/20 ${
+                        admin.Status ? 'bg-green-500/20 text-black' : 'bg-red-500/20 text-black'
                       }`}
                     >
                       {admin.Status ? 'Active' : 'Inactive'}

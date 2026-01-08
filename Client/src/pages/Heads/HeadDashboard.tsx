@@ -124,7 +124,7 @@ const HeadDashboard: React.FC = () => {
         <div className="flex gap-2">
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button>Add Employee</Button>
+              <Button className="text-black">Add Employee</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
