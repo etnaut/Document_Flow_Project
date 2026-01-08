@@ -40,6 +40,7 @@ interface DocumentTableProps {
   onReject?: (id: number) => void;
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
+  onRecord?: (doc: Document) => void;
   onForward?: (doc: Document) => void;
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
@@ -56,12 +57,19 @@ const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'rele
   Revision: 'revision',
   Released: 'released',
   Received: 'default',
+  'Not Forwarded': 'default',
+  Forwarded: 'approved',
+  Recorded: 'approved',
+  'Not Recorded': 'default',
 };
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
   documents,
   onApprove,
   onRevision,
+  onRelease,
+  onForward,
+  onRecord,
   onEdit,
   renderActions,
   showPriority = true,
@@ -313,6 +321,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     const statusLabel = doc.Status === 'Revision' ? 'Needs Revision' : doc.Status;
                     const statusLower = doc.Status?.toLowerCase();
 
+                    // Recorder: click to mark as Recorded
+                    if (onRecord && statusLower === 'not recorded') {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-info hover:text-info"
+                          onClick={() => onRecord(doc)}
+                        >
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {statusLabel}
+                          </Badge>
+                        </Button>
+                      );
+                    }
+
                     // Employee-side: clickable status when edit handler provided and no approve/revision controls
                     if (onEdit && !onApprove && !onRevision && statusLower !== 'approved' && statusLower !== 'pending') {
                       return (
@@ -321,6 +345,38 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           size="sm"
                           className="px-0 text-info hover:text-info"
                           onClick={() => onEdit(doc)}
+                        >
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {statusLabel}
+                          </Badge>
+                        </Button>
+                      );
+                    }
+
+                    // Releaser: click to Release when approved
+                    if (onRelease && statusLower === 'approved') {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-info hover:text-info"
+                          onClick={() => onRelease(doc.Document_Id)}
+                        >
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {statusLabel}
+                          </Badge>
+                        </Button>
+                      );
+                    }
+
+                    // Head/Admin forwarding: allow forwarding when status is Not Forwarded
+                    if (onForward && statusLower === 'not forwarded') {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0 text-info hover:text-info"
+                          onClick={() => onForward(doc)}
                         >
                           <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
                             {statusLabel}

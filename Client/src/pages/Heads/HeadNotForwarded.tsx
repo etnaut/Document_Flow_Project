@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApprovedDocuments } from '@/services/api';
+import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { toast } from '@/hooks/use-toast';
@@ -11,6 +11,7 @@ const HeadNotForwarded: React.FC = () => {
   const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submittingId, setSubmittingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!allowed) return;
@@ -58,6 +59,20 @@ const HeadNotForwarded: React.FC = () => {
 
       <DocumentTable
         documents={documents}
+        onForward={async (doc) => {
+          if (!user) return;
+          try {
+            setSubmittingId(doc.Document_Id);
+            await updateDocumentStatus(doc.Document_Id, 'Forwarded', undefined, user.Full_Name);
+            toast({ title: 'Document forwarded' });
+            void loadDocuments();
+          } catch (error: any) {
+            console.error('Forward failed', error);
+            toast({ title: 'Failed to forward document', description: error?.message || 'Please try again', variant: 'destructive' });
+          } finally {
+            setSubmittingId(null);
+          }
+        }}
         showDescription
         descriptionLabel="Admin"
         showDate={false}

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -376,8 +376,12 @@ router.put('/', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'Document not found' }, 404);
     }
 
-    const statusValue = (input.Status || '').toLowerCase();
+  const statusValue: string = (input.Status || '').toLowerCase();
     const senderAllowedStatuses = ['pending', 'approved', 'revise'];
+
+    if (statusValue === 'forwarded' || statusValue === 'recorded' || statusValue === 'approved') {
+      await ensureApprovedStatusAllowed();
+    }
 
     if (statusValue === 'revision' && hasStatus) {
       await ensureReviseStatusAllowed();
@@ -456,6 +460,46 @@ router.put('/', async (req: Request, res: Response) => {
           );
         } else if (input.admin) {
           await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+        }
+      }
+
+      // When marking as forwarded, update approved_document_tbl status accordingly
+      if (statusValue === 'forwarded') {
+        const approvedCheck = await client.query(
+          'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+          [input.Document_Id]
+        );
+
+        if (approvedCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
+          );
+        } else {
+          await client.query(
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            ['forwarded', input.admin ?? null, input.Document_Id]
+          );
+        }
+      }
+
+      // When marking as recorded, persist to approved_document_tbl
+      if (statusValue === 'recorded') {
+        const approvedCheck = await client.query(
+          'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
+          [input.Document_Id]
+        );
+
+        if (approvedCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
+          );
+        } else {
+          await client.query(
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            ['recorded', input.admin ?? null, input.Document_Id]
+          );
         }
       }
 

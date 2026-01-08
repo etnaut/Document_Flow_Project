@@ -2,6 +2,7 @@ import pool from '../config/database.js';
 
 let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
+let approvedStatusConstraintPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -58,4 +59,42 @@ export const ensureReviseStatusAllowed = async (): Promise<void> => {
   })();
 
   return reviseConstraintPromise;
+};
+
+/**
+ * Ensure approved_document_tbl status check constraint allows forwarded/recorded states.
+ */
+export const ensureApprovedStatusAllowed = async (): Promise<void> => {
+  if (approvedStatusConstraintPromise) return approvedStatusConstraintPromise;
+
+  approvedStatusConstraintPromise = (async () => {
+    try {
+      const constraint = await pool.query(
+        `SELECT cc.check_clause
+         FROM information_schema.check_constraints cc
+         JOIN information_schema.table_constraints tc
+           ON cc.constraint_name = tc.constraint_name
+         WHERE tc.table_name = 'approved_document_tbl'
+           AND tc.constraint_type = 'CHECK'
+           AND cc.constraint_name ILIKE 'approved_document_tbl_status_check'
+         LIMIT 1`
+      );
+
+      const clause: string | undefined = constraint.rows?.[0]?.check_clause;
+      const clauseLower = clause?.toLowerCase() || '';
+      if (clauseLower.includes('recorded') && clauseLower.includes('forwarded')) {
+        return;
+      }
+
+      // Recreate constraint to include all expected statuses
+      await pool.query('ALTER TABLE approved_document_tbl DROP CONSTRAINT IF EXISTS approved_document_tbl_status_check');
+      await pool.query(
+        "ALTER TABLE approved_document_tbl ADD CONSTRAINT approved_document_tbl_status_check CHECK (status IN ('not_forwarded','forwarded','recorded'))"
+      );
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl status constraint', err);
+    }
+  })();
+
+  return approvedStatusConstraintPromise;
 };

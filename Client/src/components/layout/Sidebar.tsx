@@ -62,13 +62,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: manageEmployeesPath, icon: User, label: 'Manage Employees' },
     { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
     { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
-    { to: '/received', icon: Inbox, label: 'Forwarded Documents' },
+    { to: '/head/forwarded', icon: Inbox, label: 'Forwarded Documents' },
   ];
 
   const recorderLinks = [
     { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
     { to: '/records/all', icon: FileText, label: 'All Documents' },
-    { to: '/records', icon: Archive, label: 'Recorded' },
+    { to: '/records/not-recorded', icon: Clock, label: 'Not Recorded' },
+    { to: '/records/recorded', icon: CheckCircle, label: 'Recorded' },
   ];
 
   const releaserLinks = [

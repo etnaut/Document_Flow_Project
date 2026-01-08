@@ -24,8 +24,11 @@ import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
 import HeadAllDocuments from "./pages/Heads/HeadAllDocuments";
 import HeadNotForwarded from "./pages/Heads/HeadNotForwarded";
-import RecordPage from "./pages/Recorder/RecordPage";
+import HeadForwarded from "./pages/Heads/HeadForwarded";
+import RecorderDashboard from "./pages/Recorder/RecorderDashboard";
 import AllRecorderDocuments from "./pages/Recorder/AllRecorderDocuments";
+import NotRecordedDocuments from "./pages/Recorder/NotRecordedDocuments";
+import RecordedDocuments from "./pages/Recorder/RecordedDocuments";
 import RecordLayout from "./components/layout/RecordLayout";
 import DivisionHead from "./pages/Heads/DivisionHead";
 import ManageEmployees from "./pages/Heads/ManageEmployees";
@@ -72,6 +75,7 @@ const App = () => (
               <Route path="/head" element={<HeadDashboard />} />
               <Route path="/head/all-documents" element={<HeadAllDocuments />} />
               <Route path="/head/not-forwarded" element={<HeadNotForwarded />} />
+              <Route path="/head/forwarded" element={<HeadForwarded />} />
               <Route path="/division-head" element={<DivisionHead />} />
               <Route path="/head/manage-employees" element={<ManageEmployees />} />
               {/* Releaser Routes */}
@@ -84,8 +88,10 @@ const App = () => (
 
             {/* Recorder-specific standalone layout (no sidebar) */}
             <Route element={<RecordLayout />}>
-              <Route path="/records" element={<RecordPage />} />
+              <Route path="/records" element={<RecorderDashboard />} />
               <Route path="/records/all" element={<AllRecorderDocuments />} />
+              <Route path="/records/not-recorded" element={<NotRecordedDocuments />} />
+              <Route path="/records/recorded" element={<RecordedDocuments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
