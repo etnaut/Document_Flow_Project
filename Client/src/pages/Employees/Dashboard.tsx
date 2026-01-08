@@ -71,9 +71,9 @@ const Dashboard: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Documents" value={stats.total} icon={FileText} variant="default" />
-        <StatCard title="Pending" value={stats.pending} icon={Clock} variant="warning" />
-        <StatCard title="Approved" value={stats.approved} icon={CheckCircle} variant="success" />
-        <StatCard title="For Revision" value={stats.revision} icon={RotateCcw} variant="info" />
+        <StatCard title="Pending" value={stats.pending} icon={Clock} variant="warning" surface="plain" />
+        <StatCard title="Approved" value={stats.approved} icon={CheckCircle} variant="success" surface="plain" />
+        <StatCard title="For Revision" value={stats.revision} icon={RotateCcw} variant="info" surface="plain" />
       </div>
 
       {/* Recent Documents */}

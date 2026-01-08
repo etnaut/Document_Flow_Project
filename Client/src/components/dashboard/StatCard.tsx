@@ -7,6 +7,7 @@ interface StatCardProps {
   value: number;
   icon: LucideIcon;
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'info';
+  surface?: 'tinted' | 'plain';
 }
 
 const variantStyles = {
@@ -25,12 +26,12 @@ const iconStyles = {
   info: 'bg-info/10 text-info',
 };
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, variant = 'default' }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, variant = 'default', surface = 'tinted' }) => {
   return (
     <div
       className={cn(
         'rounded-xl border p-6 shadow-card transition-all duration-300 hover:shadow-elevated animate-fade-in backdrop-blur-md',
-        variantStyles[variant]
+        surface === 'plain' ? 'bg-card border-border' : variantStyles[variant]
       )}
     >
       <div className="flex items-center justify-between">
