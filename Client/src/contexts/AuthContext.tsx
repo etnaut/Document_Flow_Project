@@ -3,6 +3,20 @@ import { User, AuthContextType } from '@/types';
 import defaultRouteHelper from '@/utils/getDefaultRoute';
 import { loginUser, normalizeUser } from '@/services/api';
 
+const STORAGE_KEY = 'dms_user';
+
+const readStoredUser = (): User | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
+  if (!stored) return null;
+  try {
+    return normalizeUser(JSON.parse(stored));
+  } catch (error) {
+    console.warn('[Auth] Failed to parse stored user', error);
+    return null;
+  }
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -11,13 +25,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Check for existing session
-    const storedUser = localStorage.getItem('dms_user');
+    const storedUser = readStoredUser();
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      // Normalize in case an older stored object lacks pre_assigned_role
-      const normalized = normalizeUser(parsedUser);
-      console.debug('[Auth] Loaded stored normalized user:', normalized);
-      setUser(normalized);
+      console.debug('[Auth] Loaded stored normalized user:', storedUser);
+      setUser(storedUser);
       setIsAuthenticated(true);
     }
   }, []);
@@ -28,7 +39,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.debug('[Auth] Successful login, normalized user:', authenticatedUser);
       setUser(authenticatedUser);
       setIsAuthenticated(true);
-      localStorage.setItem('dms_user', JSON.stringify(authenticatedUser));
+      // Store per-tab to allow different sessions in different tabs
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
+      // Clean up legacy persisted value so old tabs don't resurrect outdated sessions
+      localStorage.removeItem(STORAGE_KEY);
       return authenticatedUser;
     }
     return null;
@@ -37,7 +51,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('dms_user');
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   // Use the shared helper for default route logic
