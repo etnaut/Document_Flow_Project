@@ -1,0 +1,36 @@
+# Node & tooling
+Client/node_modules/
+server/node_modules/
+
+# Build outputs
+Client/dist/
+Client/.vite/
+server/dist/
+
+# Logs & coverage
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+
+# Editor & OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+*.env
+
+# Misc caches
+.eslintcache
+**/.cache/
+
+# Bun cache (keep lock file tracked)
+# bun.lockb is intentionally tracked
+
+# TypeScript build info
+**/*.tsbuildinfo

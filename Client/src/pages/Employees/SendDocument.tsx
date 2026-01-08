@@ -142,15 +142,15 @@ const SendDocument: React.FC = () => {
             <FileText className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Document Details</h2>
-            <p className="text-sm text-muted-foreground">Fill in the information below</p>
+            <h2 className="text-lg font-semibold text-foreground-black">Document Details</h2>
+            <p className="text-sm text-muted-foreground-black">Fill in the information below</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="type">Document Type *</Label>
+              <Label htmlFor="type">Document Type</Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) =>
@@ -217,7 +217,7 @@ const SendDocument: React.FC = () => {
               />
               <Upload className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground-black">
               Accepts PDF, Word, Excel, and common document formats.
             </p>
             {selectedFile && (
@@ -228,6 +228,7 @@ const SendDocument: React.FC = () => {
           <div className="space-y-2">
             <Label htmlFor="description">Description / Notes</Label>
             <Textarea
+              className='text-black placeholder:!text-black-400 border-gray-700'
               id="description"
               placeholder="Add any additional details about your document request..."
               value={formData.description}
@@ -237,18 +238,18 @@ const SendDocument: React.FC = () => {
           </div>
 
           <div className="rounded-lg bg-muted p-4">
-            <p className="text-sm font-medium text-muted-foreground">Sender Information</p>
+            <p className="text-lg font-medium text-muted-foreground-black">Sender Information</p>
             <div className="mt-2 space-y-1 text-sm">
               <p>
-                <span className="text-muted-foreground">Name:</span>{' '}
+                <span className="text-muted-foreground-black">Name:</span>{' '}
                 <span className="font-medium text-foreground">{user?.Full_Name}</span>
               </p>
               <p>
-                <span className="text-muted-foreground">Division:</span>{' '}
+                <span className="text-muted-foreground-black">Division:</span>{' '}
                 <span className="font-medium text-foreground">{user?.Division}</span>
               </p>
               <p>
-                <span className="text-muted-foreground">Department:</span>{' '}
+                <span className="text-muted-foreground-black">Department:</span>{' '}
                 <span className="font-medium text-foreground">{user?.Department}</span>
               </p>
             </div>
@@ -256,6 +257,7 @@ const SendDocument: React.FC = () => {
 
           <div className="flex gap-4">
             <Button
+              className='text-white'
               type="button"
               variant="outline"
               onClick={() => navigate(-1)}
