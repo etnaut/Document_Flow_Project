@@ -59,7 +59,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable documents={documents} showActions={false} />
+      <DocumentTable documents={documents} showActions={false} showStatusFilter={false} enablePagination pageSizeOptions={[10,20,50]} />
     </div>
   );
 };

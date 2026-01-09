@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { getUsers, createUser, getDepartments, getDivisions } from '@/services/api';
 import { createDepartment, createDivision } from '@/services/api';
 import { updateUserStatus } from '@/services/api';
@@ -212,6 +213,11 @@ const ManageAdmins: React.FC = () => {
   };
 
   const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(1, Math.ceil(visibleAdmins.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageSlice = visibleAdmins.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="space-y-6">
@@ -542,7 +548,7 @@ const ManageAdmins: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              visibleAdmins.map((admin) => (
+              pageSlice.map((admin) => (
                 <TableRow key={admin.User_Id}>
                   <TableCell className="font-medium">{admin.Full_Name}</TableCell>
                   <TableCell>{admin.Email}</TableCell>
@@ -572,6 +578,32 @@ const ManageAdmins: React.FC = () => {
             )}
           </TableBody>
         </Table>
+        <div className="p-3 border-t flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Rows per page</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </div>
       </div>
     </div>
   );

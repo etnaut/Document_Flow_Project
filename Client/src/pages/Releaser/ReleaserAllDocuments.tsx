@@ -64,7 +64,7 @@ const ReleaserAllDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable documents={documents} onRelease={handleRelease} />
+      <DocumentTable documents={documents} onRelease={handleRelease} enablePagination pageSizeOptions={[10,20,50]} />
     </div>
   );
 };

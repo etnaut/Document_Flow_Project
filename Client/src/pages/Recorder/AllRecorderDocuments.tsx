@@ -81,6 +81,8 @@ const AllRecorderDocuments: React.FC = () => {
           descriptionLabel="Admin"
           showDate={false}
           onRecord={handleRecord}
+          enablePagination
+          pageSizeOptions={[10,20,50]}
         />
       )}
     </div>

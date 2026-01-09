@@ -76,6 +76,9 @@ const HeadNotForwarded: React.FC = () => {
         showDescription
         descriptionLabel="Admin"
         showDate={false}
+        showStatusFilter={false}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
     </div>
   );

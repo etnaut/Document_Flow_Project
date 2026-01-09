@@ -74,6 +74,8 @@ const HeadAllDocuments: React.FC = () => {
         showDescription
         descriptionLabel="Admin"
         showDate={false}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
     </div>
   );

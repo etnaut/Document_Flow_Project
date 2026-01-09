@@ -78,6 +78,9 @@ const ApprovedDocuments: React.FC = () => {
         documents={documents} 
         onRelease={handleRelease} 
         onForward={handleForwardClick}
+        showStatusFilter={false}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
 
       <ForwardDocumentDialog

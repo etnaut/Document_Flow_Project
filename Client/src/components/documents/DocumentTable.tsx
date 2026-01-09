@@ -36,6 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Eye, Download, ExternalLink } from 'lucide-react';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -54,6 +55,7 @@ interface DocumentTableProps {
   descriptionLabel?: string;
   enablePagination?: boolean;
   pageSizeOptions?: number[];
+  showStatusFilter?: boolean;
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
@@ -94,6 +96,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   descriptionLabel = 'Comment',
   enablePagination = false,
   pageSizeOptions = [5, 10, 20],
+  showStatusFilter = true,
 }) => {
   const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
@@ -111,6 +114,21 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(pageSizeOptions[0] ?? 5);
+
+  const availableStatuses = React.useMemo(() => {
+    const set = new Set<string>();
+    (documents || []).forEach((d) => {
+      const raw = String(d.Status || '').trim().toLowerCase();
+      if (raw) set.add(raw);
+    });
+    return Array.from(set).sort();
+  }, [documents]);
+
+  const labelForStatus = (key: string) => {
+    const k = key.trim().toLowerCase();
+    if (k === 'revision') return 'Needs Revision';
+    return k.split(' ').map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
+  };
 
   const mimeFromChoice = (choice: 'pdf' | 'word' | 'excel' | 'auto') => {
     switch (choice) {
@@ -286,6 +304,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     });
   }, [documents, query, statusFilter]);
 
+  React.useEffect(() => {
+    if (statusFilter !== 'all' && !availableStatuses.includes(statusFilter.toLowerCase())) {
+      setStatusFilter('all');
+    }
+  }, [availableStatuses, statusFilter]);
+
   const totalPages = Math.max(1, Math.ceil(normalized.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageSlice = enablePagination ? normalized.slice((currentPage - 1) * pageSize, (currentPage) * pageSize) : normalized;
@@ -300,21 +324,17 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents..." className="w-[240px]" />
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="revision">Revision</SelectItem>
-                <SelectItem value="released">Released</SelectItem>
-                <SelectItem value="received">Received</SelectItem>
-                <SelectItem value="forwarded">Forwarded</SelectItem>
-                <SelectItem value="recorded">Recorded</SelectItem>
-                <SelectItem value="not forwarded">Not Forwarded</SelectItem>
-                <SelectItem value="not recorded">Not Recorded</SelectItem>
-              </SelectContent>
-            </Select>
+            {showStatusFilter && (
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {availableStatuses.map((s) => (
+                    <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           {enablePagination && (
             <div className="flex items-center gap-2">
@@ -536,66 +556,72 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           }
         }}
       >
-        <DialogContent className="sm:max-w-[85vw] md:max-w-[80vw] lg:max-w-[70vw]">
-          <DialogHeader>
-            <DialogTitle className="text-white">Open Attachment</DialogTitle>
-            <DialogDescription>
-              {mimeChoice === 'auto'
-                ? 'We will try to auto-detect the best viewer from the original file.'
-                : `Recommended: ${mimeChoice.toUpperCase()} based on the original file.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="rounded-md border bg-muted/30 p-2">
-              {previewLoading ? (
-                <div className="flex h-[65vh] items-center justify-center text-sm text-muted-foreground">
-                  Generating PDF preview...
-                </div>
-              ) : previewUrl ? (
-                <iframe
-                  title="Attachment preview"
-                  src={previewUrl}
-                  className="h-[65vh] w-full rounded-sm border bg-background"
-                />
-              ) : (
-                <div className="flex h-[65vh] items-center justify-center text-sm text-muted-foreground text-center px-4">
-                  {previewError
-                    ? previewError
-                    : 'Preview is generated as PDF. If this is a Word or Excel file, we convert it to PDF for preview only.'}
-                </div>
-              )}
-              <p className="mt-2 text-xs text-muted-foreground">
-                Preview uses a PDF rendition; choosing Word or Excel will still open/download the original format in a new tab.
-              </p>
+        <DialogContent className="max-w-[95vw] p-0 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+            <div className="min-w-0">
+              <DialogTitle className="text-foreground text-base truncate">Attachment Viewer</DialogTitle>
+              <DialogDescription className="text-xs truncate">
+                {fileDialogDoc?.Type} — {fileDialogDoc?.sender_name}
+              </DialogDescription>
             </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-white">View as:</span>
-                <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
-                  <SelectTrigger className="w-[180px] text-white">
-                    <SelectValue placeholder="Choose format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="word">Word</SelectItem>
-                    <SelectItem value="excel">Excel</SelectItem>
-                    <SelectItem value="auto">Auto (use detected)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => { openDocument(); }} disabled={!fileBytes}>
-                Download
+            <div className="flex items-center gap-2">
+              <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Choose format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="word">Word</SelectItem>
+                  <SelectItem value="excel">Excel</SelectItem>
+                  <SelectItem value="auto">Auto (detected)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={() => { openDocument(); }} disabled={!fileBytes}>
+                <ExternalLink className="mr-2 h-4 w-4" /> Open
               </Button>
+              <Button onClick={() => { openDocument(); }} disabled={!fileBytes}>
+                <Download className="mr-2 h-4 w-4" /> Download
+              </Button>
+              <Button variant="ghost" onClick={() => setFileDialogDoc(null)}>Close</Button>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" className="text-white border-white hover:text-white hover:bg-white/10" onClick={() => setFileDialogDoc(null)}>
-              Close
-            </Button>
-          </DialogFooter>
+          <div className="grid grid-cols-1 md:grid-cols-12">
+            <div className="md:col-span-8 bg-background">
+              {previewLoading ? (
+                <div className="flex h-[70vh] items-center justify-center">
+                  <div className="animate-pulse rounded-md border bg-muted/30 w-[90%] h-[60vh]" />
+                </div>
+              ) : previewUrl ? (
+                <iframe title="Attachment preview" src={previewUrl} className="h-[70vh] w-full" />
+              ) : (
+                <div className="flex h-[70vh] items-center justify-center text-sm text-muted-foreground text-center px-6">
+                  {previewError
+                    ? previewError
+                    : 'Preview will be generated as PDF when available. For Word or Excel files, we convert a temporary PDF preview.'}
+                </div>
+              )}
+            </div>
+            <div className="md:col-span-4 border-l bg-muted/30 p-4 space-y-3">
+              <p className="text-sm font-medium text-foreground">Details</p>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div><span className="font-medium text-foreground">Type:</span> {fileDialogDoc?.Type || '—'}</div>
+                <div><span className="font-medium text-foreground">Sender:</span> {fileDialogDoc?.sender_name || '—'}</div>
+                <div><span className="font-medium text-foreground">Priority:</span> {fileDialogDoc?.Priority || '—'}</div>
+                <div><span className="font-medium text-foreground">Status:</span> {fileDialogDoc?.Status || '—'}</div>
+                <div><span className="font-medium text-foreground">Date:</span> {fileDialogDoc?.created_at || '—'}</div>
+                {fileDialogDoc?.description && (
+                  <div className="mt-2">
+                    <span className="font-medium text-foreground">Notes:</span>
+                    <p className="mt-1 text-xs text-foreground/80 break-words">{fileDialogDoc.description}</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground pt-2">
+                Opening will use the selected format. Download may open in a new tab depending on browser settings.
+              </p>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

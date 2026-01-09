@@ -94,6 +94,8 @@ const ReceivedRequests: React.FC = () => {
       <DocumentTable
         documents={documents}
         renderActions={renderActions}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
 
       <RespondDocumentDialog

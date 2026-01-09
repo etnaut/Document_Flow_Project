@@ -49,7 +49,7 @@ const MyPendingDocuments: React.FC = () => {
         </div>
       </div>
 
-  <DocumentTable documents={documents} showDescription />
+  <DocumentTable documents={documents} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10,20,50]} />
     </div>
   );
 };
