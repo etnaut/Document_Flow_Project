@@ -186,14 +186,14 @@ const MyRevisionDocuments: React.FC = () => {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className='text-white'>Revision Options</DialogTitle>
+            <DialogTitle className='text-primary'>Revision Options</DialogTitle>
             <DialogDescription>
               Choose to delete this document or resubmit with an updated file.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-2 text-white">
+            <div className="space-y-2 text-primary">
               <Label>Document Type</Label>
               <Select
                 value={editForm.type}
@@ -212,7 +212,7 @@ const MyRevisionDocuments: React.FC = () => {
               </Select>
             </div>
 
-            <div className="space-y-2 text-white">
+            <div className="space-y-2 text-primary">
               <Label>Priority</Label>
               <Select
                 value={editForm.priority}
@@ -231,12 +231,12 @@ const MyRevisionDocuments: React.FC = () => {
               </Select>
             </div>
 
-            <div className="space-y-2 text-white">
+            <div className="space-y-2 text-primary">
               <p className="text-sm font-medium">Upload new file (optional)</p>
               <Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg" onChange={handleFileChange} />
             </div>
 
-            <div className="space-y-2 text-white">
+            <div className="space-y-2 text-primary">
               <p className="text-sm font-medium">Notes (optional)</p>
               <Textarea
                 value={editForm.notes}
@@ -253,7 +253,7 @@ const MyRevisionDocuments: React.FC = () => {
             </Button>
             <div className="flex gap-2 sm:justify-end">
               <Button
-                className='text-white'
+                className='text-primary'
                 variant="outline"
                 onClick={() => {
                   setDialogDoc(null);

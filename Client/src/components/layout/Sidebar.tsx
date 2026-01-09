@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import Logo from '@/assets/Logo.png';
 
 type SidebarProps = {
   collapsed: boolean;
@@ -113,7 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           )}
         >
           <div className="flex items-center gap-2">
-            <FileText className="h-6 w-6 text-sidebar-primary" />
+            <img src={Logo} alt="DocuFlow Logo" className={cn('object-contain', collapsed ? 'h-6 w-6' : 'h-8 w-8')} />
             {!collapsed && <span className="text-lg font-bold">DocuFlow</span>}
           </div>
           <Button

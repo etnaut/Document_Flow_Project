@@ -55,7 +55,7 @@ const SuperAdminDashboard: React.FC = () => {
             <CardTitle className="text-base font-semibold text-muted-foreground">
               Total Employees
             </CardTitle>
-            <Users className="h-7 w-7 text-secondary" />
+            <Users className="h-7 w-7 text-primary" />
           </CardHeader>
           <CardContent className="text-center">
             <div className="text-4xl font-bold text-foreground">{stats.employees}</div>
@@ -68,7 +68,7 @@ const SuperAdminDashboard: React.FC = () => {
             <CardTitle className="text-base font-semibold text-muted-foreground">
               Total Users
             </CardTitle>
-            <UserCog className="h-7 w-7 text-accent" />
+            <UserCog className="h-7 w-7 text-primary" />
           </CardHeader>
           <CardContent className="text-center">
             <div className="text-4xl font-bold text-foreground">{stats.admins + stats.employees}</div>

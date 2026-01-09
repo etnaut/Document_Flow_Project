@@ -217,14 +217,14 @@ const ManageAdmins: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold uppercase tracking-wide text-white">Manage Admins</h1>
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-primary">Manage Admins</h1>
           <p className="text-muted-foreground">Create and manage department admin accounts</p>
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button className="text-black">
-              <Plus className="mr-2 h-4 w-4 text-black" />
+            <Button className="text-white">
+              <Plus className="mr-2 h-4 w-4 text-white" />
               Add Admin
             </Button>
           </DialogTrigger>
