@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments } from '@/services/api';
+import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import StatCard from '@/components/dashboard/StatCard';
 import DocumentTable from '@/components/documents/DocumentTable';
@@ -20,7 +20,7 @@ const ReleaserDashboard: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const docs = await getDocuments(user.User_Id, user.User_Role, user.Department);
+      const docs = await getRecordedDocuments(user.Department);
       setDocuments(docs || []);
     } catch (err: any) {
       console.error('Releaser dashboard load error', err);
@@ -36,10 +36,10 @@ const ReleaserDashboard: React.FC = () => {
 
   const stats = useMemo(() => {
     const total = documents.length;
-    const pendingRelease = documents.filter((d) => d.Status === 'Approved').length;
-    const pending = documents.filter((d) => d.Status === 'Pending').length;
-    const released = documents.filter((d) => d.Status === 'Released').length;
-    return { total, pending, pendingRelease, released };
+    const recorded = documents.filter((d) => d.Status === 'Recorded').length;
+    const notRecorded = documents.filter((d) => d.Status === 'Not Recorded').length;
+    const awaitingRelease = documents.filter((d) => d.Status === 'Approved' || d.Status === 'Pending').length;
+    return { total, recorded, notRecorded, awaitingRelease };
   }, [documents]);
 
   if (!user) return <Navigate to="/login" replace />;
@@ -65,9 +65,9 @@ const ReleaserDashboard: React.FC = () => {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total" value={stats.total} icon={FileText} variant="default" />
-        <StatCard title="Pending" value={stats.pending} icon={Clock} variant="warning" />
-        <StatCard title="Awaiting Release" value={stats.pendingRelease} icon={Send} variant="info" />
-        <StatCard title="Released" value={stats.released} icon={CheckCircle} variant="success" />
+        <StatCard title="Recorded" value={stats.recorded} icon={CheckCircle} variant="success" />
+        <StatCard title="Not Recorded" value={stats.notRecorded} icon={Clock} variant="warning" />
+        <StatCard title="Awaiting Release" value={stats.awaitingRelease} icon={Send} variant="info" />
       </div>
 
       <div className="space-y-3">
@@ -78,7 +78,12 @@ const ReleaserDashboard: React.FC = () => {
           </div>
           <span className="text-xs text-muted-foreground">Showing up to 8</span>
         </div>
-        <DocumentTable documents={documents.slice(0, 8)} showActions={false} />
+          <DocumentTable
+            documents={documents.slice(0, 8)}
+            showDescription
+            descriptionLabel="Comment"
+            showDate={false}
+          />
       </div>
     </div>
   );

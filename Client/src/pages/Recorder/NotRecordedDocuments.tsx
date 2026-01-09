@@ -29,7 +29,7 @@ const NotRecordedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const approved = await getApprovedDocuments(user.Department);
+  const approved = await getApprovedDocuments(user.Department, 'forwarded');
       const mapped = (approved || [])
         .map((d: any) => {
           const statusRaw = (d.Status || '').toLowerCase();

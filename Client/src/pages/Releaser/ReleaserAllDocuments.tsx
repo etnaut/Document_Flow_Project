@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocuments, updateDocumentStatus } from '@/services/api';
+import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ const ReleaserAllDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const docs = await getDocuments(user.User_Id, user.User_Role, user.Department);
+      const docs = await getRecordedDocuments(user.Department);
       setDocuments(docs || []);
     } catch (err: any) {
       console.error('Releaser all documents load error', err);
@@ -31,17 +31,6 @@ const ReleaserAllDocuments: React.FC = () => {
   useEffect(() => {
     void load();
   }, [user]);
-
-  const handleRelease = async (id: number) => {
-    try {
-      await updateDocumentStatus(id, 'Released');
-      toast({ title: 'Document released' });
-      await load();
-    } catch (err: any) {
-      console.error('Release error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to release document', variant: 'destructive' });
-    }
-  };
 
   if (!user) return <Navigate to="/login" replace />;
   if (!isReleaser) return <Navigate to="/dashboard" replace />;
@@ -58,13 +47,18 @@ const ReleaserAllDocuments: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">All Documents</h1>
-          <p className="text-muted-foreground">Documents routed to {user.Department}.</p>
+          <h1 className="text-2xl font-bold">Recorded Documents</h1>
+          <p className="text-muted-foreground">Record status for documents routed to {user.Department}.</p>
         </div>
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable documents={documents} onRelease={handleRelease} />
+      <DocumentTable
+        documents={documents}
+        showDescription
+        descriptionLabel="Comment"
+        showDate={false}
+      />
     </div>
   );
 };

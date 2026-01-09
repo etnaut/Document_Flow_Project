@@ -161,14 +161,30 @@ router.get('/revisions', async (_req: Request, res: Response) => {
 router.get('/approved', async (req: Request, res: Response) => {
   try {
     const department = req.query.department as string | undefined;
+    const statusParam = req.query.status as string | undefined;
 
     const params: any[] = [];
-    let where = '';
+    const conditions: string[] = [];
+
+    if (statusParam) {
+      const statuses = statusParam
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (statuses.length) {
+        params.push(statuses);
+        conditions.push(`LOWER(a.status) = ANY($${params.length})`);
+      }
+    } else {
+      conditions.push("COALESCE(LOWER(a.status), '') IN ('forwarded','not_forwarded')");
+    }
 
     if (department) {
-      where = `WHERE LOWER(d.department) = LOWER($1)`;
       params.push(department);
+      conditions.push(`LOWER(d.department) = LOWER($${params.length})`);
     }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await pool.query(
     `SELECT 
@@ -636,6 +652,65 @@ router.put('/', async (req: Request, res: Response) => {
     client.release();
     console.error('Update document error:', error);
     sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
+// GET /documents/records - list recorded/not recorded entries with document info
+router.get('/records', async (req: Request, res: Response) => {
+  const { department } = req.query;
+  try {
+  const params: any[] = [];
+  const conditions: string[] = ["COALESCE(TRIM(LOWER(rd.status)), '') <> 'recorded'"];
+
+    if (department) {
+      params.push(department);
+      conditions.push(`LOWER(dept.department) = LOWER($${params.length})`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await pool.query(
+      `
+      SELECT
+        rd.record_doc_id,
+        rd.approved_doc_id,
+        rd.status AS record_status,
+        rd.comment AS record_comment,
+        ad.document_id,
+  sd.type,
+        sd.document,
+        sd.priority,
+        sd.description,
+  sd.date AS created_at,
+  u.full_name AS sender_name,
+  dept.department AS target_department
+      FROM record_document_tbl rd
+      JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
+      JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
+      JOIN user_tbl u ON ad.user_id = u.user_id
+      LEFT JOIN department_tbl dept ON u.department_id = dept.department_id
+      ${where}
+      ORDER BY rd.record_doc_id DESC
+      `,
+      params
+    );
+
+    const data = result.rows.map((row) => ({
+      Document_Id: row.document_id,
+      Type: row.type,
+      Document: row.document,
+      Priority: row.priority || 'Normal',
+      Status: row.record_status?.toLowerCase() === 'not_recorded' ? 'Not Recorded' : 'Recorded',
+      description: row.record_comment ?? row.description ?? null,
+      created_at: row.created_at,
+  sender_name: row.sender_name || '',
+  target_department: row.target_department || '',
+    }));
+
+    return sendResponse(res, data, 200);
+  } catch (error: any) {
+    console.error('Get record documents error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
 });
 

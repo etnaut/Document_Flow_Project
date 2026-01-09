@@ -95,11 +95,19 @@ export const getDocumentsByStatus = async (status: string, userDepartment?: stri
 };
 
 // Get approved documents (for heads) sourced from approved_document_tbl
-export const getApprovedDocuments = async (department?: string): Promise<Document[]> => {
+export const getApprovedDocuments = async (department?: string, status?: string): Promise<Document[]> => {
+  const params = new URLSearchParams();
+  if (department) params.append('department', department);
+  if (status) params.append('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/documents/approved${query}`, { method: 'GET' });
+};
+
+export const getRecordedDocuments = async (department?: string): Promise<Document[]> => {
   const params = new URLSearchParams();
   if (department) params.append('department', department);
   const query = params.toString() ? `?${params.toString()}` : '';
-  return apiRequest(`/documents/approved${query}`, { method: 'GET' });
+  return apiRequest(`/documents/records${query}`, { method: 'GET' });
 };
 
 // Create new document
