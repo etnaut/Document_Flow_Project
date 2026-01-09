@@ -427,8 +427,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                       );
                     }
 
-                    // Releaser: click to Release when approved
-                    if (onRelease && statusLower === 'approved') {
+                    // Releaser: click to Release when approved or not released
+                    if (onRelease && (statusLower === 'approved' || statusLower === 'not released')) {
                       return (
                         <Button
                           variant="ghost"

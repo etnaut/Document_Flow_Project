@@ -657,10 +657,21 @@ router.put('/', async (req: Request, res: Response) => {
 
 // GET /documents/records - list recorded/not recorded entries with document info
 router.get('/records', async (req: Request, res: Response) => {
-  const { department } = req.query;
+  const { department, status } = req.query;
   try {
-  const params: any[] = [];
-  const conditions: string[] = ["COALESCE(TRIM(LOWER(rd.status)), '') <> 'recorded'"];
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (status) {
+      const statuses = String(status)
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (statuses.length) {
+        params.push(statuses);
+        conditions.push(`TRIM(LOWER(rd.status)) = ANY($${params.length})`);
+      }
+    }
 
     if (department) {
       params.push(department);
@@ -683,7 +694,7 @@ router.get('/records', async (req: Request, res: Response) => {
         sd.description,
   sd.date AS created_at,
   u.full_name AS sender_name,
-  dept.department AS target_department
+        dept.department AS target_department
       FROM record_document_tbl rd
       JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
       JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
@@ -695,21 +706,72 @@ router.get('/records', async (req: Request, res: Response) => {
       params
     );
 
-    const data = result.rows.map((row) => ({
-      Document_Id: row.document_id,
-      Type: row.type,
-      Document: row.document,
-      Priority: row.priority || 'Normal',
-      Status: row.record_status?.toLowerCase() === 'not_recorded' ? 'Not Recorded' : 'Recorded',
-      description: row.record_comment ?? row.description ?? null,
-      created_at: row.created_at,
-  sender_name: row.sender_name || '',
-  target_department: row.target_department || '',
-    }));
+    const data = result.rows.map((row) => {
+      const statusLower = (row.record_status || '').toLowerCase();
+      const statusLabel = statusLower === 'recorded'
+        ? 'Not Released'
+        : statusLower === 'not_recorded'
+          ? 'Not Recorded'
+          : statusLower === 'released'
+            ? 'Released'
+          : row.record_status || 'Not Released';
+
+      return {
+  Document_Id: row.document_id,
+  record_doc_id: row.record_doc_id,
+        Type: row.type,
+        Document: row.document,
+        Priority: row.priority || 'Normal',
+        Status: statusLabel,
+        description: row.record_comment ?? row.description ?? null,
+        created_at: row.created_at,
+        sender_name: row.sender_name || '',
+        target_department: row.target_department || '',
+      };
+    });
 
     return sendResponse(res, data, 200);
   } catch (error: any) {
     console.error('Get record documents error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
+// PUT /documents/records/:recordDocId - update record status (e.g., release)
+router.put('/records/:recordDocId', async (req: Request, res: Response) => {
+  const recordDocId = Number(req.params.recordDocId);
+  const { status } = req.body as { status?: string };
+
+  if (!Number.isFinite(recordDocId)) {
+    return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
+  }
+
+  const statusVal = String(status || '').trim().toLowerCase();
+  if (!statusVal) {
+    return sendResponse(res, { error: 'Status is required' }, 400);
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE record_document_tbl
+       SET status = $1
+       WHERE record_doc_id = $2
+       RETURNING record_doc_id, approved_doc_id, status, comment`,
+      [statusVal, recordDocId]
+    );
+
+    if (result.rowCount === 0) {
+      return sendResponse(res, { error: 'Record not found' }, 404);
+    }
+
+    return sendResponse(res, {
+      record_doc_id: result.rows[0].record_doc_id,
+      approved_doc_id: result.rows[0].approved_doc_id,
+      status: result.rows[0].status,
+      comment: result.rows[0].comment,
+    });
+  } catch (error: any) {
+    console.error('Update record status error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
 });

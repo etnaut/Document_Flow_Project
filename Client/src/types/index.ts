@@ -24,6 +24,7 @@ export interface User {
 
 export interface Document {
   Document_Id: number;
+  record_doc_id?: number;
   Type: string;
   User_Id: number;
   Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived' | 'Forwarded' | 'Not Forwarded' | 'Recorded' | 'Not Recorded';

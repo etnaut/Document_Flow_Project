@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus, updateDocumentStatus } from '@/services/api';
+import { getRecordedDocuments, releaseRecordedDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,8 @@ const ReleaserPendingDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      // Treat "Approved" as pending release for Releasers
-      const data = await getDocumentsByStatus('Approved', user.Department, user.User_Role);
-      setDocuments(data || []);
+  const data = await getRecordedDocuments(user.Department, 'recorded');
+  setDocuments(data || []);
     } catch (err: any) {
       console.error('Releaser pending load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -34,9 +33,10 @@ const ReleaserPendingDocuments: React.FC = () => {
     void load();
   }, [user]);
 
-  const handleRelease = async (id: number) => {
+  const handleRelease = async (doc: Document) => {
+    if (!doc.record_doc_id) return;
     try {
-      await updateDocumentStatus(id, 'Released');
+      await releaseRecordedDocument(doc.record_doc_id);
       toast({ title: 'Document released' });
       await load();
     } catch (err: any) {
@@ -71,7 +71,16 @@ const ReleaserPendingDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable documents={documents} onRelease={handleRelease} />
+      <DocumentTable
+        documents={documents}
+        onRelease={(id) => {
+          const doc = documents.find((d) => d.Document_Id === id);
+          if (doc) handleRelease(doc);
+        }}
+        showDescription
+        descriptionLabel="Comment"
+        showDate={false}
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getRecordedDocuments } from '@/services/api';
+import { getRecordedDocuments, releaseRecordedDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -18,13 +18,25 @@ const ReleaserAllDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const docs = await getRecordedDocuments(user.Department);
+  const docs = await getRecordedDocuments(user.Department);
       setDocuments(docs || []);
     } catch (err: any) {
       console.error('Releaser all documents load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRelease = async (doc: Document) => {
+    if (!doc.record_doc_id) return;
+    try {
+      await releaseRecordedDocument(doc.record_doc_id);
+      toast({ title: 'Document released' });
+      await load();
+    } catch (err: any) {
+      console.error('Release record error', err);
+      toast({ title: 'Error', description: err?.message || 'Failed to release document', variant: 'destructive' });
     }
   };
 
@@ -58,6 +70,10 @@ const ReleaserAllDocuments: React.FC = () => {
         showDescription
         descriptionLabel="Comment"
         showDate={false}
+        onRelease={(id) => {
+          const doc = documents.find((d) => d.Document_Id === id);
+          if (doc) handleRelease(doc);
+        }}
       />
     </div>
   );

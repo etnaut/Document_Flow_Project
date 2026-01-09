@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus } from '@/services/api';
+import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,8 @@ const ReleaserReleasedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const data = await getDocumentsByStatus('Released', user.Department, user.User_Role);
-      setDocuments(data || []);
+  const data = await getRecordedDocuments(user.Department, 'released');
+  setDocuments(data || []);
     } catch (err: any) {
       console.error('Releaser released load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -59,7 +59,12 @@ const ReleaserReleasedDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable documents={documents} showActions={false} />
+      <DocumentTable
+        documents={documents}
+        showDescription
+        descriptionLabel="Comment"
+        showDate={false}
+      />
     </div>
   );
 };

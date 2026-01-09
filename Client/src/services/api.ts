@@ -103,11 +103,19 @@ export const getApprovedDocuments = async (department?: string, status?: string)
   return apiRequest(`/documents/approved${query}`, { method: 'GET' });
 };
 
-export const getRecordedDocuments = async (department?: string): Promise<Document[]> => {
+export const getRecordedDocuments = async (department?: string, status?: string): Promise<Document[]> => {
   const params = new URLSearchParams();
   if (department) params.append('department', department);
+  if (status) params.append('status', status);
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest(`/documents/records${query}`, { method: 'GET' });
+};
+
+export const releaseRecordedDocument = async (recordDocId: number): Promise<any> => {
+  return apiRequest(`/documents/records/${recordDocId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'released' }),
+  });
 };
 
 // Create new document
