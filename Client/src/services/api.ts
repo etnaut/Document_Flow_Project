@@ -115,7 +115,9 @@ export const updateDocumentStatus = async (
   documentId: number,
   status: Document['Status'],
   comments?: string,
-  admin?: string
+  admin?: string,
+  recordStatus?: 'recorded' | 'not_recorded',
+  recordComment?: string
 ): Promise<Document | null> => {
   return apiRequest('/documents', {
     method: 'PUT',
@@ -124,6 +126,8 @@ export const updateDocumentStatus = async (
       Status: status,
       comments,
       admin,
+      record_status: recordStatus,
+      record_comment: recordComment,
     }),
   });
 };
@@ -143,7 +147,6 @@ export const updateDocument = async (
 export const deleteDocument = async (documentId: number): Promise<{ success: boolean }> => {
   return apiRequest(`/documents/${documentId}`, { method: 'DELETE' });
 };
-
 // Forward document to another department (Admin to Admin)
 export const forwardDocument = async (
   documentId: number,

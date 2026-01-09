@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureRecordCommentColumn } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -429,6 +429,30 @@ router.put('/', async (req: Request, res: Response) => {
 
     const { updates, params, paramCount } = buildUpdates(true);
 
+    const upsertRecordDocument = async (
+      approvedDocId: number,
+      recordStatus?: string,
+      recordComment?: string
+    ) => {
+      const statusVal = recordStatus || 'recorded';
+      const existingRecord = await client.query(
+        'SELECT record_doc_id FROM record_document_tbl WHERE approved_doc_id = $1 LIMIT 1',
+        [approvedDocId]
+      );
+
+      if (existingRecord.rows.length === 0) {
+        await client.query(
+          'INSERT INTO record_document_tbl (approved_doc_id, status, comment) VALUES ($1, $2, $3)',
+          [approvedDocId, statusVal, recordComment ?? null]
+        );
+      } else {
+        await client.query(
+          'UPDATE record_document_tbl SET status = $1, comment = $2 WHERE record_doc_id = $3',
+          [statusVal, recordComment ?? null, existingRecord.rows[0].record_doc_id]
+        );
+      }
+    };
+
     if (updates.length === 0 && !statusValue) {
       client.release();
       return sendResponse(res, { error: 'No fields to update' }, 400);
@@ -483,24 +507,33 @@ router.put('/', async (req: Request, res: Response) => {
         }
       }
 
-      // When marking as recorded, persist to approved_document_tbl
+      // When marking as recorded, persist to approved_document_tbl and record_document_tbl
       if (statusValue === 'recorded') {
+        await ensureRecordCommentColumn();
         const approvedCheck = await client.query(
           'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
           [input.Document_Id]
         );
 
+  const recordStatusVal = (input.record_status || 'recorded').toLowerCase();
+  const recordCommentVal = input.record_comment ?? undefined;
+        let approvedDocId: number;
+
         if (approvedCheck.rows.length === 0) {
-          await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+          const inserted = await client.query(
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4) RETURNING approved_doc_id',
             [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
           );
+          approvedDocId = inserted.rows[0].approved_doc_id;
         } else {
+          approvedDocId = approvedCheck.rows[0].approved_doc_id;
           await client.query(
             'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
             ['recorded', input.admin ?? null, input.Document_Id]
           );
         }
+
+        await upsertRecordDocument(approvedDocId, recordStatusVal, recordCommentVal);
       }
 
       if (statusValue === 'revision') {

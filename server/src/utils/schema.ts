@@ -3,6 +3,7 @@ import pool from '../config/database.js';
 let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
 let approvedStatusConstraintPromise: Promise<void> | null = null;
+let recordCommentColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -97,4 +98,27 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
   })();
 
   return approvedStatusConstraintPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable comment column for recording notes.
+ */
+export const ensureRecordCommentColumn = async (): Promise<void> => {
+  if (recordCommentColumnPromise) return recordCommentColumnPromise;
+
+  recordCommentColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'comment' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN comment text');
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.comment column', err);
+    }
+  })();
+
+  return recordCommentColumnPromise;
 };

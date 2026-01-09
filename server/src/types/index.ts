@@ -54,6 +54,8 @@ export interface CreateDocumentInput {
 
 export interface UpdateDocumentInput {
   Document_Id: number;
+  record_status?: 'recorded' | 'not_recorded';
+  record_comment?: string;
   Status?: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received' | 'Forwarded' | 'Not Forwarded' | 'Recorded';
   Priority?: string;
   Type?: string;
