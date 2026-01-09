@@ -27,6 +27,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+// Reuse existing Select imports declared above in this file
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +52,8 @@ interface DocumentTableProps {
   showDescription?: boolean;
   showDate?: boolean;
   descriptionLabel?: string;
+  enablePagination?: boolean;
+  pageSizeOptions?: number[];
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
@@ -87,6 +92,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   showDescription = false,
   showDate = true,
   descriptionLabel = 'Comment',
+  enablePagination = false,
+  pageSizeOptions = [5, 10, 20],
 }) => {
   const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
@@ -99,6 +106,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const [previewError, setPreviewError] = React.useState<string | null>(null);
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
   const [revisionComment, setRevisionComment] = React.useState('');
+
+  const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(pageSizeOptions[0] ?? 5);
 
   const mimeFromChoice = (choice: 'pdf' | 'word' | 'excel' | 'auto') => {
     switch (choice) {
@@ -264,8 +276,59 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     }
   };
 
+  const normalized = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (documents || []).filter((d) => {
+      const statusOk = statusFilter === 'all' ? true : (d.Status || '').toLowerCase() === statusFilter.toLowerCase();
+      if (!q) return statusOk;
+      const hay = [d.Type, d.sender_name, d.description, d.Status].join(' ').toLowerCase();
+      return statusOk && hay.includes(q);
+    });
+  }, [documents, query, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(normalized.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageSlice = enablePagination ? normalized.slice((currentPage - 1) * pageSize, (currentPage) * pageSize) : normalized;
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, pageSize, documents]);
+
   return (
     <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+      <div className="flex flex-col gap-3 p-3 border-b">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents..." className="w-[240px]" />
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="revision">Revision</SelectItem>
+                <SelectItem value="released">Released</SelectItem>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="forwarded">Forwarded</SelectItem>
+                <SelectItem value="recorded">Recorded</SelectItem>
+                <SelectItem value="not forwarded">Not Forwarded</SelectItem>
+                <SelectItem value="not recorded">Not Recorded</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {enablePagination && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Rows per page</span>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      </div>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
@@ -280,14 +343,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {documents.length === 0 ? (
+          {pageSlice.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columnsCount} className="h-24 text-center text-black/80">
                 No documents found.
               </TableCell>
             </TableRow>
           ) : (
-            documents.map((doc) => (
+            pageSlice.map((doc) => (
               <TableRow key={doc.Document_Id} className="animate-fade-in">
                 <TableCell>{doc.Type}</TableCell>
                 <TableCell>{doc.sender_name}</TableCell>
@@ -443,6 +506,21 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           )}
         </TableBody>
       </Table>
+      {enablePagination && (
+        <div className="p-3 border-t flex items-center justify-between text-sm">
+          <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       <Dialog
         open={!!fileDialogDoc}
@@ -533,7 +611,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-white">Send for Revision</DialogTitle>
+            <DialogTitle className="text-primary">Send for Revision</DialogTitle>
             <DialogDescription>
               Optionally add a note for the sender before marking this document for revision.
             </DialogDescription>
@@ -541,12 +619,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
           <div className="space-y-3 py-2">
             <div>
-              <p className="text-sm font-medium text-white">Document</p>
+              <p className="text-sm font-medium text-primary">Document</p>
               <p className="text-sm text-muted-foreground">{revisionDialogDoc?.Type} — {revisionDialogDoc?.sender_name}</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium text-white">Comment (optional)</p>
+              <p className="text-sm font-medium text-primary">Comment (optional)</p>
               <textarea
                 className="w-full rounded-md border bg-background p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 rows={3}
@@ -558,7 +636,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" className="text-white border-white hover:text-white hover:bg-white/10" onClick={() => { setRevisionDialogDoc(null); setRevisionComment(''); }}>
+            <Button variant="outline" className="text-primary border-primary hover:text-primary hover:bg-primary/10" onClick={() => { setRevisionDialogDoc(null); setRevisionComment(''); }}>
               Cancel
             </Button>
             <Button

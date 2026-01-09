@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
           approved: statsData.approved ?? 0,
           revision: statsData.revision ?? 0,
         });
-        setRecentDocuments(docsData.slice(0, 5));
+        setRecentDocuments(docsData || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -78,8 +78,8 @@ const Dashboard: React.FC = () => {
 
       {/* Recent Documents */}
       <div className="animate-slide-up">
-        <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Documents</h2>
-  <DocumentTable documents={recentDocuments} showDescription />
+          <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Documents</h2>
+          <DocumentTable documents={recentDocuments} showDescription enablePagination pageSizeOptions={[5,10,20]} />
       </div>
     </div>
   );

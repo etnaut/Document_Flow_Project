@@ -7,6 +7,8 @@ import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const DivisionHead: React.FC = () => {
 	const { user } = useAuth();
@@ -73,37 +75,46 @@ const DivisionHead: React.FC = () => {
 					<p className="text-muted-foreground">Employees in your division</p>
 				</div>
 				<div className="flex gap-2">
-					<Button variant="outline" className="text-white" onClick={() => void loadEmployees()} disabled={loading}>
+					<Input placeholder="Search employees..." className="w-[220px]" onChange={(e) => {
+						const q = e.target.value.toLowerCase();
+						setEmployees(divisionEmployees.filter((emp) => [emp.Full_Name, emp.Email, emp.Department, emp.Division || ''].join(' ').toLowerCase().includes(q)));
+					}} />
+					<Button
+						variant="outline"
+						className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
+						aria-disabled={loading}
+						onClick={() => void loadEmployees()}
+					>
 						{loading ? 'Loading…' : 'Refresh'}
 					</Button>
 				</div>
 			</div>
 
-			<div className="overflow-auto bg-card p-4 rounded">
-				<table className="w-full table-auto text-sm">
-					<thead>
-						<tr className="text-left text-muted-foreground">
-							<th className="px-2 py-2">Name</th>
-							<th className="px-2 py-2">Email</th>
-							<th className="px-2 py-2">Department</th>
-							<th className="px-2 py-2">Division</th>
-							<th className="px-2 py-2">Status</th>
-							<th className="px-2 py-2">Assigned</th>
-						</tr>
-					</thead>
-					<tbody>
+			<div className="rounded-xl border bg-card shadow-card overflow-hidden">
+				<Table>
+					<TableHeader>
+						<TableRow className="bg-muted/50">
+							<TableHead>Name</TableHead>
+							<TableHead>Email</TableHead>
+							<TableHead>Department</TableHead>
+							<TableHead>Division</TableHead>
+							<TableHead>Status</TableHead>
+							<TableHead>Assigned</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
 						{loading ? (
-							<tr><td colSpan={6} className="p-4 text-muted-foreground">Loading...</td></tr>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading...</TableCell></TableRow>
 						) : employees.length === 0 ? (
-							<tr><td colSpan={6} className="p-4 text-muted-foreground">No employees found</td></tr>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
 						) : (
 							employees.map((emp) => (
-								<tr key={emp.User_Id} className="border-t">
-									<td className="px-2 py-3 font-medium">{emp.Full_Name}</td>
-									<td className="px-2 py-3">{emp.Email}</td>
-									<td className="px-2 py-3">{emp.Department}</td>
-									<td className="px-2 py-3">{emp.Division}</td>
-									<td className="px-2 py-3">
+								<TableRow key={emp.User_Id} className="animate-fade-in">
+									<TableCell className="font-medium">{emp.Full_Name}</TableCell>
+									<TableCell>{emp.Email}</TableCell>
+									<TableCell>{emp.Department}</TableCell>
+									<TableCell>{emp.Division}</TableCell>
+									<TableCell>
 										<Select
 											value={emp.Status ? 'active' : 'inactive'}
 											onValueChange={async (v) => {
@@ -120,16 +131,16 @@ const DivisionHead: React.FC = () => {
 												}
 											}}
 										>
-											<SelectTrigger className={`w-[140px] ${emp.Status ? 'text-white' : 'text-red-500'}`}>
+											<SelectTrigger className={`w-[140px] ${emp.Status ? 'text-emerald-600' : 'text-red-500'}`}>
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="active" className="text-white">Active</SelectItem>
+												<SelectItem value="active" className="text-emerald-600">Active</SelectItem>
 												<SelectItem value="inactive" className="text-red-500">Inactive</SelectItem>
 											</SelectContent>
 										</Select>
-									</td>
-									<td className="px-2 py-3">
+									</TableCell>
+									<TableCell>
 										<Select
 											value={emp.pre_assigned_role || 'none'}
 											onValueChange={async (v) => {
@@ -153,12 +164,12 @@ const DivisionHead: React.FC = () => {
 												<SelectItem value="Releaser">Releaser</SelectItem>
 											</SelectContent>
 										</Select>
-									</td>
-								</tr>
+									</TableCell>
+								</TableRow>
 							))
 						)}
-					</tbody>
-				</table>
+					</TableBody>
+				</Table>
 			</div>
 		</div>
 	);

@@ -5,8 +5,10 @@ import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus } f
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -17,6 +19,7 @@ const ManageEmployees: React.FC = () => {
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [query, setQuery] = useState('');
 
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
@@ -85,10 +88,16 @@ const ManageEmployees: React.FC = () => {
   };
 
   const filteredEmployees = useMemo(() => {
-    if (statusFilter === 'all') return employees;
-    if (statusFilter === 'active') return employees.filter((e) => e.Status === true);
-    return employees.filter((e) => e.Status === false);
-  }, [employees, statusFilter]);
+    const q = query.trim().toLowerCase();
+    const byStatus = statusFilter === 'all'
+      ? employees
+      : statusFilter === 'active'
+      ? employees.filter((e) => e.Status === true)
+      : employees.filter((e) => e.Status === false);
+    if (!q) return byStatus;
+    return byStatus.filter((e) => [e.Full_Name, e.Email, e.Department, e.Division || '']
+      .join(' ').toLowerCase().includes(q));
+  }, [employees, statusFilter, query]);
 
   if (!allowed) return <Navigate to="/dashboard" replace />;
 
@@ -110,60 +119,66 @@ const ManageEmployees: React.FC = () => {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="text-white" onClick={() => void loadEmployees()} disabled={loading}>
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees..." className="w-[220px] border-primary" />
+          <Button
+            variant="outline"
+            className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
+            aria-disabled={loading}
+            onClick={() => void loadEmployees()}
+          >
             {loading ? 'Loading…' : 'Refresh'}
           </Button>
         </div>
       </div>
 
-      <div className="overflow-auto bg-card p-4 rounded border">
-        <table className="w-full table-auto text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="px-2 py-2 font-medium">Name</th>
-              <th className="px-2 py-2 font-medium">Email</th>
-              <th className="px-2 py-2 font-medium">Department</th>
-              <th className="px-2 py-2 font-medium">Division</th>
-              <th className="px-2 py-2 font-medium">Status</th>
-              <th className="px-2 py-2 font-medium">Set Status</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Division</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Set Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading ? (
-              <tr><td colSpan={6} className="p-4 text-muted-foreground">Loading employees…</td></tr>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading employees…</TableCell></TableRow>
             ) : filteredEmployees.length === 0 ? (
-              <tr><td colSpan={6} className="p-4 text-muted-foreground">No employees found</td></tr>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
             ) : (
               filteredEmployees.map((emp) => (
-                <tr key={emp.User_Id} className="border-t">
-                  <td className="px-2 py-3 font-medium">{emp.Full_Name}</td>
-                  <td className="px-2 py-3">{emp.Email}</td>
-                  <td className="px-2 py-3">{emp.Department}</td>
-                  <td className="px-2 py-3">{emp.Division || '—'}</td>
-                  <td className="px-2 py-3">
-                    <Badge variant={emp.Status ? 'default' : 'secondary'} className={emp.Status ? 'bg-emerald-500/10 text-white border-emerald-200' : 'bg-red-500/10 text-red-500 border-red-200'}>
+                <TableRow key={emp.User_Id} className="animate-fade-in">
+                  <TableCell className="font-medium">{emp.Full_Name}</TableCell>
+                  <TableCell>{emp.Email}</TableCell>
+                  <TableCell>{emp.Department}</TableCell>
+                  <TableCell>{emp.Division || '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant={emp.Status ? 'default' : 'secondary'} className={emp.Status ? 'bg-emerald-500/10 text-emerald-700 border-emerald-200' : 'bg-red-500/10 text-red-600 border-red-200'}>
                       {emp.Status ? 'Active' : 'Inactive'}
                     </Badge>
-                  </td>
-                  <td className="px-2 py-3">
+                  </TableCell>
+                  <TableCell>
                     <Select
                       value={emp.Status ? 'active' : 'inactive'}
                       onValueChange={(v) => void handleStatusChange(emp.User_Id, v === 'active')}
                     >
-                      <SelectTrigger className={`w-[140px] ${emp.Status ? 'text-white' : 'text-red-500'}`}>
+                      <SelectTrigger className={`w-[140px] font-medium ${emp.Status ? 'text-emerald-600' : 'text-red-500'}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active" className="text-white">Active</SelectItem>
+                        <SelectItem value="active" className="text-emerald-600">Active</SelectItem>
                         <SelectItem value="inactive" className="text-red-500">Inactive</SelectItem>
                       </SelectContent>
                     </Select>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

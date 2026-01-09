@@ -124,7 +124,7 @@ const HeadDashboard: React.FC = () => {
         <div className="flex gap-2">
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="text-black">Add Employee</Button>
+              <Button className="text-white">Add Employee</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
@@ -237,7 +237,7 @@ const HeadDashboard: React.FC = () => {
 
       <div>
         <h2 className="text-lg font-semibold">All Documents</h2>
-        <DocumentTable documents={allDocs} showDescription descriptionLabel="Admin" showDate={false} />
+        <DocumentTable documents={allDocs} showDescription descriptionLabel="Admin" showDate={false} enablePagination pageSizeOptions={[10,20,50]} />
       </div>
     </div>
   );

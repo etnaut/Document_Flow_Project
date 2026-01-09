@@ -76,13 +76,13 @@ const ReleaserDashboard: React.FC = () => {
             <h2 className="text-xl font-semibold">Latest Documents</h2>
             <p className="text-sm text-muted-foreground">Recent items for {user.Department}</p>
           </div>
-          <span className="text-xs text-muted-foreground">Showing up to 8</span>
+            <span className="text-xs text-muted-foreground">Paginated view</span>
         </div>
           <DocumentTable
-            documents={documents.slice(0, 8)}
-            showDescription
-            descriptionLabel="Comment"
-            showDate={false}
+            documents={documents}
+            renderActions={() => null}
+            enablePagination
+            pageSizeOptions={[8, 16, 24]}
           />
       </div>
     </div>
