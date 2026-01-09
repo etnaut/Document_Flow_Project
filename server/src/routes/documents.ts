@@ -776,5 +776,108 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
   }
 });
 
+// POST /releases - create a release entry and mark record as released
+router.post('/releases', async (req: Request, res: Response) => {
+  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string; division?: string };
+
+  const recordDocId = Number(record_doc_id);
+  const statusVal = String(status || '').trim().toLowerCase();
+  const departmentVal = String(department || '').trim();
+  const divisionVal = String(division || '').trim();
+
+  if (!Number.isFinite(recordDocId)) {
+    return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
+  }
+  if (!statusVal) {
+    return sendResponse(res, { error: 'Status is required' }, 400);
+  }
+  if (!departmentVal) {
+    return sendResponse(res, { error: 'Department is required' }, 400);
+  }
+
+  if (!divisionVal) {
+    return sendResponse(res, { error: 'Division is required' }, 400);
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const recordRes = await client.query(
+      `SELECT rd.record_doc_id, rd.approved_doc_id, rd.status AS record_status, rd.comment,
+              ad.document_id, sd.type, sd.document
+         FROM record_document_tbl rd
+         JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
+         JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
+        WHERE rd.record_doc_id = $1
+        FOR UPDATE`,
+      [recordDocId]
+    );
+
+    if (recordRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return sendResponse(res, { error: 'Record not found' }, 404);
+    }
+
+    const rec = recordRes.rows[0];
+
+    // Insert only into columns that actually exist to avoid "column does not exist" errors on older schemas
+    const releaseColumnsRes = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'release_document_tbl'`
+    );
+    const releaseColumns = new Set<string>(releaseColumnsRes.rows.map((r) => r.column_name));
+
+    const candidateColumns: Array<[string, any]> = [
+      ['record_doc_id', rec.record_doc_id],
+      ['approved_doc_id', rec.approved_doc_id],
+      ['document_id', rec.document_id],
+      ['type', rec.type],
+      ['document', rec.document],
+      ['status', statusVal],
+      ['department', departmentVal],
+      ['division', divisionVal],
+    ];
+
+    const columnsToInsert = candidateColumns.filter(([col]) => releaseColumns.has(col));
+
+    if (columnsToInsert.length === 0) {
+      throw new Error('release_document_tbl has no expected columns to insert');
+    }
+
+    const columnNames = columnsToInsert.map(([col]) => col).join(', ');
+    const placeholders = columnsToInsert.map((_, idx) => `$${idx + 1}`).join(', ');
+    const values = columnsToInsert.map(([, val]) => val);
+
+    await client.query(
+      `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
+      values
+    );
+
+    await client.query('UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2', ['released', rec.record_doc_id]);
+
+    await client.query('COMMIT');
+
+    return sendResponse(res, {
+      record_doc_id: rec.record_doc_id,
+      approved_doc_id: rec.approved_doc_id,
+      document_id: rec.document_id,
+      type: rec.type,
+      status: statusVal,
+      department: departmentVal,
+      division: divisionVal,
+    });
+  } catch (error: any) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Rollback failed:', rollbackError);
+    }
+    console.error('Create release error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
 

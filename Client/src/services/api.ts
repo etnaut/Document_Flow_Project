@@ -118,6 +118,19 @@ export const releaseRecordedDocument = async (recordDocId: number): Promise<any>
   });
 };
 
+export const createReleaseDocument = async (
+  recordDocId: number,
+  status: 'low' | 'medium' | 'high',
+  department: string,
+  division: string
+): Promise<any> => {
+  // documents router is mounted under /api/documents
+  return apiRequest('/documents/releases', {
+    method: 'POST',
+    body: JSON.stringify({ record_doc_id: recordDocId, status, department, division }),
+  });
+};
+
 // Create new document
 export const createDocument = async (document: Partial<Document>): Promise<Document> => {
   return apiRequest('/documents', {
