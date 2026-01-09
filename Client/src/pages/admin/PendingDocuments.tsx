@@ -92,6 +92,9 @@ const PendingDocuments: React.FC = () => {
         onReject={handleReject}
         onRevision={handleRevision}
         showDescription
+        showStatusFilter={false}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
     </div>
   );

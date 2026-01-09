@@ -128,6 +128,8 @@ const ReleaserAllDocuments: React.FC = () => {
         showDescription
         descriptionLabel="Comment"
         showDate={false}
+        enablePagination
+        pageSizeOptions={[10, 20, 50]}
         onRelease={(id) => {
           const doc = documents.find((d) => d.Document_Id === id);
           if (doc) openRelease(doc);

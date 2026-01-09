@@ -172,6 +172,9 @@ const MyRevisionDocuments: React.FC = () => {
           setEditForm({ type: doc.Type, priority: doc.Priority, notes: '' });
         }}
         showDescription
+        showStatusFilter={false}
+        enablePagination
+        pageSizeOptions={[10,20,50]}
       />
 
       <Dialog

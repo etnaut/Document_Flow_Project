@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 const DivisionHead: React.FC = () => {
 	const { user } = useAuth();
@@ -16,6 +17,8 @@ const DivisionHead: React.FC = () => {
 	const [employees, setEmployees] = useState<User[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [divisionEmployees, setDivisionEmployees] = useState<User[]>([]);
+	const [page, setPage] = useState(1);
+	const [pageSize, setPageSize] = useState(10);
 
 	const coerceArray = (value: unknown): unknown[] | null => {
 		if (Array.isArray(value)) return value;
@@ -66,6 +69,11 @@ const DivisionHead: React.FC = () => {
 		void loadEmployees();
 	}, [user, loadEmployees]);
 
+	const totalPages = Math.max(1, Math.ceil(employees.length / pageSize));
+	const currentPage = Math.min(page, totalPages);
+	const pageSlice = employees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+	useEffect(() => { setPage(1); }, [employees, pageSize]);
+
 	return (
 		<div className="space-y-6">
 			{!user ? <Navigate to="/login" replace /> : null}
@@ -87,6 +95,17 @@ const DivisionHead: React.FC = () => {
 					>
 						{loading ? 'Loading…' : 'Refresh'}
 					</Button>
+					<div className="flex items-center gap-2">
+						<span className="text-xs text-muted-foreground">Rows per page</span>
+						<Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+							<SelectTrigger className="w-[90px]">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+							</SelectContent>
+						</Select>
+					</div>
 				</div>
 			</div>
 
@@ -108,7 +127,7 @@ const DivisionHead: React.FC = () => {
 						) : employees.length === 0 ? (
 							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
 						) : (
-							employees.map((emp) => (
+							pageSlice.map((emp) => (
 								<TableRow key={emp.User_Id} className="animate-fade-in">
 									<TableCell className="font-medium">{emp.Full_Name}</TableCell>
 									<TableCell>{emp.Email}</TableCell>
@@ -170,6 +189,19 @@ const DivisionHead: React.FC = () => {
 						)}
 					</TableBody>
 				</Table>
+				<div className="p-3 border-t flex items-center justify-between text-sm">
+					<span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+					<Pagination>
+						<PaginationContent>
+							<PaginationItem>
+								<PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+							</PaginationItem>
+						</PaginationContent>
+					</Pagination>
+				</div>
 			</div>
 		</div>
 	);

@@ -176,7 +176,7 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Table */}
-  <DocumentTable documents={documents} onEdit={handleEdit} showDescription />
+  <DocumentTable documents={documents} onEdit={handleEdit} showDescription enablePagination pageSizeOptions={[10,20,50]} />
 
       {/* Edit Dialog */}
       <Dialog

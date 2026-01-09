@@ -106,6 +106,9 @@ const NotRecordedDocuments: React.FC = () => {
           descriptionLabel="Admin"
           showDate={false}
           onRecord={handleRecord}
+          showStatusFilter={false}
+          enablePagination
+          pageSizeOptions={[10,20,50]}
         />
       )}
 
