@@ -17,8 +17,9 @@ const MyPendingDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      const data = await getDocumentsByStatus('Pending');
-      setDocuments(data.filter((d) => d.User_Id === user.User_Id));
+  const data = await getDocumentsByStatus('Pending', undefined, user.User_Role);
+  // Ensure we only show docs owned by this user (client-side guard)
+  setDocuments(data.filter((d) => d.User_Id === user.User_Id));
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {

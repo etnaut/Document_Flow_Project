@@ -39,6 +39,7 @@ export interface Document {
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin
+  mark?: string; // optional release mark (e.g., 'not_done')
 }
 
 export interface DocumentResponse {

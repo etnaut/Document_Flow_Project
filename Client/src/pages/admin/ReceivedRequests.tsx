@@ -4,6 +4,7 @@ import {
   getReceivedRequests,
   respondToDocument,
   archiveDocument,
+  markRelease,
 } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
@@ -42,6 +43,7 @@ const ReceivedRequests: React.FC = () => {
         target_department: r.department || '',
         comments: r.status || '',
         forwarded_from: r.division || '',
+        mark: String(r.mark ?? '').toLowerCase(),
       }));
       setDocuments(mapped);
     } catch (error) {
@@ -64,10 +66,25 @@ const ReceivedRequests: React.FC = () => {
     fetchDocuments();
   };
 
-  const handleArchive = async (id: number) => {
-    await archiveDocument(id);
-    toast({ title: 'Request marked as done.' });
-    fetchDocuments();
+  const handleArchive = async (doc: Document) => {
+    try {
+      // If we have a release record ID, mark the release as done
+      if ((doc as any).record_doc_id) {
+        try {
+          await markRelease((doc as any).record_doc_id, 'done');
+        } catch (err) {
+          // Non-fatal: log and continue to archive the document
+          console.warn('Failed to mark release done:', err);
+        }
+      }
+
+      await archiveDocument(doc.Document_Id);
+      toast({ title: 'Request marked as done.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Failed to mark request done', error);
+      toast({ title: 'Failed to mark request done', variant: 'destructive' });
+    }
   };
 
   const renderActions = (doc: Document) => (
@@ -75,7 +92,17 @@ const ReceivedRequests: React.FC = () => {
       <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
         <Reply className="mr-2 h-4 w-4" /> Respond
       </Button>
-      <Button variant="ghost" size="sm" onClick={() => handleArchive(doc.Document_Id)}>
+      <Button
+        variant={
+          (String((doc as any).mark || '').toLowerCase() === 'not_done')
+            ? 'destructive'
+            : (String((doc as any).mark || '').toLowerCase() === 'done')
+            ? 'success'
+            : 'ghost'
+        }
+        size="sm"
+        onClick={() => handleArchive(doc)}
+      >
         <CheckCircle2 className="mr-2 h-4 w-4" /> Done
       </Button>
     </div>

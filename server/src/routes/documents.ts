@@ -917,19 +917,27 @@ router.get('/releases', async (req: Request, res: Response) => {
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
+    // Build select list including optional 'mark' if it exists
+    const selectCols: string[] = [
+      'r.record_doc_id',
+      'ad.approved_doc_id',
+      'sd.document_id',
+      'sd.type',
+      'sd.document',
+      'sd.user_id',
+      'u.full_name',
+      'r.status',
+      "COALESCE(r.department, d.Department) AS department",
+      "COALESCE(r.division, dv.Division) AS division",
+    ];
+
+    if (cols.has('mark')) {
+      selectCols.push('r.mark');
+    }
+
     // Pull the required fields from joined tables
     const result = await pool.query(
-      `SELECT 
-         r.record_doc_id,
-         ad.approved_doc_id,
-         sd.document_id,
-         sd.type,
-         sd.document,
-         sd.user_id,
-         u.full_name,
-         r.status,
-         COALESCE(r.department, d.Department) AS department,
-         COALESCE(r.division, dv.Division) AS division
+      `SELECT ${selectCols.join(',\n         ')}
        FROM release_document_tbl r
        JOIN record_document_tbl rd ON rd.record_doc_id = r.record_doc_id
        JOIN approved_document_tbl ad ON ad.approved_doc_id = rd.approved_doc_id
@@ -945,6 +953,43 @@ router.get('/releases', async (req: Request, res: Response) => {
     return sendResponse(res, result.rows);
   } catch (error: any) {
     console.error('List releases error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
+// PUT /releases/:recordDocId/mark - update mark column on a release record (if supported)
+router.put('/releases/:recordDocId/mark', async (req: Request, res: Response) => {
+  const recordDocId = Number(req.params.recordDocId);
+  const mark = String((req.body && req.body.mark) ?? '').trim();
+
+  if (!Number.isFinite(recordDocId)) {
+    return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
+  }
+  if (!mark) {
+    return sendResponse(res, { error: 'Mark is required' }, 400);
+  }
+
+  try {
+    // Ensure 'mark' column exists
+    const colRes = await pool.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'release_document_tbl' AND column_name = 'mark' LIMIT 1`
+    );
+    if (colRes.rowCount === 0) {
+      return sendResponse(res, { error: "release_document_tbl does not have a 'mark' column" }, 400);
+    }
+
+    const result = await pool.query(
+      `UPDATE release_document_tbl SET mark = $1 WHERE record_doc_id = $2 RETURNING *`,
+      [mark, recordDocId]
+    );
+
+    if (result.rowCount === 0) {
+      return sendResponse(res, { error: 'Release record not found' }, 404);
+    }
+
+    return sendResponse(res, result.rows[0]);
+  } catch (error: any) {
+    console.error('Update release mark error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
   }
 });

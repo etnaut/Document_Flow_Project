@@ -364,3 +364,11 @@ export const updateUserAssignment = async (userId: number, role: string): Promis
     body: JSON.stringify({ User_Id: userId, pre_assigned_role: role }),
   });
 };
+
+// Mark a release record (e.g., set mark = 'done' or 'not_done')
+export const markRelease = async (recordDocId: number, mark: string): Promise<any> => {
+  return apiRequest(`/documents/releases/${recordDocId}/mark`, {
+    method: 'PUT',
+    body: JSON.stringify({ mark }),
+  });
+};
