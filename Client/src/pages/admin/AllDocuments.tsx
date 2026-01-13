@@ -17,9 +17,23 @@ const AllDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      // Show all documents from sender_document_tbl scoped to department (matches original source)
-      const docs = await getDocuments(undefined, user.User_Role, user.Department);
-      const mapped = (docs || []).map((d: any) => ({
+      // Get all documents, then filter by sender's department/division matching admin's
+      const docs = await getDocuments();
+      const filtered = (docs || []).filter((d: any) => {
+        // sender user info
+        const senderDeptId = d.sender_department_id ?? d.Department_Id ?? d.sender_departmentid ?? d.department_id;
+        const senderDivId = d.sender_division_id ?? d.Division_Id ?? d.sender_divisionid ?? d.division_id;
+        // admin user info
+        // Fallback: try matching by department/division name if IDs are not present
+        const adminDeptId = user.Department;
+        const adminDivId = user.Division;
+        // If senderDeptId/divId are undefined, try matching by name
+        if (senderDeptId === undefined || senderDivId === undefined) {
+          return (d.sender_department === adminDeptId && d.sender_division === adminDivId);
+        }
+        return senderDeptId === adminDeptId && senderDivId === adminDivId;
+      });
+      const mapped = filtered.map((d: any) => ({
         ...d,
         description: d.forwarded_by_admin || d.comments || d.sender_name || '',
       }));

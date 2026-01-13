@@ -2,19 +2,36 @@ import React, { useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { getRevisions } from '@/services/api';
 import { RevisionEntry } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const RevisionDocuments: React.FC = () => {
+  const { user } = useAuth();
   const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchRevisions();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchRevisions = async () => {
     try {
       const data = await getRevisions();
-      setRevisions(data);
+      let filtered = data;
+      if (user) {
+        // Only show if sender_name matches user's department/division
+        filtered = data.filter((rev: any) => {
+          // If sender_name is structured as "Name (Department, Division)", parse it
+          // Otherwise, fallback to matching by department/division if available
+          // This assumes sender_name or other fields may contain department/division info
+          // If not, skip filtering
+          if (rev.sender_department && rev.sender_division) {
+            return rev.sender_department === user.Department && rev.sender_division === user.Division;
+          }
+          return true;
+        });
+      }
+      setRevisions(filtered);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {

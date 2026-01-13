@@ -57,13 +57,15 @@ const MyDocuments: React.FC = () => {
     
     try {
       const [docs, revisions] = await Promise.all([
-        getDocuments(user.User_Id, user.User_Role),
+        getDocuments(),
         getRevisions(),
       ]);
 
       const revisionByDocId = new Map(revisions.map((r) => [r.document_id, r.comment]));
 
-      const merged = docs.map((d) =>
+      // Only show documents owned by this user
+      const ownedDocs = docs.filter((d) => d.User_Id === user.User_Id);
+      const merged = ownedDocs.map((d) =>
         d.Status === 'Revision'
           ? { ...d, description: revisionByDocId.get(d.Document_Id) ?? d.description }
           : d

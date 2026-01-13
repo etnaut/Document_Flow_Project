@@ -21,8 +21,21 @@ const ApprovedDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      const data = await getDocumentsByStatus('Approved', user.Department, user.User_Role);
-      setDocuments(data);
+      const data = await getDocumentsByStatus('Approved');
+      const filtered = (data || []).filter((d: any) => {
+        // sender user info
+        const senderDeptId = d.sender_department_id ?? d.Department_Id ?? d.sender_departmentid ?? d.department_id;
+        const senderDivId = d.sender_division_id ?? d.Division_Id ?? d.sender_divisionid ?? d.division_id;
+        // admin user info
+        const adminDeptId = user.Department;
+        const adminDivId = user.Division;
+        // If senderDeptId/divId are undefined, try matching by name
+        if (senderDeptId === undefined || senderDivId === undefined) {
+          return (d.sender_department === adminDeptId && d.sender_division === adminDivId);
+        }
+        return senderDeptId === adminDeptId && senderDivId === adminDivId;
+      });
+      setDocuments(filtered);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
