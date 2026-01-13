@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Document } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,12 +102,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
 
-  const [fileDialogDoc, setFileDialogDoc] = React.useState<Document | null>(null);
-  const [fileBytes, setFileBytes] = React.useState<Uint8Array | null>(null);
-  const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
-  const [previewError, setPreviewError] = React.useState<string | null>(null);
+  const navigate = useNavigate();
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
   const [revisionComment, setRevisionComment] = React.useState('');
 
@@ -178,120 +174,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     return 'auto';
   };
 
-  const revokePreviewUrl = (url?: string | null) => {
-    if (url) URL.revokeObjectURL(url);
-  };
-
-  React.useEffect(() => {
-    return () => {
-      revokePreviewUrl(previewUrl);
-    };
-  }, [previewUrl]);
-
-  // Re-run preview when user switches to PDF view
-  React.useEffect(() => {
-    const run = async () => {
-      if (!fileDialogDoc || !fileBytes) return;
-      setPreviewError(null);
-
-      if (mimeChoice !== 'pdf') {
-        revokePreviewUrl(previewUrl);
-        setPreviewUrl(null);
-        return;
-      }
-
-      const detected = detectMimeChoice(fileBytes);
-      if (detected === 'pdf') {
-        buildPdfPreview(fileBytes);
-        return;
-      }
-
-      await fetchPreviewPdf(fileDialogDoc.Document_Id);
-    };
-
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mimeChoice]);
-
-  const buildPdfPreview = (bytes: Uint8Array) => {
-    revokePreviewUrl(previewUrl);
-    const buffer = bytes.buffer instanceof ArrayBuffer ? bytes.buffer : new Uint8Array(bytes).buffer;
-    const blob = new Blob([buffer], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    setPreviewUrl(url);
-    setPreviewError(null);
-  };
-
-  const fetchPreviewPdf = async (docId: number) => {
-    try {
-      setPreviewLoading(true);
-      revokePreviewUrl(previewUrl);
-      const resp = await fetch(`${API_BASE_URL}/documents/${docId}/preview`);
-      if (!resp.ok) {
-        throw new Error(`Preview failed: ${resp.status}`);
-      }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-      setPreviewError(null);
-    } catch (error) {
-      console.error('Preview fetch error', error);
-      setPreviewUrl(null);
-      setPreviewError('Unable to generate a PDF preview for this file. You can still open/download it.');
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const openDocument = () => {
-    if (!fileDialogDoc) return;
-    if (!fileBytes) {
-      toast({ title: 'Unable to read attachment', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      // If user selected PDF and we have a converted preview, open that to avoid downloading the original format
-      if (mimeChoice === 'pdf' && previewUrl) {
-        window.open(previewUrl, '_blank');
-        return;
-      }
-
-      const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
-      const mime = mimeFromChoice(mimeChoice);
-      const blob = new Blob([buffer], { type: mime });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (error) {
-      console.error('Open document error', error);
-      toast({ title: 'Failed to open attachment', variant: 'destructive' });
-    }
-  };
-
-  const handleAttachmentClick = async (doc: Document) => {
-    const bytes = decodePayload((doc as any).Document);
-    if (!bytes) {
-      toast({ title: 'Unable to read attachment', variant: 'destructive' });
-      return;
-    }
-
-    const detected = detectMimeChoice(bytes);
-
-    setFileBytes(bytes);
-    setMimeChoice(detected);
-    setFileDialogDoc(doc);
-
-    if (detected === 'pdf') {
-      buildPdfPreview(bytes);
-      return;
-    }
-
-    if (mimeChoice === 'pdf') {
-      await fetchPreviewPdf(doc.Document_Id);
-    } else {
-      setPreviewUrl(null);
-    }
+  const handleAttachmentClick = (doc: Document) => {
+    navigate(`/documents/view/${doc.Document_Id}`, { state: { doc } });
   };
 
   const normalized = React.useMemo(() => {
@@ -527,103 +411,30 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         </TableBody>
       </Table>
       {enablePagination && (
-        <div className="p-3 border-t flex items-center justify-between text-sm">
-          <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+          <div className="justify-self-start">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-xs text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </div>
       )}
-
-      <Dialog
-        open={!!fileDialogDoc}
-        onOpenChange={(open) => {
-          if (!open) {
-            setFileDialogDoc(null);
-            setFileBytes(null);
-            setMimeChoice('pdf');
-            revokePreviewUrl(previewUrl);
-            setPreviewUrl(null);
-            setPreviewLoading(false);
-            setPreviewError(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-[95vw] p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-            <div className="min-w-0">
-              <DialogTitle className="text-foreground text-base truncate">Attachment Viewer</DialogTitle>
-              <DialogDescription className="text-xs truncate">
-                {fileDialogDoc?.Type} — {fileDialogDoc?.sender_name}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Choose format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="word">Word</SelectItem>
-                  <SelectItem value="excel">Excel</SelectItem>
-                  <SelectItem value="auto">Auto (detected)</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={() => { openDocument(); }} disabled={!fileBytes}>
-                <ExternalLink className="mr-2 h-4 w-4" /> Open
-              </Button>
-              <Button onClick={() => { openDocument(); }} disabled={!fileBytes}>
-                <Download className="mr-2 h-4 w-4" /> Download
-              </Button>
-              <Button variant="ghost" onClick={() => setFileDialogDoc(null)}>Close</Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12">
-            <div className="md:col-span-8 bg-background">
-              {previewLoading ? (
-                <div className="flex h-[70vh] items-center justify-center">
-                  <div className="animate-pulse rounded-md border bg-muted/30 w-[90%] h-[60vh]" />
-                </div>
-              ) : previewUrl ? (
-                <iframe title="Attachment preview" src={previewUrl} className="h-[70vh] w-full" />
-              ) : (
-                <div className="flex h-[70vh] items-center justify-center text-sm text-muted-foreground text-center px-6">
-                  {previewError
-                    ? previewError
-                    : 'Preview will be generated as PDF when available. For Word or Excel files, we convert a temporary PDF preview.'}
-                </div>
-              )}
-            </div>
-            <div className="md:col-span-4 border-l bg-muted/30 p-4 space-y-3">
-              <p className="text-sm font-medium text-foreground">Details</p>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div><span className="font-medium text-foreground">Type:</span> {fileDialogDoc?.Type || '—'}</div>
-                <div><span className="font-medium text-foreground">Sender:</span> {fileDialogDoc?.sender_name || '—'}</div>
-                <div><span className="font-medium text-foreground">Priority:</span> {fileDialogDoc?.Priority || '—'}</div>
-                <div><span className="font-medium text-foreground">Status:</span> {fileDialogDoc?.Status || '—'}</div>
-                <div><span className="font-medium text-foreground">Date:</span> {fileDialogDoc?.created_at || '—'}</div>
-                {fileDialogDoc?.description && (
-                  <div className="mt-2">
-                    <span className="font-medium text-foreground">Notes:</span>
-                    <p className="mt-1 text-xs text-foreground/80 break-words">{fileDialogDoc.description}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground pt-2">
-                Opening will use the selected format. Download may open in a new tab depending on browser settings.
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Revision comment dialog */}
       <Dialog

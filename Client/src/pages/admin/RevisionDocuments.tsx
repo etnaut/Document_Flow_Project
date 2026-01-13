@@ -1,11 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { getRevisions } from '@/services/api';
 import { RevisionEntry } from '@/types';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 const RevisionDocuments: React.FC = () => {
   const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     fetchRevisions();
@@ -21,6 +27,19 @@ const RevisionDocuments: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return revisions;
+    return revisions.filter((rev) => [rev.document_type || '', rev.sender_name || '', rev.admin || '', rev.comment || '']
+      .join(' ').toLowerCase().includes(q));
+  }, [revisions, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageSlice = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => { setPage(1); }, [query, pageSize, revisions]);
 
   if (loading) {
     return (
@@ -47,26 +66,38 @@ const RevisionDocuments: React.FC = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <div className="flex items-center justify-between p-3 border-b gap-2">
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search revisions..." className="w-[260px]" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Rows per page</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-sm border-collapse [&_th]:border [&_td]:border [&_th]:border-gray-300 [&_td]:border-gray-300 [&_th]:text-center [&_td]:text-center">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-2 text-left font-semibold">Document</th>
-                <th className="px-4 py-2 text-left font-semibold">Sender</th>
-                <th className="px-4 py-2 text-left font-semibold">Admin</th>
-                <th className="px-4 py-2 text-left font-semibold">Comment</th>
+                <th className="px-4 py-2 font-semibold">Document</th>
+                <th className="px-4 py-2 font-semibold">Sender</th>
+                <th className="px-4 py-2 font-semibold">Admin</th>
+                <th className="px-4 py-2 font-semibold">Comment</th>
               </tr>
             </thead>
             <tbody>
-              {revisions.length === 0 ? (
+              {pageSlice.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
                     No revision entries found.
                   </td>
                 </tr>
               ) : (
-                revisions.map((rev) => (
-                  <tr key={`${rev.document_id}-${rev.user_id}-${rev.comment ?? ''}`} className="border-t">
+                pageSlice.map((rev) => (
+                  <tr key={`${rev.document_id}-${rev.user_id}-${rev.comment ?? ''}`} className="border-t border-gray-300">
                     <td className="px-4 py-2">{rev.document_type || '—'}</td>
                     <td className="px-4 py-2">{rev.sender_name || '—'}</td>
                     <td className="px-4 py-2">{rev.admin || '—'}</td>
@@ -76,6 +107,27 @@ const RevisionDocuments: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+          <div className="justify-self-start">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-xs text-muted-foreground">Page {currentPage} of {totalPages}</div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </div>
       </div>
     </div>

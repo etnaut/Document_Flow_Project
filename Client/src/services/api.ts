@@ -271,6 +271,16 @@ export const getDashboardStats = async (userId?: number, role?: UserRole, userDe
   return apiRequest(`/stats?${params.toString()}`, { method: 'GET' });
 };
 
+// Get monthly totals for a given year
+export const getMonthlyStats = async (year: number, userId?: number, role?: UserRole): Promise<{ month: string; total: number }[]> => {
+  const params = new URLSearchParams();
+  params.append('year', String(year));
+  if (userId !== undefined) params.append('userId', String(userId));
+  if (role) params.append('role', role);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/stats/monthly${query}`, { method: 'GET' });
+};
+
 // Get users by role
 export const getUsers = async (role?: UserRole): Promise<User[]> => {
   const params = new URLSearchParams();
