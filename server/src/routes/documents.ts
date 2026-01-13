@@ -879,5 +879,75 @@ router.post('/releases', async (req: Request, res: Response) => {
   }
 });
 
+// GET /releases - list releases filtered by department/division (matches user dept/div)
+router.get('/releases', async (req: Request, res: Response) => {
+  const department = String(req.query.department || '').trim();
+  const division = String(req.query.division || '').trim();
+
+  try {
+    // Inspect available release columns to drive filtering fallbacks
+    const colsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'release_document_tbl'`
+    );
+    const cols = new Set<string>(colsRes.rows.map((r) => r.column_name));
+
+    const where: string[] = [];
+    const values: any[] = [];
+
+    // Prefer release_document_tbl department/division columns if they exist, otherwise fall back to user dept/div via joins
+    if (department) {
+      if (cols.has('department')) {
+        values.push(department.toLowerCase());
+        where.push(`LOWER(COALESCE(r.department, '')) = $${values.length}`);
+      } else {
+        values.push(department.toLowerCase());
+        where.push(`LOWER(COALESCE(d.Department, '')) = $${values.length}`);
+      }
+    }
+
+    if (division) {
+      if (cols.has('division')) {
+        values.push(division.toLowerCase());
+        where.push(`LOWER(COALESCE(r.division, '')) = $${values.length}`);
+      } else {
+        values.push(division.toLowerCase());
+        where.push(`LOWER(COALESCE(dv.Division, '')) = $${values.length}`);
+      }
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    // Pull the required fields from joined tables
+    const result = await pool.query(
+      `SELECT 
+         r.record_doc_id,
+         ad.approved_doc_id,
+         sd.document_id,
+         sd.type,
+         sd.document,
+         sd.user_id,
+         u.full_name,
+         r.status,
+         COALESCE(r.department, d.Department) AS department,
+         COALESCE(r.division, dv.Division) AS division
+       FROM release_document_tbl r
+       JOIN record_document_tbl rd ON rd.record_doc_id = r.record_doc_id
+       JOIN approved_document_tbl ad ON ad.approved_doc_id = rd.approved_doc_id
+       JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
+       LEFT JOIN user_tbl u ON u.user_id = sd.user_id
+       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
+       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
+       ${whereSql}
+       ORDER BY r.record_doc_id DESC`,
+      values
+    );
+
+    return sendResponse(res, result.rows);
+  } catch (error: any) {
+    console.error('List releases error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 export default router;
 

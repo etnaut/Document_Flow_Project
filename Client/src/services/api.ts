@@ -196,10 +196,13 @@ export const forwardDocument = async (
   });
 };
 
-// Get received requests (documents forwarded from other admins)
-export const getReceivedRequests = async (userDepartment: string): Promise<Document[]> => {
-  const docs = await getDocuments(undefined, 'Admin', userDepartment);
-  return docs.filter((d) => d.target_department === userDepartment && d.Status !== 'Archived');
+// Get received requests (releases) filtered by department/division
+export const getReceivedRequests = async (userDepartment: string, userDivision?: string): Promise<any[]> => {
+  const params = new URLSearchParams();
+  if (userDepartment) params.append('department', userDepartment);
+  if (userDivision) params.append('division', userDivision);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/documents/releases${query}`, { method: 'GET' });
 };
 
 // Archive document (mark as done)

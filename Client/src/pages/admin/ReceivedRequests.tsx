@@ -22,14 +22,28 @@ const ReceivedRequests: React.FC = () => {
   useEffect(() => {
     fetchDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.Department]);
+  }, [user?.Department, user?.Division]);
 
   const fetchDocuments = async () => {
     if (!user?.Department) return;
     setLoading(true);
     try {
-      const data = await getReceivedRequests(user.Department);
-      setDocuments(data);
+      const data = await getReceivedRequests(user.Department, user?.Division);
+      const mapped: Document[] = (data || []).map((r: any, idx: number) => ({
+        Document_Id: r.document_id ?? r.record_doc_id ?? idx,
+        record_doc_id: r.record_doc_id,
+        Type: r.type || 'Document',
+        User_Id: r.user_id ?? 0,
+        Status: (r.status ?? 'Released') as any,
+        Priority: 'Normal',
+        Document: r.document ?? null,
+        sender_name: r.full_name || r.name || '',
+        sender_department: r.department || '',
+        target_department: r.department || '',
+        comments: r.status || '',
+        forwarded_from: r.division || '',
+      }));
+      setDocuments(mapped);
     } catch (error) {
       console.error('Error fetching received requests:', error);
       toast({ title: 'Unable to load received requests', variant: 'destructive' });
@@ -96,6 +110,7 @@ const ReceivedRequests: React.FC = () => {
         renderActions={renderActions}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        showDate={false}
       />
 
       <RespondDocumentDialog
