@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for existing session
@@ -31,7 +32,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(storedUser);
       setIsAuthenticated(true);
     }
+    // Done initializing auth state
+    setLoading(false);
   }, []);
+
 
   const login = async (username: string, password: string): Promise<User | null> => {
     const authenticatedUser = await loginUser(username, password);
@@ -59,7 +63,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const getDefaultRoute = (userOrRole: any) => defaultRouteHelper(userOrRole);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, getDefaultRoute }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, getDefaultRoute, loading }}>
       {children}
     </AuthContext.Provider>
   );
