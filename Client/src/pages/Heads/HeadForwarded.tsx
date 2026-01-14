@@ -21,7 +21,7 @@ const HeadForwarded: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const approvedDocs = await getApprovedDocuments(user.Department);
+      const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
       const mapped = (approvedDocs || [])
         .map((d: any) => ({
           ...d,

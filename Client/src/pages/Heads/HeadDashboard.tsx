@@ -50,8 +50,8 @@ const HeadDashboard: React.FC = () => {
     try {
       setLoading(true);
       const [approvedDocs, pending] = await Promise.all([
-        getApprovedDocuments(user?.Department),
-        getDocumentsByStatus('Pending', user?.Department, user?.User_Role),
+        getApprovedDocuments(user?.Department, undefined, user?.User_Id),
+        getDocumentsByStatus('Pending', user?.Department, user?.User_Role, user?.User_Id),
       ]);
 
       // Map admin/status into description to surface in Comment column

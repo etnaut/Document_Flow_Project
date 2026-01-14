@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus, updateDocumentStatus, forwardDocument } from '@/services/api';
+import { getDocumentsByStatus, forwardDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import { toast } from '@/hooks/use-toast';
 import { CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const ApprovedDocuments: React.FC = () => {
   const { user } = useAuth();
@@ -21,32 +22,13 @@ const ApprovedDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      const data = await getDocumentsByStatus('Approved');
-      const filtered = (data || []).filter((d: any) => {
-        // sender user info
-        const senderDeptId = d.sender_department_id ?? d.Department_Id ?? d.sender_departmentid ?? d.department_id;
-        const senderDivId = d.sender_division_id ?? d.Division_Id ?? d.sender_divisionid ?? d.division_id;
-        // admin user info
-        const adminDeptId = user.Department;
-        const adminDivId = user.Division;
-        // If senderDeptId/divId are undefined, try matching by name
-        if (senderDeptId === undefined || senderDivId === undefined) {
-          return (d.sender_department === adminDeptId && d.sender_division === adminDivId);
-        }
-        return senderDeptId === adminDeptId && senderDivId === adminDivId;
-      });
-      setDocuments(filtered);
+      const data = await getDocumentsByStatus('Approved', undefined, user.User_Role, user.User_Id);
+      setDocuments(data);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRelease = async (id: number) => {
-    await updateDocumentStatus(id, 'Released');
-    toast({ title: 'Document released successfully.' });
-    fetchDocuments();
   };
 
   const handleForwardClick = (doc: Document) => {
@@ -89,7 +71,6 @@ const ApprovedDocuments: React.FC = () => {
 
       <DocumentTable 
         documents={documents} 
-        onRelease={handleRelease} 
         onForward={handleForwardClick}
         showStatusFilter={false}
         enablePagination

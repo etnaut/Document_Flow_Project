@@ -23,7 +23,7 @@ const RecorderDashboard: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-  const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded');
+  const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
   const forwarded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'forwarded').length;
   const recorded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'recorded').length;
   const total = forwarded + recorded;

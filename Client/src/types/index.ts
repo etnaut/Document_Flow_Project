@@ -32,6 +32,8 @@ export interface Document {
   Document?: string | null; // base64-encoded file payload (optional)
   sender_name?: string;
   sender_department?: string;
+  sender_department_id?: number;
+  sender_division_id?: number;
   target_department: string; // The department this document is sent TO
   created_at?: string;
   comments?: string;

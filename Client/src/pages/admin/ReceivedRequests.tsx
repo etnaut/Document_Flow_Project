@@ -29,7 +29,7 @@ const ReceivedRequests: React.FC = () => {
     if (!user?.Department) return;
     setLoading(true);
     try {
-      const data = await getReceivedRequests(user.Department, user?.Division);
+      const data = await getReceivedRequests(user.Department, user?.Division, user.User_Id);
       const mapped: Document[] = (data || []).map((r: any, idx: number) => ({
         Document_Id: r.document_id ?? r.record_doc_id ?? idx,
         record_doc_id: r.record_doc_id,
@@ -44,6 +44,11 @@ const ReceivedRequests: React.FC = () => {
         comments: r.status || '',
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
+        // optional sender dept/div ids
+        // @ts-ignore
+        sender_department_id: r.sender_department_id ?? undefined,
+        // @ts-ignore
+        sender_division_id: r.sender_division_id ?? undefined,
       }));
       setDocuments(mapped);
     } catch (error) {

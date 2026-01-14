@@ -48,6 +48,7 @@ interface DocumentTableProps {
   onForward?: (doc: Document) => void;
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
+  onTrack?: (doc: Document) => void;
   renderActions?: (doc: Document) => React.ReactNode;
   showPriority?: boolean;
   showDescription?: boolean;
@@ -89,6 +90,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onForward,
   onRecord,
   onEdit,
+  onTrack,
   renderActions,
   showPriority = true,
   showDescription = false,
@@ -440,6 +442,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           className="px-0"
                           onClick={() => onEdit(doc)}
                         >
+                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                            {statusLabel}
+                          </Badge>
+                        </Button>
+                      );
+                    }
+
+                    // Not Forwarded: clickable to forward when onForward provided
+                    if (onForward && (statusLower === 'not forwarded' || statusLower === 'not_forwarded')) {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="px-0"
+                          onClick={() => onForward(doc)}
+                        >
                           <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
                             {statusLabel}
                           </Badge>
@@ -448,35 +466,51 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     }
 
                     // Releaser: click to Release when approved or not released
-                    if (onRelease && (statusLower === 'approved' || statusLower === 'not released')) {
-                      return (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="px-0 text-info hover:text-info"
-                          onClick={() => onRelease(doc.Document_Id)}
-                        >
-                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
-                            {statusLabel}
-                          </Badge>
-                        </Button>
-                      );
-                    }
+                    if (statusLower === 'approved' || statusLower === 'not released') {
+                      // When approved we can optionally show a Track menu (if provided)
+                      if (statusLower === 'approved' && onTrack) {
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="px-0">
+                                <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                                  {statusLabel}
+                                </Badge>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onSelect={() => onTrack(doc)}>
+                                Track Document
+                              </DropdownMenuItem>
+                              {onRelease && (
+                                <DropdownMenuItem onSelect={() => onRelease(doc.Document_Id)}>
+                                  Release
+                                </DropdownMenuItem>
+                              )}
+                              {onForward && (
+                                <DropdownMenuItem onSelect={() => onForward(doc)}>
+                                  Forward
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      }
 
-                    // Head/Admin forwarding: allow forwarding when status is Not Forwarded
-                    if (onForward && statusLower === 'not forwarded') {
-                      return (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="px-0 text-info hover:text-info"
-                          onClick={() => onForward(doc)}
-                        >
-                          <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
-                            {statusLabel}
-                          </Badge>
-                        </Button>
-                      );
+                      if (onRelease) {
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 text-info hover:text-info"
+                            onClick={() => onRelease(doc.Document_Id)}
+                          >
+                            <Badge variant={statusVariants[doc.Status] || 'default'} className="cursor-pointer">
+                              {statusLabel}
+                            </Badge>
+                          </Button>
+                        );
+                      }
                     }
 
                     // Approver-side: allow actions only when pending (matches Pending table behavior)
@@ -504,6 +538,36 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 }}
                               >
                                 Send for Revision
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    }
+
+                    // Approved or Pending: allow tracking if provided
+                    if (onTrack && (statusLower === 'approved' || statusLower === 'pending')) {
+                      return (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="px-0">
+                              <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
+                                {statusLabel}
+                              </Badge>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onSelect={() => onTrack(doc)}>
+                              Track Document
+                            </DropdownMenuItem>
+                            {onRelease && (
+                              <DropdownMenuItem onSelect={() => onRelease(doc.Document_Id)}>
+                                Release
+                              </DropdownMenuItem>
+                            )}
+                            {onForward && (
+                              <DropdownMenuItem onSelect={() => onForward(doc)}>
+                                Forward
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>

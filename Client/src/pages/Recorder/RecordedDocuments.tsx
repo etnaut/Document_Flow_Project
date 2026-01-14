@@ -22,7 +22,7 @@ const RecordedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-  const approved = await getApprovedDocuments(user.Department, 'recorded');
+      const approved = await getApprovedDocuments(user.Department, 'recorded', user.User_Id);
       const mapped = (approved || [])
         .map((d: any) => {
           const statusRaw = (d.Status || '').toLowerCase();
