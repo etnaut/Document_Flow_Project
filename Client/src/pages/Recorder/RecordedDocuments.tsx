@@ -22,11 +22,12 @@ const RecordedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const approved = await getApprovedDocuments(user.Department, 'recorded', user.User_Id);
+      // Include both recorded and released so entries that were marked released in approved table are also shown as recorded
+      const approved = await getApprovedDocuments(user.Department, 'recorded,released', user.User_Id);
       const mapped = (approved || [])
         .map((d: any) => {
           const statusRaw = (d.Status || '').toLowerCase();
-          if (statusRaw !== 'recorded') return null;
+          if (statusRaw !== 'recorded' && statusRaw !== 'released') return null;
           return {
             ...d,
             Type: d.Type || d.type || '',

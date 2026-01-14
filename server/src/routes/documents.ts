@@ -201,7 +201,8 @@ router.get('/approved', async (req: Request, res: Response) => {
         conditions.push(`LOWER(a.status) = ANY($${params.length})`);
       }
     } else {
-      conditions.push("COALESCE(LOWER(a.status), '') IN ('forwarded','not_forwarded')");
+      // Include recorded by default as it should be treated same as forwarded from the division/recorder perspective
+      conditions.push("COALESCE(LOWER(a.status), '') IN ('forwarded','not_forwarded','recorded')");
     }
 
     if (department) {
@@ -731,6 +732,7 @@ router.get('/records', async (req: Request, res: Response) => {
         rd.approved_doc_id,
         rd.status AS record_status,
         rd.comment AS record_comment,
+        ad.status AS approved_status,
         ad.document_id,
   sd.type,
         sd.document,
@@ -752,13 +754,19 @@ router.get('/records', async (req: Request, res: Response) => {
 
     const data = result.rows.map((row) => {
       const statusLower = (row.record_status || '').toLowerCase();
-      const statusLabel = statusLower === 'recorded'
-        ? 'Not Released'
-        : statusLower === 'not_recorded'
-          ? 'Not Recorded'
-          : statusLower === 'released'
-            ? 'Released'
-          : row.record_status || 'Not Released';
+      
+      // Always display 'Not Released' when the record row status is 'recorded'.
+      // This makes it clear the document has been recorded but not yet released.
+      let statusLabel: string;
+      if (statusLower === 'recorded') {
+        statusLabel = 'Not Released';
+      } else if (statusLower === 'not_recorded') {
+        statusLabel = 'Not Recorded';
+      } else if (statusLower === 'released') {
+        statusLabel = 'Released';
+      } else {
+        statusLabel = row.record_status || 'Not Released';
+      }
 
       return {
   Document_Id: row.document_id,
@@ -1237,10 +1245,12 @@ router.get('/track', async (req: Request, res: Response) => {
     const adminDone = senderStatus === 'approved' || Boolean(approved);
 
     // Division Head: done when approved.status indicates it was forwarded or recorded
+    // Treat 'recorded' as forwarded from the division perspective (it has already moved on)
     const divisionDone = Boolean(approved && (approvedStatus === 'forwarded' || approvedStatus === 'recorded'));
 
     // Recorder: done when a record entry indicates 'recorded' or the approved status was set to 'recorded'
-    const recorderDone = Boolean((record && recordStatus === 'recorded') || approvedStatus === 'recorded');
+    // Also consider approved.status 'released' as an indication the recorder stage should be considered complete
+    const recorderDone = Boolean((record && recordStatus === 'recorded') || approvedStatus === 'recorded' || approvedStatus === 'released');
 
     // Releaser: in-progress when latest release mark is 'not_done' or recorder has set status to 'released' and no done releases yet
     const releaserInProgress = latestMark === 'not_done' || (recordStatus === 'released' && !anyDoneRelease);
@@ -1271,28 +1281,47 @@ router.get('/track', async (req: Request, res: Response) => {
         key: 'admin',
         title: 'Admin Office',
         done: adminDone,
-        status: sender.status || 'Pending',
+        // Hide the right-side status for Admin Office (UI will not display an empty status)
+        status: '',
         description: senderStatus === 'pending' && !adminDone ? 'Pending Admin office' : (senderStatus === 'approved' ? 'Approved by admin' : 'Processed by admin'),
       },
       {
         key: 'division',
-        title: 'Division Head (Approved)',
+        title: 'Division Head',
         done: divisionDone,
-        status: approved ? approved.status || 'not_forwarded' : 'Not Approved',
-        description: approved ? (approvedStatus === 'not_forwarded' ? 'Approved — waiting to be forwarded' : (approvedStatus === 'forwarded' ? 'Forwarded to recorder' : (approvedStatus === 'recorded' ? 'Recorded' : String(approved.status || '')))) : 'Not approved yet',
+        // Hide the right-side status for Division Head; keep descriptive text indicating forwarding/recorded state
+        status: '',
+        description: approved ? (approvedStatus === 'not_forwarded' ? 'Approved — waiting to be forwarded' : ((approvedStatus === 'forwarded' || approvedStatus === 'recorded') ? 'Forwarded to recorder' : String(approved.status || ''))) : 'Not approved yet',
       },
       {
         key: 'recorder',
         title: 'Recorder',
         done: recorderDone,
-        status: record ? record.status || (approvedStatus === 'recorded' ? 'recorded' : 'not_recorded') : (approvedStatus === 'recorded' ? 'recorded' : 'Not recorded'),
-        description: record ? (recordStatus === 'not_recorded' ? 'Waiting to be recorded' : (recordStatus === 'recorded' ? 'Recorded' : (recordStatus === 'released' ? 'Released to releaser' : String(record.status || '')))) : (approvedStatus === 'recorded' ? 'Recorded' : 'Not recorded yet'),
+        // When approved.status indicates recorded/released, show recorder as "Recorded ready to release" and hide the status on the right
+        status: (() => {
+          if (record) {
+            // If the approved row already indicates recorded/released, do not display a status text on the right side
+            if (approvedStatus === 'recorded' || approvedStatus === 'released') return '';
+            return record.status || 'not_recorded';
+          }
+          return (approvedStatus === 'recorded' || approvedStatus === 'released') ? '' : 'Not recorded';
+        })(),
+        description: record
+          ? (recordStatus === 'not_recorded'
+              ? 'Waiting to be recorded'
+              : (recordStatus === 'recorded'
+                  ? 'Recorded'
+                  : (recordStatus === 'released'
+                      ? 'Recorded ready to release'
+                      : String(record.status || ''))))
+          : ((approvedStatus === 'recorded' || approvedStatus === 'released') ? 'Recorded ready to release' : 'Not recorded yet'),
       },
       {
         key: 'releaser',
         title: 'Releaser',
         done: releaserDone,
-        status: (anyDoneRelease ? 'done' : (latestMark || (recordStatus === 'released' ? 'released' : 'not_released'))),
+        // Hide right-side status for releaser; release history still shown below if present
+        status: '',
         description: releaserDone ? 'Released to target department' : (releaserInProgress ? 'Waiting to be released to target department' : 'Not released yet'),
       },
     ];

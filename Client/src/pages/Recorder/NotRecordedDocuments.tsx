@@ -29,11 +29,12 @@ const NotRecordedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const approved = await getApprovedDocuments(user.Department, 'forwarded', user.User_Id);
+      // Include both forwarded and recorded approved rows so items that progressed to 'recorded' still show up as forwarded for the recorder
+      const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
       const mapped = (approved || [])
         .map((d: any) => {
           const statusRaw = (d.Status || '').toLowerCase();
-          if (statusRaw !== 'forwarded') return null;
+          if (statusRaw !== 'forwarded' && statusRaw !== 'recorded') return null;
           return {
             ...d,
             Type: d.Type || d.type || '',

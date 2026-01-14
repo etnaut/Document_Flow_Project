@@ -89,7 +89,9 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                             <div className="text-sm text-muted-foreground">{s.description}</div>
                           </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">{s.status}</div>
+                        {s.status ? (
+                          <div className="text-sm text-muted-foreground">{s.status}</div>
+                        ) : null}
                       </div>
                     </div>
                   ))}

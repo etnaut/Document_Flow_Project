@@ -83,14 +83,15 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
 
       const clause: string | undefined = constraint.rows?.[0]?.check_clause;
       const clauseLower = clause?.toLowerCase() || '';
-      if (clauseLower.includes('recorded') && clauseLower.includes('forwarded')) {
+      // Ensure constraint includes forwarded, recorded and released (if present in older schemas this may be missing)
+      if (clauseLower.includes('recorded') && clauseLower.includes('forwarded') && clauseLower.includes('released')) {
         return;
       }
 
       // Recreate constraint to include all expected statuses
       await pool.query('ALTER TABLE approved_document_tbl DROP CONSTRAINT IF EXISTS approved_document_tbl_status_check');
       await pool.query(
-        "ALTER TABLE approved_document_tbl ADD CONSTRAINT approved_document_tbl_status_check CHECK (status IN ('not_forwarded','forwarded','recorded'))"
+        "ALTER TABLE approved_document_tbl ADD CONSTRAINT approved_document_tbl_status_check CHECK (status IN ('not_forwarded','forwarded','recorded','released'))"
       );
     } catch (err) {
       console.error('Failed to ensure approved_document_tbl status constraint', err);
