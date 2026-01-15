@@ -137,7 +137,18 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               </div>
               <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
+<<<<<<< HEAD
+                {(() => {
+                  const isEmp = user?.User_Role === 'Employee';
+                  const assigned = String(user?.pre_assigned_role ?? '').trim().toLowerCase();
+                  if (isEmp && assigned === 'recorder') return <p className="text-xs text-sidebar-foreground/70">Employee / Recorder</p>;
+                  if (isEmp && assigned === 'releaser') return <p className="text-xs text-sidebar-foreground/70">Employee / Releaser</p>;
+                  const displayRole = user?.User_Role ?? '';
+                  return <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>;
+                })()}
+=======
                 <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>
+>>>>>>> 781b62bb2b5993984baa04d709947b843eaaf808
               </div>
             </div>
             <div className="mt-3 space-y-1.5">

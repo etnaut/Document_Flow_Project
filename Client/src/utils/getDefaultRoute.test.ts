@@ -17,6 +17,11 @@ describe('getDefaultRoute', () => {
     expect(getDefaultRoute('SuperAdmin')).toBe('/super-admin');
   });
 
+  it('routes Releaser pre_assigned_role to /releases', () => {
+    const user = { User_Role: 'Employee', pre_assigned_role: 'Releaser' } as any;
+    expect(getDefaultRoute(user)).toBe('/releases');
+  });
+
   it('routes others to /dashboard', () => {
     expect(getDefaultRoute('Admin')).toBe('/dashboard');
     expect(getDefaultRoute({ User_Role: 'Employee' } as any)).toBe('/dashboard');

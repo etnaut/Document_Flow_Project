@@ -76,8 +76,22 @@ const ManageAdmins: React.FC = () => {
         getUsers(),
         getDepartments(),
       ]);
-      console.debug('ManageAdmins: fetched users', usersData);
-      setAdmins(usersData);
+      // Also ensure SuperAdmin accounts are included in the list (some setups may exclude them)
+      let merged = usersData || [];
+      try {
+        const superUsers = await getUsers('SuperAdmin');
+        if (Array.isArray(superUsers) && superUsers.length > 0) {
+          merged = [...merged, ...superUsers.filter((su) => !merged.some((u) => u.User_Id === su.User_Id))];
+        }
+      } catch (e) {
+        // ignore errors fetching superadmin specifically
+        console.debug('ManageAdmins: could not fetch SuperAdmin users separately', e);
+      }
+  console.debug('ManageAdmins: fetched users', merged);
+  // Only show Admin, DivisionHead, and DepartmentHead accounts in this view
+  const allowedRoles = ['Admin', 'DivisionHead', 'DepartmentHead'];
+  const filtered = merged.filter((u) => allowedRoles.includes(String(u.User_Role)));
+  setAdmins(filtered);
       setDepartments(deptData);
       // Start with empty divisions until a department is selected
       setDivisions([]);
