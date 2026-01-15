@@ -87,7 +87,7 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
               </div>
               <div className="flex items-start gap-2">
                 <strong className="min-w-[100px]">Division:</strong>
-                <span>{document?.forwarded_from || document?.Division || 'N/A'}</span>
+                <span>{document?.forwarded_from || 'N/A'}</span>
               </div>
               <div className="flex items-start gap-2">
                 <strong className="min-w-[100px]">Sender:</strong>

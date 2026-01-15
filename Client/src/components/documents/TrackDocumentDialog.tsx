@@ -24,6 +24,7 @@ import {
   Calendar,
   Building2,
   Users,
+  MessageSquare,
 } from 'lucide-react';
 
 interface TrackDocumentDialogProps {
@@ -35,6 +36,7 @@ interface TrackDocumentDialogProps {
 const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenChange, document }) => {
   const [trackData, setTrackData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showResponses, setShowResponses] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -114,7 +116,7 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
               </CardContent>
             </Card>
           ) : (() => {
-            const { sender, approved, record, releases, stages, currentStage, latestRelease } = trackData;
+            const { sender, approved, record, releases, responses, stages, currentStage, latestRelease } = trackData;
 
             // If document is still pending at admin and no release history, show minimal message
             if ((String(sender?.status || '').toLowerCase() === 'pending') && (!releases || releases.length === 0) && !approved) {
@@ -273,9 +275,13 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                   const notDone = (releases || []).filter(
                     (r: any) => String(r.mark || '').toLowerCase() === 'not_done'
                   );
+                  const anyDoneRelease = doneReleases.length > 0;
 
                   if (doneReleases.length > 0) {
                     const latestDone = doneReleases[0];
+                    const targetStage = stages?.find((s: any) => s.key === 'target');
+                    const isTargetDone = targetStage?.done || anyDoneRelease;
+                    
                     return (
                       <Card>
                         <CardHeader>
@@ -349,6 +355,14 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                               </div>
                             ))}
                           </div>
+                          {isTargetDone && (
+                            <div className="mt-4 flex justify-end">
+                              <Button onClick={() => setShowResponses(true)} variant="outline">
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                                View Responses
+                              </Button>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -401,6 +415,70 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Responses Dialog */}
+      <Dialog open={showResponses} onOpenChange={setShowResponses}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Document Responses
+            </DialogTitle>
+            <DialogDescription>
+              Responses from the target department for this document.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            {!trackData || !trackData.responses || trackData.responses.length === 0 ? (
+              <div className="rounded-lg bg-muted p-3 text-sm text-center text-muted-foreground">
+                No responses available yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {trackData.responses.map((response: any, index: number) => (
+                  <div key={response.respond_doc_id || index} className="rounded-lg border p-4 space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <strong className="min-w-[120px] text-sm">Respond from:</strong>
+                        <span className="text-sm">{response.full_name || '—'}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <strong className="min-w-[120px] text-sm">Department:</strong>
+                        <span className="text-sm">{response.department || '—'}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <strong className="min-w-[120px] text-sm">Division:</strong>
+                        <span className="text-sm">{response.division || '—'}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <strong className="min-w-[120px] text-sm">Status:</strong>
+                        <span className={`px-2 py-1 rounded text-xs font-medium inline-block ${
+                          String(response.status || '').toLowerCase() === 'actioned' 
+                            ? 'bg-success/10 text-success' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {response.status || '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2 pt-2 border-t">
+                        <strong className="min-w-[120px] text-sm">Comment:</strong>
+                        <span className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{response.comment || 'No comment provided.'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResponses(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };
