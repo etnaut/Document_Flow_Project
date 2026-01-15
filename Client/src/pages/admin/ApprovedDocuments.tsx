@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocumentsByStatus, forwardDocument } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import { toast } from '@/hooks/use-toast';
 import { CheckCircle } from 'lucide-react';
@@ -69,12 +69,13 @@ const ApprovedDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable 
+      <DocumentViewToggle 
         documents={documents} 
         onForward={handleForwardClick}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
 
       <ForwardDocumentDialog

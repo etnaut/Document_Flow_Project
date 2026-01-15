@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { createDocument } from '@/services/api';
@@ -13,8 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Send, FileText, Upload } from 'lucide-react';
+import { Send, FileText, Upload, Calendar, ArrowDown, ArrowUp, Building2, X, Cloud } from 'lucide-react';
 
 const documentTypes = [
   'Leave Request',
@@ -31,12 +33,16 @@ const priorities = ['Low', 'Medium', 'High'];
 const SendDocument: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [formData, setFormData] = useState({
     type: '',
     otherType: '',
     priority: 'Medium',
     description: '',
+    subject: '',
+    date: '',
   });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -69,6 +75,42 @@ const SendDocument: React.FC = () => {
       reader.onerror = (error) => reject(error);
     });
 
+  const handleFileSelect = (file: File | null) => {
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const formatDate = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, date: e.target.value });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -97,13 +139,18 @@ const SendDocument: React.FC = () => {
     try {
       const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
 
+      // Combine subject and description if subject exists
+      const fullDescription = formData.subject
+        ? `${formData.subject}\n\n${formData.description}`.trim()
+        : formData.description.trim();
+
       await createDocument({
         Type: resolvedType,
         Priority: formData.priority,
         User_Id: user?.User_Id,
         sender_name: user?.Full_Name,
         sender_department: user?.Department,
-        description: formData.description.trim() || undefined,
+        description: fullDescription || undefined,
         Document: documentFile,
       });
 
@@ -126,9 +173,9 @@ const SendDocument: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header - full width, flush with content area */}
-      <div className="animate-slide-up">
+    <div className="bg-gray-50 min-h-screen p-6">
+      {/* Header - Outside cards */}
+      <div className="mb-6 animate-slide-up">
         <h1 className="text-3xl font-bold text-foreground">Send Document</h1>
         <p className="mt-1 text-muted-foreground">
           Submit a new document request for admin review.
@@ -136,142 +183,275 @@ const SendDocument: React.FC = () => {
       </div>
 
       {/* Form */}
-      <div className="mx-auto max-w-2xl animate-fade-in rounded-xl border bg-card p-8 shadow-card">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <FileText className="h-6 w-6 text-primary" />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Left Column - Communication Details (2/3 width) */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Communication Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Kind of Communication */}
+                <div className="space-y-2">
+                  <Label htmlFor="type" className="text-sm font-medium">
+                    Kind of Communication<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        type: value,
+                        otherType: value === 'Other' ? formData.otherType : '',
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select communication type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {documentTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.type === 'Other' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="otherType" className="text-sm font-medium">
+                      Specify Type<span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="otherType"
+                      placeholder="Enter document type"
+                      value={formData.otherType}
+                      onChange={(e) => setFormData({ ...formData, otherType: e.target.value })}
+                      className="h-10"
+                    />
+                  </div>
+                )}
+
+                {/* Date */}
+                <div className="space-y-2">
+                  <Label htmlFor="date" className="text-sm font-medium">
+                    Date<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={handleDateChange}
+                      className="h-10 pl-10"
+                    />
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Subject of Communications */}
+                <div className="space-y-2">
+                  <Label htmlFor="subject" className="text-sm font-medium">
+                    Subject of Communications<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Input
+                    id="subject"
+                    placeholder="Enter subject..."
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    className="h-10"
+                  />
+                </div>
+
+                {/* Communication Details */}
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium">
+                    Communication Details<span className="text-red-500 ml-1">*</span>
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Enter detailed information about the communication..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={6}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-foreground-black">Document Details</h2>
-            <p className="text-sm text-muted-foreground-black">Fill in the information below</p>
+
+          {/* Right Column - Personnel & Assignment, Priority (1/3 width) */}
+          <div className="space-y-6">
+            {/* Personnel & Assignment */}
+            <Card className="bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Personnel & Assignment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Sender Information</Label>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">{user?.Full_Name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Department:</span>
+                      <span className="font-medium">{user?.Department}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Division:</span>
+                      <span className="font-medium">{user?.Division}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Priority Level */}
+            <Card className="bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">
+                  Priority Level<span className="text-red-500 ml-1">*</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup
+                  value={formData.priority}
+                  onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="High" id="priority-high" />
+                    <Label htmlFor="priority-high" className="font-normal cursor-pointer flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full bg-red-500"></span>
+                      High
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Medium" id="priority-medium" />
+                    <Label htmlFor="priority-medium" className="font-normal cursor-pointer flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full bg-orange-500"></span>
+                      Medium
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Low" id="priority-low" />
+                    <Label htmlFor="priority-low" className="font-normal cursor-pointer flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full bg-green-500"></span>
+                      Low
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="type">Document Type</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    type: value,
-                    otherType: value === 'Other' ? formData.otherType : '',
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.type === 'Other' && (
-              <div className="space-y-2">
-                <Label htmlFor="otherType">Specify Type *</Label>
-                <Input
-                  id="otherType"
-                  placeholder="Enter document type"
-                  value={formData.otherType}
-                  onChange={(e) => setFormData({ ...formData, otherType: e.target.value })}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={formData.priority}
-                onValueChange={(value) => setFormData({ ...formData, priority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorities.map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priority}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="document">Upload Document</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                id="document"
+        {/* Attachments Section - Full Width */}
+        <Card className="bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Attachments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                isDragging
+                  ? 'border-primary bg-primary/5'
+                  : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <input
+                ref={fileInputRef}
                 type="file"
                 accept={fileAcceptTypes}
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                className="hidden"
               />
-              <Upload className="h-4 w-4 text-muted-foreground" />
+              {selectedFile ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center gap-3">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm">{selectedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(selectedFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Change File
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Cloud className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Drag and drop files here, or{' '}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        browse
+                      </button>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Supports: PDF, Word, Excel, Images, etc.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground-black">
-              Accepts PDF, Word, Excel, and common document formats.
-            </p>
-            {selectedFile && (
-              <p className="text-xs text-foreground">Selected: {selectedFile.name}</p>
-            )}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description / Notes</Label>
-            <Textarea
-              className='text-black placeholder:!text-black-400 border-gray-700'
-              id="description"
-              placeholder="Add any additional details about your document request..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-            />
-          </div>
-
-          <div className="rounded-lg bg-muted p-4">
-            <p className="text-lg font-medium text-muted-foreground-black">Sender Information</p>
-            <div className="mt-2 space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground-black">Name:</span>{' '}
-                <span className="font-medium text-foreground">{user?.Full_Name}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground-black">Division:</span>{' '}
-                <span className="font-medium text-foreground">{user?.Division}</span>
-              </p>
-              <p>
-                <span className="text-muted-foreground-black">Department:</span>{' '}
-                <span className="font-medium text-foreground">{user?.Department}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <Button
-              className='text-primary'
-              type="button"
-              variant="outline"
-              onClick={() => navigate(-1)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="gap-2">
-              <Send className="h-4 w-4" />
-              {isSubmitting ? 'Submitting...' : 'Submit Document'}
-            </Button>
-          </div>
-        </form>
-      </div>
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting} className="gap-2">
+            <Send className="h-4 w-4" />
+            {isSubmitting ? 'Submitting...' : 'Submit Document'}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };

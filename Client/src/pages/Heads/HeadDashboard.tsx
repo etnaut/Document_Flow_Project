@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { getDocuments, getDocumentsByStatus, getDepartments, getDivisions, getApprovedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import { FileText, CheckCircle, Inbox, Clock } from 'lucide-react';
@@ -190,7 +190,7 @@ const HeadDashboard: React.FC = () => {
 
       <div>
         <h2 className="text-lg font-semibold">All Documents</h2>
-        <DocumentTable documents={allDocs} showDescription descriptionLabel="Admin" showDate={false} enablePagination pageSizeOptions={[10,20,50]} />
+        <DocumentViewToggle documents={allDocs} showDescription descriptionLabel="Admin" showDate={false} enablePagination pageSizeOptions={[10,20,50]} defaultView="accordion" />
       </div>
     </div>
   );

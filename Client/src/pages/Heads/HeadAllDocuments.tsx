@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -55,7 +55,7 @@ const HeadAllDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         onForward={async (doc) => {
           if (!user) return;
@@ -76,6 +76,7 @@ const HeadAllDocuments: React.FC = () => {
         showDate={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
     </div>
   );

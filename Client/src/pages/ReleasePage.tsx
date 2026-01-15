@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { getDocuments, getDocumentsByStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -65,17 +65,17 @@ const ReleasePage: React.FC = () => {
         </div>
         <div>
           <h2 className="text-lg font-semibold">All Documents</h2>
-          <DocumentTable documents={allDocs} />
+          <DocumentViewToggle documents={allDocs} defaultView="accordion" />
         </div>
         <div>
           <h2 className="text-lg font-semibold">Pending</h2>
-          <DocumentTable documents={pendingDocs} />
+          <DocumentViewToggle documents={pendingDocs} defaultView="accordion" />
         </div>
       </div>
 
       <div>
         <h2 className="text-lg font-semibold">Released</h2>
-        <DocumentTable documents={releasedDocs} />
+        <DocumentViewToggle documents={releasedDocs} defaultView="accordion" />
       </div>
     </div>
   );

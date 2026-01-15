@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import StatCard from '@/components/dashboard/StatCard';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { FileText, Clock, CheckCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -78,11 +78,12 @@ const ReleaserDashboard: React.FC = () => {
           </div>
             <span className="text-xs text-muted-foreground">Paginated view</span>
         </div>
-          <DocumentTable
+          <DocumentViewToggle
             documents={documents}
             renderActions={() => null}
             enablePagination
             pageSizeOptions={[8, 16, 24]}
+            defaultView="accordion"
           />
       </div>
     </div>

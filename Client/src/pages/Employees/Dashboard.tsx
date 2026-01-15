@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getDashboardStats, getDocuments } from '@/services/api';
 import { Document } from '@/types';
 import StatCard from '@/components/dashboard/StatCard';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { FileText, Clock, CheckCircle, RotateCcw } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
@@ -79,7 +79,7 @@ const Dashboard: React.FC = () => {
       {/* Recent Documents */}
       <div className="animate-slide-up">
           <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Documents</h2>
-          <DocumentTable documents={recentDocuments} showDescription enablePagination pageSizeOptions={[5,10,20]} />
+          <DocumentViewToggle documents={recentDocuments} showDescription enablePagination pageSizeOptions={[5,10,20]} defaultView="accordion" />
       </div>
     </div>
   );

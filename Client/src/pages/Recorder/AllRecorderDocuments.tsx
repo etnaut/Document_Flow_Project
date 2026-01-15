@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -100,7 +100,7 @@ const AllRecorderDocuments: React.FC = () => {
       {loading ? (
         <div className="p-4 text-sm text-muted-foreground">Loading documents...</div>
       ) : (
-        <DocumentTable
+        <DocumentViewToggle
           documents={documents}
           showDescription
           descriptionLabel="Admin"
@@ -108,6 +108,7 @@ const AllRecorderDocuments: React.FC = () => {
           onRecord={handleRecord}
           enablePagination
           pageSizeOptions={[10,20,50]}
+          defaultView="accordion"
         />
       )}
 

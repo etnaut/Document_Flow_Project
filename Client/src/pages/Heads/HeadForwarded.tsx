@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { toast } from '@/hooks/use-toast';
 
 const HeadForwarded: React.FC = () => {
@@ -56,7 +56,7 @@ const HeadForwarded: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         showDescription
         descriptionLabel="Admin"
@@ -64,6 +64,7 @@ const HeadForwarded: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
     </div>
   );

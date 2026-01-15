@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocumentsByStatus, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { RotateCcw } from 'lucide-react';
 import {
   Dialog,
@@ -94,15 +94,11 @@ const MyRevisionDocuments: React.FC = () => {
     });
   };
 
-  const handleDelete = async () => {
-    if (!dialogDoc) return;
+  const handleDelete = async (id: number) => {
     try {
       setSubmitting(true);
-      await deleteDocument(dialogDoc.Document_Id);
+      await deleteDocument(id);
       toast({ title: 'Document deleted.' });
-      setDialogDoc(null);
-      setSelectedFile(null);
-      setEditForm({ type: '', priority: '', notes: '' });
       fetchDocuments();
     } catch (error) {
       console.error('Delete failed', error);
@@ -164,17 +160,19 @@ const MyRevisionDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         onEdit={(doc) => {
           setDialogDoc(doc);
           setSelectedFile(null);
           setEditForm({ type: doc.Type, priority: doc.Priority, notes: '' });
         }}
+        onDelete={handleDelete}
         showDescription
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
 
       <Dialog
@@ -251,7 +249,7 @@ const MyRevisionDocuments: React.FC = () => {
           </div>
 
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+            <Button variant="destructive" onClick={() => dialogDoc && handleDelete(dialogDoc.Document_Id)} disabled={submitting}>
               Delete
             </Button>
             <div className="flex gap-2 sm:justify-end">

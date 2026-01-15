@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocuments, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Button } from '@/components/ui/button';
 import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 import {
@@ -108,15 +108,11 @@ const MyDocuments: React.FC = () => {
     });
   };
 
-  const handleDelete = async () => {
-    if (!editingDoc) return;
+  const handleDelete = async (id: number) => {
     try {
       setSubmitting(true);
-      await deleteDocument(editingDoc.Document_Id);
+      await deleteDocument(id);
       toast({ title: 'Document deleted.' });
-      setEditingDoc(null);
-      setSelectedFile(null);
-      setEditForm({ type: '', priority: '', notes: '' });
       fetchDocuments();
     } catch (error) {
       toast({ title: 'Failed to delete document', variant: 'destructive' });
@@ -183,8 +179,17 @@ const MyDocuments: React.FC = () => {
         </Button>
       </div>
 
-      {/* Documents Table */}
-      <DocumentTable documents={documents} onEdit={handleEdit} onTrack={handleTrack} showDescription enablePagination pageSizeOptions={[10,20,50]} />
+      {/* Documents View */}
+      <DocumentViewToggle 
+        documents={documents} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete}
+        onTrack={handleTrack} 
+        showDescription 
+        enablePagination 
+        pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
+      />
 
       {/* Edit Dialog */}
       <Dialog
@@ -260,7 +265,7 @@ const MyDocuments: React.FC = () => {
           </div>
 
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+            <Button variant="destructive" onClick={() => editingDoc && handleDelete(editingDoc.Document_Id)} disabled={submitting}>
               Delete
             </Button>
             <div className="flex gap-2 sm:justify-end">

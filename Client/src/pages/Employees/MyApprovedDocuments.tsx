@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocumentsByStatus } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { CheckCircle } from 'lucide-react';
 import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 
@@ -56,7 +56,7 @@ const MyApprovedDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable documents={documents} onTrack={handleTrack} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10, 20, 50]} />
+      <DocumentViewToggle documents={documents} onTrack={handleTrack} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10, 20, 50]} defaultView="accordion" />
       <TrackDocumentDialog open={trackDialogOpen} onOpenChange={setTrackDialogOpen} document={selectedTrackDocument} />
     </div>
   );

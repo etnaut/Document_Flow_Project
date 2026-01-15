@@ -7,7 +7,7 @@ import {
   markRelease,
 } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import RespondDocumentDialog from '@/components/documents/RespondDocumentDialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -149,13 +149,14 @@ const ReceivedRequests: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         renderActions={renderActions}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
         showDate={false}
+        defaultView="accordion"
       />
 
       <RespondDocumentDialog

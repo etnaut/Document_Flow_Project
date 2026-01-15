@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { toast } from '@/hooks/use-toast';
 
 const AllDocuments: React.FC = () => {
@@ -73,7 +73,7 @@ const AllDocuments: React.FC = () => {
         </p>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         onApprove={handleApprove}
         onRevision={handleRevision}
@@ -83,6 +83,7 @@ const AllDocuments: React.FC = () => {
         showDate={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
     </div>
   );

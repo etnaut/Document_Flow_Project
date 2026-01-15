@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocumentsByStatus } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Clock } from 'lucide-react';
 
 const MyPendingDocuments: React.FC = () => {
@@ -49,7 +49,7 @@ const MyPendingDocuments: React.FC = () => {
         </div>
       </div>
 
-  <DocumentTable documents={documents} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10,20,50]} />
+  <DocumentViewToggle documents={documents} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10,20,50]} defaultView="accordion" />
     </div>
   );
 };

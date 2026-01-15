@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { CheckCircle } from 'lucide-react';
@@ -59,7 +59,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         showDescription
         descriptionLabel="Comment"
@@ -67,6 +67,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
+        defaultView="accordion"
       />
     </div>
   );

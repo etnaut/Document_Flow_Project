@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocumentsByStatus, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { toast } from '@/hooks/use-toast';
 import { Clock } from 'lucide-react';
 
@@ -86,7 +86,7 @@ const PendingDocuments: React.FC = () => {
         </div>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         onApprove={handleApprove}
         onReject={handleReject}
@@ -95,6 +95,7 @@ const PendingDocuments: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
       />
     </div>
   );

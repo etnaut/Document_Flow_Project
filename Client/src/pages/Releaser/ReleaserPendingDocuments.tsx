@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Clock } from 'lucide-react';
@@ -129,7 +129,7 @@ const ReleaserPendingDocuments: React.FC = () => {
         <Button onClick={() => void load()} variant="outline">Refresh</Button>
       </div>
 
-      <DocumentTable
+      <DocumentViewToggle
         documents={documents}
         onRelease={(id) => {
           const doc = documents.find((d) => d.Document_Id === id);
@@ -141,6 +141,7 @@ const ReleaserPendingDocuments: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
+        defaultView="accordion"
       />
 
       <Dialog open={!!releaseDialogDoc} onOpenChange={(open) => { if (!open) setReleaseDialogDoc(null); }}>
