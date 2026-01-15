@@ -19,7 +19,7 @@ const PendingDocuments: React.FC = () => {
     if (!user) return;
     try {
       // Filter by user's department - Admin sees pending docs sent TO their department
-      const data = await getDocumentsByStatus('Pending', user.Department, user.User_Role);
+      const data = await getDocumentsByStatus('Pending', user.Department, user.User_Role, user.User_Id);
       setDocuments(data);
     } catch (error) {
       console.error('Error fetching documents:', error);

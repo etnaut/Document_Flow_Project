@@ -3,6 +3,7 @@ import pool from '../config/database.js';
 let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
 let approvedStatusConstraintPromise: Promise<void> | null = null;
+let recordCommentColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -82,14 +83,15 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
 
       const clause: string | undefined = constraint.rows?.[0]?.check_clause;
       const clauseLower = clause?.toLowerCase() || '';
-      if (clauseLower.includes('recorded') && clauseLower.includes('forwarded')) {
+      // Ensure constraint includes forwarded, recorded and released (if present in older schemas this may be missing)
+      if (clauseLower.includes('recorded') && clauseLower.includes('forwarded') && clauseLower.includes('released')) {
         return;
       }
 
       // Recreate constraint to include all expected statuses
       await pool.query('ALTER TABLE approved_document_tbl DROP CONSTRAINT IF EXISTS approved_document_tbl_status_check');
       await pool.query(
-        "ALTER TABLE approved_document_tbl ADD CONSTRAINT approved_document_tbl_status_check CHECK (status IN ('not_forwarded','forwarded','recorded'))"
+        "ALTER TABLE approved_document_tbl ADD CONSTRAINT approved_document_tbl_status_check CHECK (status IN ('not_forwarded','forwarded','recorded','released'))"
       );
     } catch (err) {
       console.error('Failed to ensure approved_document_tbl status constraint', err);
@@ -97,4 +99,27 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
   })();
 
   return approvedStatusConstraintPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable comment column for recording notes.
+ */
+export const ensureRecordCommentColumn = async (): Promise<void> => {
+  if (recordCommentColumnPromise) return recordCommentColumnPromise;
+
+  recordCommentColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'comment' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN comment text');
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.comment column', err);
+    }
+  })();
+
+  return recordCommentColumnPromise;
 };

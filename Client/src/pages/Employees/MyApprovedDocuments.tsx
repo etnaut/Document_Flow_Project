@@ -4,11 +4,14 @@ import { getDocumentsByStatus } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { CheckCircle } from 'lucide-react';
+import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 
 const MyApprovedDocuments: React.FC = () => {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trackDialogOpen, setTrackDialogOpen] = useState(false);
+  const [selectedTrackDocument, setSelectedTrackDocument] = useState<Document | null>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -17,13 +20,18 @@ const MyApprovedDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-  const data = await getDocumentsByStatus('Approved', undefined, user.User_Role);
-  setDocuments(data.filter((d) => d.User_Id === user.User_Id));
+      const data = await getDocumentsByStatus('Approved', undefined, user.User_Role);
+      setDocuments(data.filter((d) => d.User_Id === user.User_Id));
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTrack = (doc: Document) => {
+    setSelectedTrackDocument(doc);
+    setTrackDialogOpen(true);
   };
 
   if (loading) {
@@ -48,7 +56,8 @@ const MyApprovedDocuments: React.FC = () => {
         </div>
       </div>
 
-  <DocumentTable documents={documents} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10,20,50]} />
+      <DocumentTable documents={documents} onTrack={handleTrack} showDescription showStatusFilter={false} enablePagination pageSizeOptions={[10, 20, 50]} />
+      <TrackDocumentDialog open={trackDialogOpen} onOpenChange={setTrackDialogOpen} document={selectedTrackDocument} />
     </div>
   );
 };

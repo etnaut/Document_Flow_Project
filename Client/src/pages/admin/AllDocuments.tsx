@@ -17,8 +17,8 @@ const AllDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      // Show all documents from sender_document_tbl scoped to department (matches original source)
-      const docs = await getDocuments(undefined, user.User_Role, user.Department);
+      // Request server to filter documents by admin user's department/division
+      const docs = await getDocuments(user.User_Id, user.User_Role);
       const mapped = (docs || []).map((d: any) => ({
         ...d,
         description: d.forwarded_by_admin || d.comments || d.sender_name || '',

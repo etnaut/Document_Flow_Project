@@ -4,6 +4,7 @@ import { deleteDocument, getDocuments, getRevisions, updateDocument } from '@/se
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
+import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ const MyDocuments: React.FC = () => {
   const [editForm, setEditForm] = useState({ type: '', priority: '', notes: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [trackDialogOpen, setTrackDialogOpen] = useState(false);
+  const [selectedTrackDocument, setSelectedTrackDocument] = useState<Document | null>(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -151,6 +154,11 @@ const MyDocuments: React.FC = () => {
     }
   };
 
+  const handleTrack = (doc: Document) => {
+    setSelectedTrackDocument(doc);
+    setTrackDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -176,7 +184,7 @@ const MyDocuments: React.FC = () => {
       </div>
 
       {/* Documents Table */}
-  <DocumentTable documents={documents} onEdit={handleEdit} showDescription enablePagination pageSizeOptions={[10,20,50]} />
+      <DocumentTable documents={documents} onEdit={handleEdit} onTrack={handleTrack} showDescription enablePagination pageSizeOptions={[10,20,50]} />
 
       {/* Edit Dialog */}
       <Dialog
@@ -266,6 +274,8 @@ const MyDocuments: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TrackDocumentDialog open={trackDialogOpen} onOpenChange={setTrackDialogOpen} document={selectedTrackDocument} />
     </div>
   );
 };

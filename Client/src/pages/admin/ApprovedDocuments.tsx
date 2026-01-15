@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus, updateDocumentStatus, forwardDocument } from '@/services/api';
+import { getDocumentsByStatus, forwardDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import { toast } from '@/hooks/use-toast';
 import { CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const ApprovedDocuments: React.FC = () => {
   const { user } = useAuth();
@@ -21,19 +22,13 @@ const ApprovedDocuments: React.FC = () => {
   const fetchDocuments = async () => {
     if (!user) return;
     try {
-      const data = await getDocumentsByStatus('Approved', user.Department, user.User_Role);
+      const data = await getDocumentsByStatus('Approved', undefined, user.User_Role, user.User_Id);
       setDocuments(data);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRelease = async (id: number) => {
-    await updateDocumentStatus(id, 'Released');
-    toast({ title: 'Document released successfully.' });
-    fetchDocuments();
   };
 
   const handleForwardClick = (doc: Document) => {
@@ -76,7 +71,6 @@ const ApprovedDocuments: React.FC = () => {
 
       <DocumentTable 
         documents={documents} 
-        onRelease={handleRelease} 
         onForward={handleForwardClick}
         showStatusFilter={false}
         enablePagination

@@ -86,20 +86,51 @@ export const getDocuments = async (userId?: number, role?: UserRole, userDepartm
 };
 
 // Get documents by status - filtered by department for Admin
-export const getDocumentsByStatus = async (status: string, userDepartment?: string, role?: UserRole): Promise<Document[]> => {
+export const getDocumentsByStatus = async (status: string, userDepartment?: string, role?: UserRole, userId?: number): Promise<Document[]> => {
   const params = new URLSearchParams({ status });
   if (role) params.append('role', role);
   if (userDepartment) params.append('department', userDepartment);
+  if (userId !== undefined) params.append('userId', String(userId));
 
   return apiRequest(`/documents?${params.toString()}`, { method: 'GET' });
 };
 
 // Get approved documents (for heads) sourced from approved_document_tbl
-export const getApprovedDocuments = async (department?: string): Promise<Document[]> => {
+export const getApprovedDocuments = async (department?: string, status?: string, userId?: number): Promise<Document[]> => {
   const params = new URLSearchParams();
   if (department) params.append('department', department);
+  if (status) params.append('status', status);
+  if (userId !== undefined) params.append('userId', String(userId));
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest(`/documents/approved${query}`, { method: 'GET' });
+};
+
+export const getRecordedDocuments = async (department?: string, status?: string): Promise<Document[]> => {
+  const params = new URLSearchParams();
+  if (department) params.append('department', department);
+  if (status) params.append('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/documents/records${query}`, { method: 'GET' });
+};
+
+export const releaseRecordedDocument = async (recordDocId: number): Promise<any> => {
+  return apiRequest(`/documents/records/${recordDocId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'released' }),
+  });
+};
+
+export const createReleaseDocument = async (
+  recordDocId: number,
+  status: 'low' | 'medium' | 'high',
+  department: string,
+  division: string
+): Promise<any> => {
+  // documents router is mounted under /api/documents
+  return apiRequest('/documents/releases', {
+    method: 'POST',
+    body: JSON.stringify({ record_doc_id: recordDocId, status, department, division }),
+  });
 };
 
 // Create new document
@@ -115,7 +146,9 @@ export const updateDocumentStatus = async (
   documentId: number,
   status: Document['Status'],
   comments?: string,
-  admin?: string
+  admin?: string,
+  recordStatus?: 'recorded' | 'not_recorded',
+  recordComment?: string
 ): Promise<Document | null> => {
   return apiRequest('/documents', {
     method: 'PUT',
@@ -124,6 +157,8 @@ export const updateDocumentStatus = async (
       Status: status,
       comments,
       admin,
+      record_status: recordStatus,
+      record_comment: recordComment,
     }),
   });
 };
@@ -143,7 +178,6 @@ export const updateDocument = async (
 export const deleteDocument = async (documentId: number): Promise<{ success: boolean }> => {
   return apiRequest(`/documents/${documentId}`, { method: 'DELETE' });
 };
-
 // Forward document to another department (Admin to Admin)
 export const forwardDocument = async (
   documentId: number,
@@ -164,10 +198,14 @@ export const forwardDocument = async (
   });
 };
 
-// Get received requests (documents forwarded from other admins)
-export const getReceivedRequests = async (userDepartment: string): Promise<Document[]> => {
-  const docs = await getDocuments(undefined, 'Admin', userDepartment);
-  return docs.filter((d) => d.target_department === userDepartment && d.Status !== 'Archived');
+// Get received requests (releases) filtered by department/division
+export const getReceivedRequests = async (userDepartment: string, userDivision?: string, userId?: number): Promise<any[]> => {
+  const params = new URLSearchParams();
+  if (userDepartment) params.append('department', userDepartment);
+  if (userDivision) params.append('division', userDivision);
+  if (userId !== undefined) params.append('userId', String(userId));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest(`/documents/releases${query}`, { method: 'GET' });
 };
 
 // Archive document (mark as done)
@@ -200,6 +238,24 @@ export const respondToDocument = async (
     Response_Message: message,
     Response_Date: new Date().toISOString().split('T')[0],
   };
+};
+
+// Create respond document entry in respond_document_tbl
+export const createRespondDocument = async (
+  releaseDocId: number,
+  userId: number,
+  status: 'actioned' | 'not actioned',
+  comment: string
+): Promise<any> => {
+  return apiRequest('/documents/respond', {
+    method: 'POST',
+    body: JSON.stringify({
+      release_doc_id: releaseDocId,
+      user_id: userId,
+      status: status,
+      comment: comment,
+    }),
+  });
 };
 
 // Get revision entries
@@ -338,4 +394,28 @@ export const updateUserAssignment = async (userId: number, role: string): Promis
     method: 'PUT',
     body: JSON.stringify({ User_Id: userId, pre_assigned_role: role }),
   });
+};
+
+// Mark a release record (e.g., set mark = 'done' or 'not_done')
+export const markRelease = async (recordDocId: number, mark: string): Promise<any> => {
+  return apiRequest(`/documents/releases/${recordDocId}/mark`, {
+    method: 'PUT',
+    body: JSON.stringify({ mark }),
+  });
+};
+
+// Get release tracking entries for a document (defaults to mark='done' when server supports it)
+export const getReleaseTrack = async (params: { documentId?: number; approvedDocId?: number; recordDocId?: number }): Promise<any[]> => {
+  const query = new URLSearchParams();
+  if (params.documentId) query.append('documentId', String(params.documentId));
+  if (params.approvedDocId) query.append('approvedDocId', String(params.approvedDocId));
+  if (params.recordDocId) query.append('recordDocId', String(params.recordDocId));
+  const q = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest(`/documents/releases/track${q}`, { method: 'GET' });
+};
+
+export const getDocumentTrack = async (documentId?: number): Promise<any> => {
+  if (!documentId) return [];
+  const q = `?documentId=${documentId}`;
+  return apiRequest(`/documents/track${q}`, { method: 'GET' });
 };

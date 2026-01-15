@@ -5,8 +5,10 @@ import { RevisionEntry } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { useAuth } from '@/contexts/AuthContext';
 
 const RevisionDocuments: React.FC = () => {
+  const { user } = useAuth();
   const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -15,12 +17,27 @@ const RevisionDocuments: React.FC = () => {
 
   useEffect(() => {
     fetchRevisions();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchRevisions = async () => {
     try {
       const data = await getRevisions();
-      setRevisions(data);
+      let filtered = data;
+      if (user) {
+        // Only show if sender_name matches user's department/division
+        filtered = data.filter((rev: any) => {
+          // If sender_name is structured as "Name (Department, Division)", parse it
+          // Otherwise, fallback to matching by department/division if available
+          // This assumes sender_name or other fields may contain department/division info
+          // If not, skip filtering
+          if (rev.sender_department && rev.sender_division) {
+            return rev.sender_department === user.Department && rev.sender_division === user.Division;
+          }
+          return true;
+        });
+      }
+      setRevisions(filtered);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {

@@ -24,6 +24,7 @@ export interface User {
 
 export interface Document {
   Document_Id: number;
+  record_doc_id?: number;
   Type: string;
   User_Id: number;
   Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Received' | 'Archived' | 'Forwarded' | 'Not Forwarded' | 'Recorded' | 'Not Recorded';
@@ -31,6 +32,8 @@ export interface Document {
   Document?: string | null; // base64-encoded file payload (optional)
   sender_name?: string;
   sender_department?: string;
+  sender_department_id?: number;
+  sender_division_id?: number;
   target_department: string; // The department this document is sent TO
   created_at?: string;
   comments?: string;
@@ -38,6 +41,7 @@ export interface Document {
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin
+  mark?: string; // optional release mark (e.g., 'not_done')
 }
 
 export interface DocumentResponse {
