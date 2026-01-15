@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 import { Lock, User } from 'lucide-react';
-import Logo from '@/assets/Logo.png';
+import Logo from '@/assets/Logo.svg';
 // Background image removed per new palette rollout
 
 const Login: React.FC = () => {

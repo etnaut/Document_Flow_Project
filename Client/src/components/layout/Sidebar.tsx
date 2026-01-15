@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import Logo from '@/assets/Logo.png';
+import Logo from '@/assets/Logo.svg';
 
 type SidebarProps = {
   collapsed: boolean;
