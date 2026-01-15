@@ -1144,6 +1144,176 @@ router.get('/releases/track', async (req: Request, res: Response) => {
   }
 });
 
+// POST /documents/respond - Create a respond document entry in respond_document_tbl
+router.post('/respond', async (req: Request, res: Response) => {
+  try {
+    const { release_doc_id, user_id, status, comment } = req.body as {
+      release_doc_id?: number;
+      user_id?: number;
+      status?: string;
+      comment?: string;
+    };
+
+    const releaseDocId = Number(release_doc_id);
+    const userId = Number(user_id);
+    const statusVal = String(status || '').trim().toLowerCase();
+    const commentVal = String(comment || '').trim();
+
+    if (!Number.isFinite(releaseDocId)) {
+      return sendResponse(res, { error: 'Invalid release_doc_id' }, 400);
+    }
+    if (!Number.isFinite(userId)) {
+      return sendResponse(res, { error: 'Invalid user_id' }, 400);
+    }
+    if (!statusVal || (statusVal !== 'actioned' && statusVal !== 'not actioned')) {
+      return sendResponse(res, { error: 'Status must be "actioned" or "not actioned"' }, 400);
+    }
+    if (!commentVal) {
+      return sendResponse(res, { error: 'Comment is required' }, 400);
+    }
+
+    // Find the foreign key constraint to determine what column it references
+    const fkRes = await pool.query(`
+      SELECT 
+        kcu.column_name AS local_column,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.constraint_column_usage AS ccu
+        ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_name = 'respond_document_tbl'
+        AND tc.constraint_name LIKE '%respond_release%'
+      LIMIT 1
+    `);
+
+    // Check that the release exists using record_doc_id (the value we receive from frontend)
+    const releaseCheck = await pool.query(
+      'SELECT * FROM release_document_tbl WHERE record_doc_id = $1 LIMIT 1',
+      [releaseDocId]
+    );
+
+    if (releaseCheck.rows.length === 0) {
+      return sendResponse(res, { error: 'Release document not found' }, 404);
+    }
+
+    const releaseRow = releaseCheck.rows[0];
+    
+    // Determine which value to use for the foreign key
+    let fkValue: number;
+    if (fkRes.rows.length > 0) {
+      // Foreign key exists, check what it references
+      const fkInfo = fkRes.rows[0];
+      const foreignColumn = fkInfo.foreign_column_name;
+      
+      // Get the value from the release row based on the foreign column name
+      if (releaseRow[foreignColumn] !== undefined && releaseRow[foreignColumn] !== null) {
+        fkValue = releaseRow[foreignColumn];
+      } else {
+        // Fallback: if foreign key references record_doc_id, use that
+        fkValue = releaseRow.record_doc_id;
+      }
+    } else {
+      // No foreign key constraint found, use record_doc_id as fallback
+      fkValue = releaseRow.record_doc_id;
+    }
+
+    // Verify that the user_id exists
+    const userCheck = await pool.query('SELECT user_id FROM user_tbl WHERE user_id = $1 LIMIT 1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return sendResponse(res, { error: 'User not found' }, 404);
+    }
+
+    // Check if respond_document_tbl exists and get its columns
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'respond_document_tbl'
+    `);
+
+    if (tableCheck.rows.length === 0) {
+      return sendResponse(res, { error: 'respond_document_tbl table does not exist' }, 500);
+    }
+
+    // Get column information
+    const colsRes = await pool.query(`
+      SELECT column_name, data_type, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'respond_document_tbl'
+    `);
+    const columns = new Set<string>(colsRes.rows.map((r) => r.column_name));
+
+    // Build insert statement based on available columns
+    const insertCols: string[] = [];
+    const insertValues: any[] = [];
+
+    // Determine which column to use for the foreign key reference
+    // Check what column the foreign key constraint uses in respond_document_tbl
+    let fkColumnName: string | null = null;
+    if (fkRes.rows.length > 0) {
+      fkColumnName = fkRes.rows[0].local_column;
+    }
+    
+    // release_doc_id is required (maps to the foreign key column)
+    if (fkColumnName && columns.has(fkColumnName)) {
+      // Use the column name from the foreign key constraint
+      insertCols.push(fkColumnName);
+      insertValues.push(fkValue);
+    } else if (columns.has('release_doc_id')) {
+      insertCols.push('release_doc_id');
+      insertValues.push(fkValue);
+    } else if (columns.has('record_doc_id')) {
+      // Fallback to record_doc_id if release_doc_id doesn't exist
+      insertCols.push('record_doc_id');
+      insertValues.push(fkValue);
+    } else {
+      return sendResponse(res, { error: `respond_document_tbl does not have the required foreign key column. Expected: ${fkColumnName || 'release_doc_id or record_doc_id'}` }, 500);
+    }
+
+    // user_id is required
+    if (columns.has('user_id')) {
+      insertCols.push('user_id');
+      insertValues.push(userId);
+    } else {
+      return sendResponse(res, { error: 'respond_document_tbl does not have user_id column' }, 500);
+    }
+
+    // status is required
+    if (columns.has('status')) {
+      insertCols.push('status');
+      insertValues.push(statusVal);
+    } else {
+      return sendResponse(res, { error: 'respond_document_tbl does not have status column' }, 500);
+    }
+
+    // comment is required
+    if (columns.has('comment')) {
+      insertCols.push('comment');
+      insertValues.push(commentVal);
+    } else {
+      return sendResponse(res, { error: 'respond_document_tbl does not have comment column' }, 500);
+    }
+
+    // Build the INSERT statement
+    const placeholders = insertCols.map((_, idx) => `$${idx + 1}`).join(', ');
+    const columnNames = insertCols.join(', ');
+
+    const result = await pool.query(
+      `INSERT INTO respond_document_tbl (${columnNames}) VALUES (${placeholders}) RETURNING *`,
+      insertValues
+    );
+
+    return sendResponse(res, result.rows[0], 201);
+  } catch (error: any) {
+    console.error('Create respond document error:', error);
+    return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 // GET /track - comprehensive tracking information for a document
 router.get('/track', async (req: Request, res: Response) => {
   const documentId = req.query.documentId ? Number(req.query.documentId) : undefined;

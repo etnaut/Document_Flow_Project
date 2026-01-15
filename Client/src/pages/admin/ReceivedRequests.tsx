@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getReceivedRequests,
-  respondToDocument,
+  createRespondDocument,
   archiveDocument,
   markRelease,
 } from '@/services/api';
@@ -64,11 +64,23 @@ const ReceivedRequests: React.FC = () => {
     setRespondDialogOpen(true);
   };
 
-  const handleRespond = async (documentId: number, message: string) => {
+  const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string) => {
     if (!user) return;
-    await respondToDocument(documentId, user.Department, user.Full_Name, message);
-    toast({ title: 'Response sent back to sender.' });
-    fetchDocuments();
+    try {
+      console.log('Saving response:', { releaseDocId, userId: user.User_Id, status, comment });
+      await createRespondDocument(releaseDocId, user.User_Id, status, comment);
+      toast({ title: 'Response saved successfully.' });
+      fetchDocuments();
+    } catch (error: any) {
+      console.error('Error saving response:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to save response';
+      toast({ 
+        title: 'Failed to save response', 
+        description: errorMessage,
+        variant: 'destructive' 
+      });
+      throw error; // Re-throw so the dialog can handle it
+    }
   };
 
   const handleArchive = async (doc: Document) => {

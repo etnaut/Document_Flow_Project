@@ -11,13 +11,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { MessageSquare } from 'lucide-react';
 
 interface RespondDocumentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   document: Document | null;
-  onRespond: (documentId: number, message: string) => Promise<void>;
+  onRespond: (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string) => Promise<void>;
 }
 
 const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
@@ -26,20 +33,30 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
   document,
   onRespond,
 }) => {
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'actioned' | 'not actioned'>('not actioned');
+  const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!document || !message.trim()) return;
+    if (!document || !comment.trim()) return;
+    
+    const releaseDocId = (document as any).record_doc_id;
+    if (!releaseDocId) {
+      console.error('No release_doc_id found in document');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      await onRespond(document.Document_Id, message);
-      setMessage('');
+      await onRespond(releaseDocId, status, comment);
+      setComment('');
+      setStatus('not actioned');
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error responding to document:', error);
+      // Error is already shown in toast by handleRespond
+      // Don't close dialog on error so user can retry
     } finally {
       setIsSubmitting(false);
     }
@@ -59,20 +76,43 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-            <div className="rounded-lg bg-muted p-3 text-sm">
-              <p><strong>Document:</strong> {document?.Type}</p>
-              <p><strong>From:</strong> {document?.forwarded_from || document?.sender_department}</p>
-              {document?.comments && (
-                <p><strong>Notes:</strong> {document.comments}</p>
-              )}
+            <div className="space-y-2 rounded-lg bg-muted p-4 text-sm">
+              <div className="flex items-start gap-2">
+                <strong className="min-w-[100px]">Document:</strong>
+                <span>{document?.Type || 'N/A'}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <strong className="min-w-[100px]">Department:</strong>
+                <span>{document?.sender_department || document?.target_department || 'N/A'}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <strong className="min-w-[100px]">Division:</strong>
+                <span>{document?.forwarded_from || document?.Division || 'N/A'}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <strong className="min-w-[100px]">Sender:</strong>
+                <span>{document?.sender_name || 'N/A'}</span>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="message">Response Message</Label>
+              <Label htmlFor="status">Status</Label>
+              <Select value={status} onValueChange={(value: 'actioned' | 'not actioned') => setStatus(value)}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="actioned">Actioned</SelectItem>
+                  <SelectItem value="not actioned">Not Actioned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="comment">Comment</Label>
               <Textarea
-                id="message"
-                placeholder="Enter your response message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                id="comment"
+                placeholder="Enter your comment..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
                 rows={4}
                 required
               />
@@ -86,8 +126,8 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !message.trim()}>
-              {isSubmitting ? 'Sending...' : 'Send Response'}
+            <Button type="submit" disabled={isSubmitting || !comment.trim()}>
+              {isSubmitting ? 'Saving...' : 'Save Response'}
             </Button>
           </DialogFooter>
         </form>

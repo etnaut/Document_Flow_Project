@@ -240,6 +240,24 @@ export const respondToDocument = async (
   };
 };
 
+// Create respond document entry in respond_document_tbl
+export const createRespondDocument = async (
+  releaseDocId: number,
+  userId: number,
+  status: 'actioned' | 'not actioned',
+  comment: string
+): Promise<any> => {
+  return apiRequest('/documents/respond', {
+    method: 'POST',
+    body: JSON.stringify({
+      release_doc_id: releaseDocId,
+      user_id: userId,
+      status: status,
+      comment: comment,
+    }),
+  });
+};
+
 // Get revision entries
 export const getRevisions = async (): Promise<RevisionEntry[]> => {
   return apiRequest('/documents/revisions', { method: 'GET' });
