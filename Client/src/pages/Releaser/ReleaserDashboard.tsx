@@ -4,10 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments } from '@/services/api';
 import { Document } from '@/types';
 import StatCard from '@/components/dashboard/StatCard';
-import DocumentTable from '@/components/documents/DocumentTable';
 import { FileText, Clock, CheckCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import DocumentTable from '@/components/dashboard/DocumentTable';
 
 const ReleaserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -70,21 +71,121 @@ const ReleaserDashboard: React.FC = () => {
         <StatCard title="Awaiting Release" value={stats.awaitingRelease} icon={Send} variant="info" />
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Latest Documents</h2>
-            <p className="text-sm text-muted-foreground">Recent items for {user.Department}</p>
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recording Status Pie Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Recording Status Overview</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Recorded', value: stats.recorded },
+                    { name: 'Not Recorded', value: stats.notRecorded },
+                    { name: 'Awaiting Release', value: stats.awaitingRelease },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  <Cell fill="#10b981" />
+                  <Cell fill="#f59e0b" />
+                  <Cell fill="#3b82f6" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value) => value}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-            <span className="text-xs text-muted-foreground">Paginated view</span>
         </div>
-          <DocumentTable
-            documents={documents}
-            renderActions={() => null}
-            enablePagination
-            pageSizeOptions={[8, 16, 24]}
-            prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
-          />
+
+        {/* Status Comparison Bar Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Status Comparison</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Recorded', count: stats.recorded, color: '#10b981' },
+                  { name: 'Not Recorded', count: stats.notRecorded, color: '#f59e0b' },
+                  { name: 'Awaiting Release', count: stats.awaitingRelease, color: '#3b82f6' },
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[8, 8, 0, 0]}
+                  shape={(props: any) => {
+                    const { x, y, width, height, payload } = props;
+                    const colors: { [key: string]: string } = {
+                      'Recorded': '#10b981',
+                      'Not Recorded': '#f59e0b',
+                      'Awaiting Release': '#3b82f6',
+                    };
+                    return (
+                      <rect
+                        x={x}
+                        y={y}
+                        width={width}
+                        height={height}
+                        fill={colors[payload.name] || '#3b82f6'}
+                        rx={8}
+                        ry={8}
+                      />
+                    );
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold">Latest Documents</h2>
+        <DocumentTable
+          documents={documents}
+          renderActions={() => null}
+          enablePagination
+          pageSizeOptions={[8, 16, 24]}
+          prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
+        />
       </div>
     </div>
   );

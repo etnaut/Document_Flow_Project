@@ -88,87 +88,161 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground shadow-elevated transition-[width] duration-200',
+        'fixed left-4 top-4 bottom-4 z-40 rounded-3xl',
+        'bg-primary/80 backdrop-blur-xl',
+        'border border-primary/30 shadow-2xl',
+        'text-white transition-[width] duration-300 ease-in-out',
+        'overflow-hidden',
         collapsed ? 'w-16' : 'w-64'
       )}
+      style={{
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+      }}
     >
       <div className="flex h-full flex-col">
         {/* Logo + Toggle */}
         <div
           className={cn(
-            'flex h-16 items-center border-b border-sidebar-border px-3',
+            'flex h-16 items-center px-4',
             collapsed ? 'justify-center' : 'justify-between'
           )}
         >
-          <div className="flex items-center gap-2">
-            <img src={Logo} alt="DocuFlow Logo" className={cn('object-contain', collapsed ? 'h-6 w-6' : 'h-8 w-8')} />
-            {!collapsed && <span className="text-lg font-bold">DocuFlow</span>}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn('shrink-0 text-sidebar-foreground/80 hover:text-sidebar-foreground', collapsed && 'ml-auto')}
-            onClick={onToggle}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <ToggleIcon className="h-4 w-4" />
-          </Button>
+          {!collapsed && (
+            <div className="flex items-center gap-2">
+              <img src={Logo} alt="DocuFlow Logo" className="h-8 w-8 object-contain" />
+              <span className="text-lg font-bold text-white">DocuFlow</span>
+            </div>
+          )}
+          {collapsed && (
+            <button
+              onClick={onToggle}
+              className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              aria-label="Expand sidebar"
+            >
+              <img src={Logo} alt="DocuFlow Logo" className="h-12 w-12 object-contain transition-all duration-300" />
+            </button>
+          )}
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'shrink-0 text-white/80 hover:text-white hover:bg-white/10',
+                'rounded-full transition-all duration-200'
+              )}
+              onClick={onToggle}
+              aria-label="Collapse sidebar"
+            >
+              <ToggleIcon className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         {/* User Info */}
         {!collapsed && (
-          <div className="border-b border-sidebar-border p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
-                <User className="h-5 w-5" />
+          <div className="px-4 pb-4">
+            <div className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white">
+                  <User className="h-5 w-5" />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-medium text-white">{user?.Full_Name}</p>
+                  <p className="text-xs text-white/70">{displayRole}</p>
+                </div>
               </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium">{user?.Full_Name}</p>
-                <p className="text-xs text-sidebar-foreground/70">{displayRole}</p>
-              </div>
-            </div>
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs text-sidebar-foreground/70">
-                <Building2 className="h-3.5 w-3.5" />
-                <span className="truncate">{user?.Division}</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-sidebar-foreground/70">
-                <Briefcase className="h-3.5 w-3.5" />
-                <span className="truncate">{user?.Department}</span>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs text-white/70">
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span className="truncate">{user?.Division}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-white/70">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  <span className="truncate">{user?.Department}</span>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Navigation */}
-        <nav className={cn('flex-1 space-y-1 overflow-y-auto', collapsed ? 'p-2' : 'p-3')}>
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                  collapsed && 'justify-center',
-                  isActive
-                    ? 'bg-white text-primary'
-                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white'
-                )
-              }
-            >
-              <link.icon className="h-4 w-4" />
-              {!collapsed && link.label}
-            </NavLink>
-          ))}
+        <nav className={cn('flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 pb-3', collapsed && 'px-2')}>
+          {links.map((link) => {
+            const isActiveRoute = location.pathname === link.to || 
+              (link.to !== '/dashboard' && link.to !== '/super-admin' && link.to !== '/head' && 
+               link.to !== '/records' && link.to !== '/releaser' && location.pathname.startsWith(link.to));
+            
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end
+                className={({ isActive }) =>
+                  cn(
+                    'group relative flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium',
+                    'transition-all duration-500 ease-out overflow-hidden',
+                    collapsed && 'justify-center'
+                  )
+                }
+              >
+                {/* Glow effect behind the pill */}
+                <span
+                  className={cn(
+                    'absolute inset-0 rounded-full bg-white/20 blur-md transition-all duration-500 ease-out',
+                    'overflow-hidden',
+                    location.pathname === link.to || isActiveRoute
+                      ? 'opacity-100 scale-100'
+                      : 'opacity-0 scale-100 group-hover:opacity-30 group-hover:scale-100'
+                  )}
+                />
+                {/* White pill background for active state with enhanced shadow */}
+                <span
+                  className={cn(
+                    'absolute inset-0 rounded-full bg-white transition-all duration-500 ease-out',
+                    location.pathname === link.to || isActiveRoute
+                      ? 'opacity-100 scale-100'
+                      : 'opacity-0 scale-95 group-hover:opacity-10 group-hover:scale-100'
+                  )}
+                  style={{
+                    boxShadow: location.pathname === link.to || isActiveRoute
+                      ? '0 4px 16px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                      : 'none',
+                  }}
+                />
+                {/* Icon */}
+                <link.icon 
+                  className={cn(
+                    'relative z-10 h-5 w-5 transition-all duration-500 ease-out',
+                    location.pathname === link.to || isActiveRoute
+                      ? 'text-primary scale-105'
+                      : 'text-white scale-100'
+                  )} 
+                />
+                {/* Label */}
+                {!collapsed && (
+                  <span 
+                    className={cn(
+                      'relative z-10 transition-all duration-500 ease-out',
+                      location.pathname === link.to || isActiveRoute
+                        ? 'text-primary font-semibold scale-105'
+                        : 'text-white scale-100'
+                    )}
+                  >
+                    {link.label}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Logout */}
-        <div className={cn('border-t border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
+        <div className={cn('px-3 pb-4', collapsed && 'px-2')}>
           <Button
             variant="ghost"
             className={cn(
-              'w-full gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white',
+              'w-full gap-3 rounded-full text-white/80 hover:bg-white/10 hover:text-white',
+              'transition-all duration-200',
               collapsed ? 'justify-center px-2' : 'justify-start px-3'
             )}
             onClick={logout}

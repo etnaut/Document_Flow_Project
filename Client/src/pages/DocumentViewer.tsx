@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Download, ArrowLeft } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils';
 
 const DocumentViewer: React.FC = () => {
   const navigate = useNavigate();
@@ -208,7 +209,7 @@ const DocumentViewer: React.FC = () => {
             <div><span className="font-medium text-foreground">Sender:</span> {doc?.sender_name || '—'}</div>
             <div><span className="font-medium text-foreground">Priority:</span> {doc?.Priority || '—'}</div>
             <div><span className="font-medium text-foreground">Status:</span> {doc?.Status || '—'}</div>
-            <div><span className="font-medium text-foreground">Date:</span> {doc?.created_at || '—'}</div>
+            <div><span className="font-medium text-foreground">Date:</span> {formatDateTime(doc?.created_at)}</div>
             {doc?.description && (
               <div className="mt-2">
                 <span className="font-medium text-foreground">Notes:</span>

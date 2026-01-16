@@ -36,7 +36,7 @@ const ReceivedRequests: React.FC = () => {
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
         Status: (r.status ?? 'Released') as any,
-        Priority: 'Normal',
+        Priority: 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
         sender_department: r.department || '',
@@ -108,19 +108,6 @@ const ReceivedRequests: React.FC = () => {
     <div className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
         <Reply className="mr-2 h-4 w-4" /> Respond
-      </Button>
-      <Button
-        variant={
-          (String((doc as any).mark || '').toLowerCase() === 'not_done')
-            ? 'destructive'
-            : (String((doc as any).mark || '').toLowerCase() === 'done')
-            ? 'success'
-            : 'ghost'
-        }
-        size="sm"
-        onClick={() => handleArchive(doc)}
-      >
-        <CheckCircle2 className="mr-2 h-4 w-4" /> Done
       </Button>
     </div>
   );

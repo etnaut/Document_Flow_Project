@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Send, FileText, Upload, Calendar, ArrowDown, ArrowUp, Building2, X, Cloud } from 'lucide-react';
+import JSZip from 'jszip';
 
 const documentTypes = [
   'Leave Request',
@@ -44,7 +45,7 @@ const SendDocument: React.FC = () => {
     date: '',
   });
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const fileAcceptTypes = [
     '.pdf',
@@ -74,10 +75,30 @@ const SendDocument: React.FC = () => {
       reader.onerror = (error) => reject(error);
     });
 
-  const handleFileSelect = (file: File | null) => {
-    if (file) {
-      setSelectedFile(file);
+  const filesToZip = async (files: File[]): Promise<File> => {
+    const zip = new JSZip();
+    
+    // Add all files to the zip
+    for (const file of files) {
+      zip.file(file.name, file);
     }
+    
+    // Generate the zip file
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    
+    // Convert blob to File
+    return new File([zipBlob], `attachments_${Date.now()}.zip`, { type: 'application/zip' });
+  };
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -93,9 +114,9 @@ const SendDocument: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileSelect(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files);
     }
   };
 
@@ -136,10 +157,26 @@ const SendDocument: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+<<<<<<< HEAD
       const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
 
       // Use the description field as the submitted content
       const fullDescription = formData.description.trim();
+=======
+      let documentFile: string | undefined = undefined;
+      
+      // If multiple files, combine them into a ZIP
+      if (selectedFiles.length > 0) {
+        if (selectedFiles.length === 1) {
+          // Single file - convert directly to base64
+          documentFile = await fileToBase64(selectedFiles[0]);
+        } else {
+          // Multiple files - create ZIP and convert to base64
+          const zipFile = await filesToZip(selectedFiles);
+          documentFile = await fileToBase64(zipFile);
+        }
+      }
+>>>>>>> origin/feature/updates
 
       await createDocument({
         Type: resolvedType,
@@ -147,7 +184,7 @@ const SendDocument: React.FC = () => {
         User_Id: user?.User_Id,
         sender_name: user?.Full_Name,
         sender_department: user?.Department,
-        description: fullDescription || undefined,
+        description: formData.description.trim() || undefined,
         Document: documentFile,
       });
 
@@ -250,7 +287,11 @@ const SendDocument: React.FC = () => {
                   </div>
                 </div>
 
+<<<<<<< HEAD
                 {/* Communication Details (used as the main content) */}
+=======
+                {/* Communication Details */}
+>>>>>>> origin/feature/updates
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
                     Communication Details<span className="text-red-500 ml-1">*</span>
@@ -359,41 +400,57 @@ const SendDocument: React.FC = () => {
                 ref={fileInputRef}
                 type="file"
                 accept={fileAcceptTypes}
-                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                multiple
+                onChange={(e) => handleFileSelect(e.target.files)}
                 className="hidden"
               />
-              {selectedFile ? (
+              {selectedFiles.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-3">
-                    <FileText className="h-8 w-8 text-primary" />
-                    <div className="text-left">
-                      <p className="font-medium text-sm">{selectedFile.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(selectedFile.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div className="text-left flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 flex-shrink-0"
+                          onClick={() => handleRemoveFile(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 justify-center">
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Add More Files
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => {
-                        setSelectedFile(null);
+                        setSelectedFiles([]);
                         if (fileInputRef.current) {
                           fileInputRef.current.value = '';
                         }
                       }}
                     >
-                      <X className="h-4 w-4" />
+                      Clear All
                     </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Change File
-                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -410,7 +467,7 @@ const SendDocument: React.FC = () => {
                       </button>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Supports: PDF, Word, Excel, Images, etc.
+                      Supports: PDF, Word, Excel, Images, etc. You can select multiple files.
                     </p>
                   </div>
                 </div>

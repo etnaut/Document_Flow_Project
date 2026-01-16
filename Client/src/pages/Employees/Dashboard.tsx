@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDashboardStats, getDocuments } from '@/services/api';
-import { Document } from '@/types';
+import { getDashboardStats } from '@/services/api';
 import StatCard from '@/components/dashboard/StatCard';
-import DocumentTable from '@/components/documents/DocumentTable';
 import { FileText, Clock, CheckCircle, RotateCcw } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -14,7 +13,6 @@ const Dashboard: React.FC = () => {
     approved: 0,
     revision: 0,
   });
-  const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,10 +21,7 @@ const Dashboard: React.FC = () => {
       
       try {
         // Pass user's department for filtering (Admin sees docs sent TO their dept)
-        const [statsData, docsData] = await Promise.all([
-          getDashboardStats(user.User_Id, user.User_Role, user.Department),
-          getDocuments(user.User_Id, user.User_Role, user.Department),
-        ]);
+        const statsData = await getDashboardStats(user.User_Id, user.User_Role, user.Department);
         
         // Keep only the fields we display (exclude released)
         setStats({
@@ -35,7 +30,6 @@ const Dashboard: React.FC = () => {
           approved: statsData.approved ?? 0,
           revision: statsData.revision ?? 0,
         });
-        setRecentDocuments(docsData || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -76,10 +70,110 @@ const Dashboard: React.FC = () => {
         <StatCard title="For Revision" value={stats.revision} icon={RotateCcw} variant="info" surface="plain" />
       </div>
 
-      {/* Recent Documents */}
-      <div className="animate-slide-up">
-          <h2 className="mb-4 text-xl font-semibold text-foreground">Recent Documents</h2>
-          <DocumentTable documents={recentDocuments} showDescription enablePagination pageSizeOptions={[5,10,20]} />
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Status Breakdown Pie Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Document Status Breakdown</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Pending', value: stats.pending },
+                    { name: 'Approved', value: stats.approved },
+                    { name: 'For Revision', value: stats.revision },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  <Cell fill="#f59e0b" />
+                  <Cell fill="#10b981" />
+                  <Cell fill="#3b82f6" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value) => value}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status Distribution Bar Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Status Distribution</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Pending', count: stats.pending, color: '#f59e0b' },
+                  { name: 'Approved', count: stats.approved, color: '#10b981' },
+                  { name: 'Revision', count: stats.revision, color: '#3b82f6' },
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[8, 8, 0, 0]}
+                  shape={(props: any) => {
+                    const { x, y, width, height, payload } = props;
+                    const colors: { [key: string]: string } = {
+                      'Pending': '#f59e0b',
+                      'Approved': '#10b981',
+                      'Revision': '#3b82f6',
+                    };
+                    return (
+                      <rect
+                        x={x}
+                        y={y}
+                        width={width}
+                        height={height}
+                        fill={colors[payload.name] || '#3b82f6'}
+                        rx={8}
+                        ry={8}
+                      />
+                    );
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );
