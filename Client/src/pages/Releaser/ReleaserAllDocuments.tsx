@@ -189,6 +189,7 @@ const ReleaserAllDocuments: React.FC = () => {
               if (doc) openRelease(doc);
             } : undefined}
             showStatusFilter={false}
+            prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
           />
         </TabsContent>
       </Tabs>

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureRecordCommentColumn } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureApprovedCommentsColumn } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -488,12 +488,9 @@ router.put('/', async (req: Request, res: Response) => {
       return { updates, params, paramCount };
     };
 
-    const { updates, params, paramCount } = buildUpdates(true);
-
     const upsertRecordDocument = async (
       approvedDocId: number,
       recordStatus?: string,
-      recordComment?: string
     ) => {
       const statusVal = recordStatus || 'recorded';
       const existingRecord = await client.query(
@@ -503,16 +500,19 @@ router.put('/', async (req: Request, res: Response) => {
 
       if (existingRecord.rows.length === 0) {
         await client.query(
-          'INSERT INTO record_document_tbl (approved_doc_id, status, comment) VALUES ($1, $2, $3)',
-          [approvedDocId, statusVal, recordComment ?? null]
+          'INSERT INTO record_document_tbl (approved_doc_id, status) VALUES ($1, $2)',
+          [approvedDocId, statusVal]
         );
       } else {
         await client.query(
-          'UPDATE record_document_tbl SET status = $1, comment = $2 WHERE record_doc_id = $3',
-          [statusVal, recordComment ?? null, existingRecord.rows[0].record_doc_id]
+          'UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2',
+          [statusVal, existingRecord.rows[0].record_doc_id]
         );
       }
     };
+
+    // Build updates for updating the sender document; include status when appropriate
+    const { updates, params } = buildUpdates(true);
 
     if (updates.length === 0 && !statusValue) {
       client.release();
@@ -550,6 +550,12 @@ router.put('/', async (req: Request, res: Response) => {
 
       // When marking as forwarded, update approved_document_tbl status accordingly
       if (statusValue === 'forwarded') {
+        // Ensure comments column exists so we can persist forwarding notes
+        try {
+          await ensureApprovedCommentsColumn();
+        } catch (err) {
+          // ignore errors - insertion/update will proceed and may fail if column missing
+        }
         const approvedCheck = await client.query(
           'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
           [input.Document_Id]
@@ -557,27 +563,25 @@ router.put('/', async (req: Request, res: Response) => {
 
         if (approvedCheck.rows.length === 0) {
           await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
-            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, comments) VALUES ($1, $2, $3, $4, $5)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded', input.comments ?? null]
           );
         } else {
           await client.query(
-            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
-            ['forwarded', input.admin ?? null, input.Document_Id]
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), comments = COALESCE($3, comments) WHERE document_id = $4',
+            ['forwarded', input.admin ?? null, input.comments ?? null, input.Document_Id]
           );
         }
       }
 
       // When marking as recorded, persist to approved_document_tbl and record_document_tbl
       if (statusValue === 'recorded') {
-        await ensureRecordCommentColumn();
         const approvedCheck = await client.query(
           'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
           [input.Document_Id]
         );
 
   const recordStatusVal = (input.record_status || 'recorded').toLowerCase();
-  const recordCommentVal = input.record_comment ?? undefined;
         let approvedDocId: number;
 
         if (approvedCheck.rows.length === 0) {
@@ -594,7 +598,7 @@ router.put('/', async (req: Request, res: Response) => {
           );
         }
 
-        await upsertRecordDocument(approvedDocId, recordStatusVal, recordCommentVal);
+        await upsertRecordDocument(approvedDocId, recordStatusVal);
       }
 
       if (statusValue === 'revision') {
@@ -725,13 +729,24 @@ router.get('/records', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Check if the approved_document_tbl has a nullable comments column and include it if present
+    let approvedCommentsSelect = 'NULL AS approved_comments,';
+    try {
+      const colRes = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'comments' LIMIT 1");
+      if (colRes && colRes.rowCount && colRes.rowCount > 0) {
+        approvedCommentsSelect = 'ad.comments AS approved_comments,';
+      }
+    } catch (err) {
+      console.error('Failed to check for approved_document_tbl.comments column', err);
+    }
+
     const result = await pool.query(
       `
       SELECT
         rd.record_doc_id,
         rd.approved_doc_id,
+        ${approvedCommentsSelect}
         rd.status AS record_status,
-        rd.comment AS record_comment,
         ad.status AS approved_status,
         ad.document_id,
   sd.type,
@@ -775,7 +790,8 @@ router.get('/records', async (req: Request, res: Response) => {
         Document: row.document,
         Priority: row.priority || 'Normal',
         Status: statusLabel,
-        description: row.record_comment ?? row.description ?? null,
+        description: row.description ?? null,
+        approved_comments: row.approved_comments ?? null,
         created_at: row.created_at,
         sender_name: row.sender_name || '',
         target_department: row.target_department || '',
@@ -856,7 +872,7 @@ router.post('/releases', async (req: Request, res: Response) => {
     await client.query('BEGIN');
 
     const recordRes = await client.query(
-      `SELECT rd.record_doc_id, rd.approved_doc_id, rd.status AS record_status, rd.comment,
+      `SELECT rd.record_doc_id, rd.approved_doc_id, rd.status AS record_status,
               ad.document_id, sd.type, sd.document
          FROM record_document_tbl rd
          JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
@@ -1359,7 +1375,7 @@ router.get('/track', async (req: Request, res: Response) => {
     let record: any = null;
     if (approved) {
       const rd = await pool.query(
-        'SELECT record_doc_id, status, comment FROM record_document_tbl WHERE approved_doc_id = $1 ORDER BY record_doc_id DESC LIMIT 1',
+        'SELECT record_doc_id, status FROM record_document_tbl WHERE approved_doc_id = $1 ORDER BY record_doc_id DESC LIMIT 1',
         [approved.approved_doc_id]
       );
       record = rd.rows[0] ?? null;
@@ -1457,22 +1473,16 @@ router.get('/track', async (req: Request, res: Response) => {
         // Fetch responses with user, department, and division information
         // Join chain: approved_document_tbl -> record_document_tbl -> release_document_tbl -> respond_document_tbl
         const respondRes = await pool.query(
-          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.comment, rd.${fkColumnName},
-                  u.full_name,
-                  d.department,
-                  dv.division
-           FROM approved_document_tbl ad
-           JOIN record_document_tbl rec ON rec.approved_doc_id = ad.approved_doc_id
-           JOIN release_document_tbl r ON r.record_doc_id = rec.record_doc_id
-           JOIN respond_document_tbl rd ON rd.${fkColumnName} = r.${releaseJoinColumn}
-           LEFT JOIN user_tbl u ON rd.user_id = u.user_id
-           LEFT JOIN department_tbl d ON u.department_id = d.department_id
-           LEFT JOIN division_tbl dv ON u.division_id = dv.division_id
-           WHERE ad.document_id = $1
-             AND LOWER(COALESCE(r.mark, '')) = 'done'
+          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.${fkColumnName},
+             sd.document_id, sd.type, sd.document
+            FROM respond_document_tbl rd
+            JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
+            JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+            JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
+           WHERE sd.document_id = $1
            ORDER BY rd.respond_doc_id DESC`,
-          [documentId]
-        );
+         [documentId]
+       );
         
         if (respondRes.rows && respondRes.rows.length > 0) {
           responses.push(...respondRes.rows);

@@ -37,6 +37,7 @@ export interface Document {
   target_department: string; // The department this document is sent TO
   created_at?: string;
   comments?: string;
+  approved_comments?: string;
   description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
@@ -90,4 +91,4 @@ export interface AuthContextType {
   loading: boolean;
   // Accept either a User object (preferred) or a role string
   getDefaultRoute: (userOrRole: User | string) => string;
-} 
+}

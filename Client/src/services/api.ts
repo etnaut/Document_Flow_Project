@@ -147,19 +147,15 @@ export const updateDocumentStatus = async (
   status: Document['Status'],
   comments?: string,
   admin?: string,
-  recordStatus?: 'recorded' | 'not_recorded',
-  recordComment?: string
+  recordStatus?: 'recorded' | 'not_recorded'
 ): Promise<Document | null> => {
+  const body: any = { Document_Id: documentId, Status: status };
+  if (comments !== undefined) body.comments = comments;
+  if (admin !== undefined) body.admin = admin;
+  if (recordStatus !== undefined) body.record_status = recordStatus;
   return apiRequest('/documents', {
     method: 'PUT',
-    body: JSON.stringify({
-      Document_Id: documentId,
-      Status: status,
-      comments,
-      admin,
-      record_status: recordStatus,
-      record_comment: recordComment,
-    }),
+    body: JSON.stringify(body),
   });
 };
 

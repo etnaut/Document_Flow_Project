@@ -83,6 +83,7 @@ const ReleaserDashboard: React.FC = () => {
             renderActions={() => null}
             enablePagination
             pageSizeOptions={[8, 16, 24]}
+            prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
           />
       </div>
     </div>

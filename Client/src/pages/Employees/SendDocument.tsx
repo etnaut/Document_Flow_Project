@@ -41,7 +41,6 @@ const SendDocument: React.FC = () => {
     otherType: '',
     priority: 'Medium',
     description: '',
-    subject: '',
     date: '',
   });
 
@@ -139,10 +138,8 @@ const SendDocument: React.FC = () => {
     try {
       const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
 
-      // Combine subject and description if subject exists
-      const fullDescription = formData.subject
-        ? `${formData.subject}\n\n${formData.description}`.trim()
-        : formData.description.trim();
+      // Use the description field as the submitted content
+      const fullDescription = formData.description.trim();
 
       await createDocument({
         Type: resolvedType,
@@ -253,21 +250,7 @@ const SendDocument: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Subject of Communications */}
-                <div className="space-y-2">
-                  <Label htmlFor="subject" className="text-sm font-medium">
-                    Subject of Communications<span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <Input
-                    id="subject"
-                    placeholder="Enter subject..."
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="h-10"
-                  />
-                </div>
-
-                {/* Communication Details */}
+                {/* Communication Details (used as the main content) */}
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
                     Communication Details<span className="text-red-500 ml-1">*</span>

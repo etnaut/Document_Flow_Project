@@ -3,7 +3,7 @@ import pool from '../config/database.js';
 let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
 let approvedStatusConstraintPromise: Promise<void> | null = null;
-let recordCommentColumnPromise: Promise<void> | null = null;
+let approvedCommentsColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -102,24 +102,24 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
 };
 
 /**
- * Ensure record_document_tbl has a nullable comment column for recording notes.
+ * Ensure approved_document_tbl has a nullable comments column for user notes.
  */
-export const ensureRecordCommentColumn = async (): Promise<void> => {
-  if (recordCommentColumnPromise) return recordCommentColumnPromise;
+export const ensureApprovedCommentsColumn = async (): Promise<void> => {
+  if (approvedCommentsColumnPromise) return approvedCommentsColumnPromise;
 
-  recordCommentColumnPromise = (async () => {
+  approvedCommentsColumnPromise = (async () => {
     try {
       const columnCheck = await pool.query(
-        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'comment' LIMIT 1`
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'comments' LIMIT 1`
       );
 
       if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
 
-      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN comment text');
+      await pool.query('ALTER TABLE approved_document_tbl ADD COLUMN comments text');
     } catch (err) {
-      console.error('Failed to ensure record_document_tbl.comment column', err);
+      console.error('Failed to ensure approved_document_tbl.comments column', err);
     }
   })();
 
-  return recordCommentColumnPromise;
+  return approvedCommentsColumnPromise;
 };

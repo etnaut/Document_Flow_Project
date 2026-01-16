@@ -5,6 +5,10 @@ import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 type TabValue = 'all' | 'not_forwarded' | 'forwarded';
@@ -18,6 +22,8 @@ const HeadAllDocuments: React.FC = () => {
   const [forwardedDocuments, setForwardedDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<number | null>(null);
+  const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
+  const [forwardCommentLocal, setForwardCommentLocal] = useState('');
 
   useEffect(() => {
     if (!allowed) return;
@@ -31,7 +37,8 @@ const HeadAllDocuments: React.FC = () => {
       const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
       const mapped = (approvedDocs || []).map((d: any) => ({
         ...d,
-        description: d.forwarded_by_admin || d.admin || '',
+        // Prefer forwarded comment when present
+        description: d.comments || d.forwarded_by_admin || d.admin || '',
       }));
 
       setAllDocuments(mapped);
@@ -49,12 +56,19 @@ const HeadAllDocuments: React.FC = () => {
     }
   };
 
-  const handleForward = async (doc: Document) => {
-    if (!user) return;
+  const handleForward = (doc: Document) => {
+    setForwardDialogDoc(doc);
+    setForwardCommentLocal('');
+  };
+
+  const submitForwardLocal = async () => {
+    if (!forwardDialogDoc || !user) return;
     try {
-      setSubmittingId(doc.Document_Id);
-      await updateDocumentStatus(doc.Document_Id, 'Forwarded', undefined, user.Full_Name);
+      setSubmittingId(forwardDialogDoc.Document_Id);
+      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', forwardCommentLocal.trim() || undefined, user.Full_Name);
       toast({ title: 'Document forwarded' });
+      setForwardDialogDoc(null);
+      setForwardCommentLocal('');
       await fetchAllDocuments();
     } catch (error: any) {
       console.error('Forward failed', error);
@@ -136,6 +150,36 @@ const HeadAllDocuments: React.FC = () => {
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}
           />
+          <Dialog open={!!forwardDialogDoc} onOpenChange={(open) => { if (!open) { setForwardDialogDoc(null); setForwardCommentLocal(''); } }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Forward Document</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div>
+                  <p className="text-sm font-medium">Document</p>
+                  <p className="text-sm text-muted-foreground">ID #{forwardDialogDoc?.Document_Id} — {forwardDialogDoc?.Type}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="forwardCommentLocal">Comment</Label>
+                  <Textarea
+                    id="forwardCommentLocal"
+                    rows={3}
+                    value={forwardCommentLocal}
+                    onChange={(e) => setForwardCommentLocal(e.target.value)}
+                    placeholder="Add a note for this forwarding (optional)"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setForwardDialogDoc(null); setForwardCommentLocal(''); }}>Cancel</Button>
+                <Button onClick={() => void submitForwardLocal()} disabled={submittingId !== null}>{submittingId ? 'Forwarding…' : 'Forward'}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

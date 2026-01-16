@@ -8,7 +8,6 @@ import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 type TabValue = 'all' | 'not_recorded' | 'recorded';
@@ -23,7 +22,6 @@ const AllRecorderDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [recordDialogDoc, setRecordDialogDoc] = useState<Document | null>(null);
   const [recordStatus, setRecordStatus] = useState<'recorded' | 'not_recorded'>('recorded');
-  const [recordComment, setRecordComment] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -68,21 +66,19 @@ const AllRecorderDocuments: React.FC = () => {
   const handleRecord = (doc: Document) => {
     setRecordDialogDoc(doc);
     setRecordStatus('recorded');
-    setRecordComment('');
   };
 
   const submitRecord = async () => {
     if (!recordDialogDoc || !user) return;
     try {
       setSaving(true);
-      const commentVal = recordComment.trim() || undefined;
+      // Do not send comments to the record_document_tbl (column removed)
       await updateDocumentStatus(
         recordDialogDoc.Document_Id,
         'Recorded',
-        commentVal,
+        undefined,
         user.Full_Name,
-        recordStatus,
-        commentVal
+        recordStatus
       );
       toast({ title: 'Document recorded' });
       setRecordDialogDoc(null);
@@ -195,17 +191,6 @@ const AllRecorderDocuments: React.FC = () => {
                 <option value="recorded">Recorded</option>
                 <option value="not_recorded">Not Recorded</option>
               </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="recordComment">Comment</Label>
-              <Textarea
-                id="recordComment"
-                rows={3}
-                value={recordComment}
-                onChange={(e) => setRecordComment(e.target.value)}
-                placeholder="Add a note for this recording (optional)"
-              />
             </div>
           </div>
 

@@ -141,6 +141,7 @@ const ReleaserPendingDocuments: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
+        prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
       />
 
       <Dialog open={!!releaseDialogDoc} onOpenChange={(open) => { if (!open) setReleaseDialogDoc(null); }}>

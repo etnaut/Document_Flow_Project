@@ -19,8 +19,8 @@ const ReleaserReleasedDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-  const data = await getRecordedDocuments(user.Department, 'released');
-  setDocuments(data || []);
+      const data = await getRecordedDocuments(user.Department, 'released');
+      setDocuments(data || []);
     } catch (err: any) {
       console.error('Releaser released load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -67,6 +67,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
+        prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
       />
     </div>
   );
