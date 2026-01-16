@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
 
 const DivisionHead: React.FC = () => {
 	const { user } = useAuth();
@@ -87,6 +88,7 @@ const DivisionHead: React.FC = () => {
 						const q = e.target.value.toLowerCase();
 						setEmployees(divisionEmployees.filter((emp) => [emp.Full_Name, emp.Email, emp.Department, emp.Division || ''].join(' ').toLowerCase().includes(q)));
 					}} />
+					<AddEmployeeDialog onAdded={() => void loadEmployees()} />
 					<Button
 						variant="outline"
 						className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
