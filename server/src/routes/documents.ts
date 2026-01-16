@@ -1400,6 +1400,86 @@ router.get('/track', async (req: Request, res: Response) => {
 
     const releases = releasesRes.rows || [];
 
+    // Fetch responses from respond_document_tbl for releases with mark='done'
+    // Follow the chain: respond_document_tbl.release_doc_id -> release_document_tbl.record_doc_id 
+    // -> record_document_tbl.approved_doc_id -> approved_document_tbl.document_id
+    const responses: any[] = [];
+    
+    // Check if respond_document_tbl exists
+    const respondTableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'respond_document_tbl'
+    `);
+
+    if (respondTableCheck.rows.length > 0) {
+      // Get column info for respond_document_tbl
+      const respondColsRes = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'respond_document_tbl'
+      `);
+      const respondCols = new Set<string>(respondColsRes.rows.map((r) => r.column_name));
+
+      // Determine the foreign key column name in respond_document_tbl
+      let fkColumnName = 'release_doc_id';
+      if (!respondCols.has('release_doc_id') && respondCols.has('record_doc_id')) {
+        fkColumnName = 'record_doc_id';
+      }
+
+      if (respondCols.has(fkColumnName)) {
+        // Fetch responses by following the chain backwards from document_id:
+        // approved_document_tbl.document_id -> record_document_tbl.approved_doc_id 
+        // -> release_document_tbl.record_doc_id -> respond_document_tbl.release_doc_id
+        // First, check what column in release_document_tbl the foreign key references
+        const fkInfoRes = await pool.query(`
+          SELECT 
+            ccu.column_name AS foreign_column_name
+          FROM information_schema.table_constraints AS tc
+          JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.table_schema = kcu.table_schema
+          JOIN information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name
+            AND ccu.table_schema = tc.table_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY'
+            AND tc.table_name = 'respond_document_tbl'
+            AND kcu.column_name = '${fkColumnName}'
+            AND ccu.table_name = 'release_document_tbl'
+          LIMIT 1
+        `);
+
+        let releaseJoinColumn = 'record_doc_id'; // default
+        if (fkInfoRes.rows.length > 0) {
+          releaseJoinColumn = fkInfoRes.rows[0].foreign_column_name;
+        }
+
+        // Fetch responses with user, department, and division information
+        // Join chain: approved_document_tbl -> record_document_tbl -> release_document_tbl -> respond_document_tbl
+        const respondRes = await pool.query(
+          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.comment, rd.${fkColumnName},
+                  u.full_name,
+                  d.department,
+                  dv.division
+           FROM approved_document_tbl ad
+           JOIN record_document_tbl rec ON rec.approved_doc_id = ad.approved_doc_id
+           JOIN release_document_tbl r ON r.record_doc_id = rec.record_doc_id
+           JOIN respond_document_tbl rd ON rd.${fkColumnName} = r.${releaseJoinColumn}
+           LEFT JOIN user_tbl u ON rd.user_id = u.user_id
+           LEFT JOIN department_tbl d ON u.department_id = d.department_id
+           LEFT JOIN division_tbl dv ON u.division_id = dv.division_id
+           WHERE ad.document_id = $1
+             AND LOWER(COALESCE(r.mark, '')) = 'done'
+           ORDER BY rd.respond_doc_id DESC`,
+          [documentId]
+        );
+        
+        if (respondRes.rows && respondRes.rows.length > 0) {
+          responses.push(...respondRes.rows);
+        }
+      }
+    }
+
     // Determine stage completions and current stage
     const senderStatus = String(sender.status || '').toLowerCase();
     const approvedStatus = approved ? String(approved.status || '').toLowerCase() : null;
@@ -1422,14 +1502,23 @@ router.get('/track', async (req: Request, res: Response) => {
     // Also consider approved.status 'released' as an indication the recorder stage should be considered complete
     const recorderDone = Boolean((record && recordStatus === 'recorded') || approvedStatus === 'recorded' || approvedStatus === 'released');
 
-    // Releaser: in-progress when latest release mark is 'not_done' or recorder has set status to 'released' and no done releases yet
-    const releaserInProgress = latestMark === 'not_done' || (recordStatus === 'released' && !anyDoneRelease);
-    const releaserDone = Boolean(anyDoneRelease);
+    // Releaser: done when status is 'released' in record_document_tbl (released to target)
+    // Releaser is complete when it has been released to target department/division
+    // This happens when status='released' in record_document_tbl, regardless of mark value
+    const hasReleasedStatus = record && String(recordStatus || '').toLowerCase() === 'released';
+    const releaserDone = Boolean(hasReleasedStatus);
+    const releaserInProgress = Boolean(recorderDone && !releaserDone);
+
+    // Fifth stage (Target Department/Division): in-progress when mark='not_done', done when mark='done'
+    const targetDeptDone = anyDoneRelease;
+    const targetDeptInProgress = Boolean(latestRelease && String(latestMark || '').toLowerCase() === 'not_done' && !targetDeptDone);
 
     // Determine current stage (precedence matters)
     let currentStage = 'admin';
 
-    if (releaserInProgress && !releaserDone) {
+    if (targetDeptInProgress && !targetDeptDone) {
+      currentStage = 'target';
+    } else if (releaserInProgress && !releaserDone) {
       currentStage = 'releaser';
     } else if (record && recordStatus === 'not_recorded') {
       currentStage = 'recorder';
@@ -1440,8 +1529,10 @@ router.get('/track', async (req: Request, res: Response) => {
     } else if (approved && approvedStatus === 'forwarded' && (!record || (record && recordStatus !== 'recorded' && recordStatus !== 'released'))) {
       // forwarded but not yet recorded
       currentStage = 'recorder';
-    } else if (releaserDone) {
-      currentStage = 'released';
+    } else if (releaserDone && !targetDeptDone) {
+      currentStage = 'target';
+    } else if (targetDeptDone) {
+      currentStage = 'completed';
     } else if (approved && approvedStatus === 'forwarded') {
       currentStage = 'recorder';
     }
@@ -1492,7 +1583,20 @@ router.get('/track', async (req: Request, res: Response) => {
         done: releaserDone,
         // Hide right-side status for releaser; release history still shown below if present
         status: '',
-        description: releaserDone ? 'Released to target department' : (releaserInProgress ? 'Waiting to be released to target department' : 'Not released yet'),
+        description: releaserDone 
+          ? (latestRelease 
+              ? `Released to ${latestRelease.department || 'target department'} and ${latestRelease.division || 'target division'}`
+              : 'Released to target department and division')
+          : 'Waiting to be released to target department',
+      },
+      {
+        key: 'target',
+        title: 'Target Department/Division',
+        done: targetDeptDone,
+        status: '',
+        description: targetDeptDone 
+          ? 'Request completed' 
+          : 'Request is being processed',
       },
     ];
 
@@ -1502,6 +1606,7 @@ router.get('/track', async (req: Request, res: Response) => {
       approved,
       record,
       releases,
+      responses,
       stages,
       currentStage,
       latestRelease,
