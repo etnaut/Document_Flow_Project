@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus } from '@/services/api';
+import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus, createUser, getDepartments, getDivisions } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Plus } from 'lucide-react';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -23,6 +26,21 @@ const ManageEmployees: React.FC = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  
+  // Add employee dialog state
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [divisions, setDivisions] = useState<string[]>([]);
+  const [form, setForm] = useState({
+    ID_Number: '',
+    Full_Name: '',
+    Gender: '',
+    Email: '',
+    Department: user?.Department || '',
+    Division: user?.Division || '',
+    User_Name: '',
+    Password: '',
+  });
 
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
@@ -72,7 +90,21 @@ const ManageEmployees: React.FC = () => {
   useEffect(() => {
     if (!allowed) return;
     void loadEmployees();
+    void loadDepartments();
   }, [allowed, loadEmployees]);
+
+  const loadDepartments = async () => {
+    try {
+      const depts = await getDepartments();
+      setDepartments(depts);
+      if (user?.Department) {
+        const divs = await getDivisions(user.Department);
+        setDivisions(divs);
+      }
+    } catch (error) {
+      console.error('Failed to load departments/divisions', error);
+    }
+  };
 
   const handleStatusChange = async (empId: number, nextStatus: boolean) => {
     const previous = employees.find((e) => e.User_Id === empId)?.Status;
@@ -87,6 +119,34 @@ const ManageEmployees: React.FC = () => {
       }
       const message = error instanceof Error ? error.message : 'Failed to update status';
       toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.Full_Name || !form.Email || !form.User_Name || !form.Password) {
+      toast({ title: 'Validation', description: 'Please fill required fields', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createUser({
+        ID_Number: parseInt(form.ID_Number) || Date.now(),
+        Full_Name: form.Full_Name,
+        Gender: form.Gender,
+        Email: form.Email,
+        Department: form.Department,
+        Division: form.Division,
+        User_Role: 'Employee',
+        User_Name: form.User_Name,
+        Password: form.Password,
+        Status: true,
+      });
+      toast({ title: 'Success', description: 'Employee added' });
+      setIsAddOpen(false);
+      setForm({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: user?.Department || '', Division: user?.Division || '', User_Name: '', Password: '' });
+      await loadEmployees();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to add employee', variant: 'destructive' });
     }
   };
 
@@ -128,7 +188,6 @@ const ManageEmployees: React.FC = () => {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees..." className="w-[220px] border-primary" />
           <Button
             variant="outline"
             className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
@@ -152,6 +211,111 @@ const ManageEmployees: React.FC = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h2 className="text-lg font-semibold">Employee List</h2>
+            <div className="flex items-center gap-3">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees..." className="w-[220px] border-primary" />
+              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogTrigger asChild>
+                  <Button type="button" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Employee
+                  </Button>
+                </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add Employee</DialogTitle>
+                </DialogHeader>
+                <div className="px-4 -mt-2">
+                  <p className="text-sm text-muted-foreground">Only Employee accounts can be created here.</p>
+                </div>
+                <form onSubmit={handleCreateEmployee} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>ID Number</Label>
+                      <Input value={form.ID_Number} onChange={(e) => setForm((p) => ({ ...p, ID_Number: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gender</Label>
+                      <Select value={form.Gender} onValueChange={(v) => setForm((p) => ({ ...p, Gender: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Full Name</Label>
+                    <Input value={form.Full_Name} onChange={(e) => setForm((p) => ({ ...p, Full_Name: e.target.value }))} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input value={form.Email} onChange={(e) => setForm((p) => ({ ...p, Email: e.target.value }))} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Department</Label>
+                      <Select value={form.Department} onValueChange={(v) => {
+                        setForm((p) => ({ ...p, Department: v, Division: '' }));
+                        void (async () => {
+                          try {
+                            const divs = await getDivisions(v);
+                            setDivisions(divs);
+                          } catch { setDivisions([]); }
+                        })();
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Division</Label>
+                      <Select value={form.Division} onValueChange={(v) => setForm((p) => ({ ...p, Division: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select division" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {divisions.length === 0 ? <div className="p-2 text-sm text-muted-foreground">No divisions</div> : divisions.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Username</Label>
+                      <Input value={form.User_Name} onChange={(e) => setForm((p) => ({ ...p, User_Name: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Password</Label>
+                      <Input type="password" value={form.Password} onChange={(e) => setForm((p) => ({ ...p, Password: e.target.value }))} />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                    <Button type="submit">Add</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+            </div>
+          </div>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
