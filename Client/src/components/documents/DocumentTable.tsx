@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Document } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, Download, ExternalLink } from 'lucide-react';
+import { Eye, Download, ExternalLink, Search } from 'lucide-react';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -100,15 +101,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   pageSizeOptions = [5, 10, 20],
   showStatusFilter = true,
 }) => {
-  const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
+  const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
 
-  const [fileDialogDoc, setFileDialogDoc] = React.useState<Document | null>(null);
-  const [fileBytes, setFileBytes] = React.useState<Uint8Array | null>(null);
-  const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
-  const [previewError, setPreviewError] = React.useState<string | null>(null);
+  const navigate = useNavigate();
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
   const [revisionComment, setRevisionComment] = React.useState('');
 
@@ -180,120 +176,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     return 'auto';
   };
 
-  const revokePreviewUrl = (url?: string | null) => {
-    if (url) URL.revokeObjectURL(url);
-  };
-
-  React.useEffect(() => {
-    return () => {
-      revokePreviewUrl(previewUrl);
-    };
-  }, [previewUrl]);
-
-  // Re-run preview when user switches to PDF view
-  React.useEffect(() => {
-    const run = async () => {
-      if (!fileDialogDoc || !fileBytes) return;
-      setPreviewError(null);
-
-      if (mimeChoice !== 'pdf') {
-        revokePreviewUrl(previewUrl);
-        setPreviewUrl(null);
-        return;
-      }
-
-      const detected = detectMimeChoice(fileBytes);
-      if (detected === 'pdf') {
-        buildPdfPreview(fileBytes);
-        return;
-      }
-
-      await fetchPreviewPdf(fileDialogDoc.Document_Id);
-    };
-
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mimeChoice]);
-
-  const buildPdfPreview = (bytes: Uint8Array) => {
-    revokePreviewUrl(previewUrl);
-    const buffer = bytes.buffer instanceof ArrayBuffer ? bytes.buffer : new Uint8Array(bytes).buffer;
-    const blob = new Blob([buffer], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    setPreviewUrl(url);
-    setPreviewError(null);
-  };
-
-  const fetchPreviewPdf = async (docId: number) => {
-    try {
-      setPreviewLoading(true);
-      revokePreviewUrl(previewUrl);
-      const resp = await fetch(`${API_BASE_URL}/documents/${docId}/preview`);
-      if (!resp.ok) {
-        throw new Error(`Preview failed: ${resp.status}`);
-      }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-      setPreviewError(null);
-    } catch (error) {
-      console.error('Preview fetch error', error);
-      setPreviewUrl(null);
-      setPreviewError('Unable to generate a PDF preview for this file. You can still open/download it.');
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const openDocument = () => {
-    if (!fileDialogDoc) return;
-    if (!fileBytes) {
-      toast({ title: 'Unable to read attachment', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      // If user selected PDF and we have a converted preview, open that to avoid downloading the original format
-      if (mimeChoice === 'pdf' && previewUrl) {
-        window.open(previewUrl, '_blank');
-        return;
-      }
-
-      const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
-      const mime = mimeFromChoice(mimeChoice);
-      const blob = new Blob([buffer], { type: mime });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (error) {
-      console.error('Open document error', error);
-      toast({ title: 'Failed to open attachment', variant: 'destructive' });
-    }
-  };
-
-  const handleAttachmentClick = async (doc: Document) => {
-    const bytes = decodePayload((doc as any).Document);
-    if (!bytes) {
-      toast({ title: 'Unable to read attachment', variant: 'destructive' });
-      return;
-    }
-
-    const detected = detectMimeChoice(bytes);
-
-    setFileBytes(bytes);
-    setMimeChoice(detected);
-    setFileDialogDoc(doc);
-
-    if (detected === 'pdf') {
-      buildPdfPreview(bytes);
-      return;
-    }
-
-    if (mimeChoice === 'pdf') {
-      await fetchPreviewPdf(doc.Document_Id);
-    } else {
-      setPreviewUrl(null);
-    }
+  const handleAttachmentClick = (doc: Document) => {
+    navigate(`/documents/view/${doc.Document_Id}`, { state: { doc } });
   };
 
   const normalized = React.useMemo(() => {
@@ -321,61 +205,74 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   }, [query, statusFilter, pageSize, documents]);
 
   return (
-    <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-      <div className="flex flex-col gap-3 p-3 border-b">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents..." className="w-[240px]" />
-            {showStatusFilter && (
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {availableStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Search..." 
+              className="w-[260px] pl-9" 
+            />
           </div>
-          {enablePagination && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Rows per page</span>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
+          {showStatusFilter && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {availableStatuses.map((s) => (
+                  <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
+        {enablePagination && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Show:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
-      <Table>
+      <div className="overflow-x-auto">
+        <Table>
         <TableHeader>
-          <TableRow className="bg-muted/50">
-            <TableHead>Type</TableHead>
-            <TableHead>Sender</TableHead>
-            {showPriority && <TableHead>Priority</TableHead>}
-            <TableHead>Document</TableHead>
-            {showDate && <TableHead>Date</TableHead>}
-            {showDescription && <TableHead>{descriptionLabel}</TableHead>}
-            <TableHead>Status</TableHead>
-            {renderActions && <TableHead>Actions</TableHead>}
+          <TableRow className="bg-gray-50">
+            <TableHead className="w-12 text-center font-semibold text-gray-700">ID</TableHead>
+            <TableHead className="font-semibold text-gray-700">Type</TableHead>
+            <TableHead className="font-semibold text-gray-700">Sender</TableHead>
+            {showPriority && <TableHead className="font-semibold text-gray-700">Priority</TableHead>}
+            <TableHead className="font-semibold text-gray-700">Document</TableHead>
+            {showDate && <TableHead className="font-semibold text-gray-700">Date</TableHead>}
+            {showDescription && <TableHead className="font-semibold text-gray-700">{descriptionLabel}</TableHead>}
+            <TableHead className="font-semibold text-gray-700">Status</TableHead>
+            {renderActions && <TableHead className="font-semibold text-gray-700">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageSlice.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columnsCount} className="h-24 text-center text-black/80">
+              <TableCell colSpan={columnsCount + 1} className="h-24 text-center text-black/80">
                 No documents found.
               </TableCell>
             </TableRow>
           ) : (
-            pageSlice.map((doc) => (
-              <TableRow key={doc.Document_Id} className="animate-fade-in">
-                <TableCell>{doc.Type}</TableCell>
-                <TableCell>{doc.sender_name}</TableCell>
+            pageSlice.map((doc, index) => {
+              const rowNumber = enablePagination 
+                ? (currentPage - 1) * pageSize + index + 1 
+                : index + 1;
+              return (
+              <TableRow key={doc.Document_Id} className="animate-fade-in border-b border-gray-200 hover:bg-gray-50">
+                <TableCell className="font-medium text-gray-600 text-center">{rowNumber}</TableCell>
+                <TableCell className="text-gray-700">{doc.Type}</TableCell>
+                <TableCell className="text-gray-700">{doc.sender_name}</TableCell>
                 {showPriority && (
                   <TableCell>
                     <Badge
@@ -586,108 +483,45 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </TableCell>
                 )}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
+      </div>
       {enablePagination && (
-        <div className="p-3 border-t flex items-center justify-between text-sm">
-          <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        <div className="p-4 border-t border-gray-200 grid grid-cols-3 items-center text-sm bg-gray-50">
+          <div className="justify-self-start">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} 
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
+          </div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} 
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </div>
       )}
-
-      <Dialog
-        open={!!fileDialogDoc}
-        onOpenChange={(open) => {
-          if (!open) {
-            setFileDialogDoc(null);
-            setFileBytes(null);
-            setMimeChoice('pdf');
-            revokePreviewUrl(previewUrl);
-            setPreviewUrl(null);
-            setPreviewLoading(false);
-            setPreviewError(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-[95vw] p-0 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
-            <div className="min-w-0">
-              <DialogTitle className="text-foreground text-base truncate">Attachment Viewer</DialogTitle>
-              <DialogDescription className="text-xs truncate">
-                {fileDialogDoc?.Type} — {fileDialogDoc?.sender_name}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Choose format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF</SelectItem>
-                  <SelectItem value="word">Word</SelectItem>
-                  <SelectItem value="excel">Excel</SelectItem>
-                  <SelectItem value="auto">Auto (detected)</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={() => { openDocument(); }} disabled={!fileBytes}>
-                <ExternalLink className="mr-2 h-4 w-4" /> Open
-              </Button>
-              <Button onClick={() => { openDocument(); }} disabled={!fileBytes}>
-                <Download className="mr-2 h-4 w-4" /> Download
-              </Button>
-              <Button variant="ghost" onClick={() => setFileDialogDoc(null)}>Close</Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12">
-            <div className="md:col-span-8 bg-background">
-              {previewLoading ? (
-                <div className="flex h-[70vh] items-center justify-center">
-                  <div className="animate-pulse rounded-md border bg-muted/30 w-[90%] h-[60vh]" />
-                </div>
-              ) : previewUrl ? (
-                <iframe title="Attachment preview" src={previewUrl} className="h-[70vh] w-full" />
-              ) : (
-                <div className="flex h-[70vh] items-center justify-center text-sm text-muted-foreground text-center px-6">
-                  {previewError
-                    ? previewError
-                    : 'Preview will be generated as PDF when available. For Word or Excel files, we convert a temporary PDF preview.'}
-                </div>
-              )}
-            </div>
-            <div className="md:col-span-4 border-l bg-muted/30 p-4 space-y-3">
-              <p className="text-sm font-medium text-foreground">Details</p>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div><span className="font-medium text-foreground">Type:</span> {fileDialogDoc?.Type || '—'}</div>
-                <div><span className="font-medium text-foreground">Sender:</span> {fileDialogDoc?.sender_name || '—'}</div>
-                <div><span className="font-medium text-foreground">Priority:</span> {fileDialogDoc?.Priority || '—'}</div>
-                <div><span className="font-medium text-foreground">Status:</span> {fileDialogDoc?.Status || '—'}</div>
-                <div><span className="font-medium text-foreground">Date:</span> {fileDialogDoc?.created_at || '—'}</div>
-                {fileDialogDoc?.description && (
-                  <div className="mt-2">
-                    <span className="font-medium text-foreground">Notes:</span>
-                    <p className="mt-1 text-xs text-foreground/80 break-words">{fileDialogDoc.description}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground pt-2">
-                Opening will use the selected format. Download may open in a new tab depending on browser settings.
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Revision comment dialog */}
       <Dialog

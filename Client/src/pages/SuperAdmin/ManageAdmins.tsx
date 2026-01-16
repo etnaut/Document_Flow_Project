@@ -213,11 +213,24 @@ const ManageAdmins: React.FC = () => {
   };
 
   const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
+  const [query, setQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.max(1, Math.ceil(visibleAdmins.length / pageSize));
+  const filteredAdmins = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return visibleAdmins.filter((a) => {
+      const matchesDept = deptFilter === 'all' || a.Department === deptFilter;
+      if (!q) return matchesDept;
+      const hay = [a.Full_Name || '', a.Email || '', a.Department || '', a.Division || '', a.User_Role || '', a.Status ? 'active' : 'inactive']
+        .join(' ').toLowerCase();
+      return matchesDept && hay.includes(q);
+    });
+  }, [visibleAdmins, query, deptFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredAdmins.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageSlice = visibleAdmins.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageSlice = filteredAdmins.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  React.useEffect(() => { setPage(1); }, [query, deptFilter, pageSize, admins]);
 
   return (
     <div className="space-y-6">
@@ -527,16 +540,42 @@ const ManageAdmins: React.FC = () => {
           </Dialog>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <div className="flex items-center justify-between p-3 border-b gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search admins..."
+            className="w-[260px]"
+          />
+          <div className="flex items-center gap-3">
+            <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v)}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by department" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Rows per page</span>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="uppercase">Full Name</TableHead>
-              <TableHead className="uppercase">Email</TableHead>
-              <TableHead className="uppercase">Department</TableHead>
-              <TableHead className="uppercase">Division</TableHead>
-              <TableHead className="uppercase">Role</TableHead>
-              <TableHead className="uppercase">Status</TableHead>
+            <TableRow className="bg-muted/50">
+              <TableHead>Full Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Division</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -578,25 +617,20 @@ const ManageAdmins: React.FC = () => {
             )}
           </TableBody>
         </Table>
-        <div className="p-3 border-t flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-              <SelectTrigger className="w-[90px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
+        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+          <div className="justify-self-start">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
                 </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-xs text-muted-foreground">Page {currentPage} of {totalPages}</div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
                 <PaginationItem>
                   <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
                 </PaginationItem>

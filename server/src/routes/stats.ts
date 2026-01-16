@@ -61,5 +61,53 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /stats/monthly?year=YYYY - Monthly totals for the given year
+router.get('/monthly', async (req: Request, res: Response) => {
+  try {
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+    const role = req.query.role as string | undefined;
+    const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+
+    const joins = `
+      FROM sender_document_tbl sd
+      LEFT JOIN user_tbl u ON sd.user_id = u.user_id
+    `;
+
+    let baseCondition = 'WHERE 1=1';
+    const params: any[] = [];
+    let paramCount = 1;
+
+    // Restrict to a specific user if role is Employee
+    if (role === 'Employee' && userId) {
+      baseCondition += ` AND sd.User_Id = $${paramCount}`;
+      params.push(userId);
+      paramCount++;
+    }
+
+    baseCondition += ` AND EXTRACT(YEAR FROM sd.date) = $${paramCount}`;
+    params.push(year);
+
+    const result = await pool.query(
+      `SELECT EXTRACT(MONTH FROM sd.date)::int AS month, COUNT(*)::int AS total ${joins} ${baseCondition} GROUP BY 1 ORDER BY 1`,
+      params
+    );
+
+    // Map result to a 12-month array filling missing months with 0
+    const byMonth: Record<number, number> = {};
+    for (const row of result.rows) {
+      byMonth[row.month] = row.total;
+    }
+    const months = [
+      'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
+    ];
+    const data = months.map((m, idx) => ({ month: m, total: byMonth[idx + 1] ?? null }));
+
+    sendResponse(res, data);
+  } catch (error: any) {
+    console.error('Get monthly stats error:', error);
+    sendResponse(res, { error: 'Database error: ' + error.message }, 500);
+  }
+});
+
 export default router;
 

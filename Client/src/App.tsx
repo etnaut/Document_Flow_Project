@@ -36,6 +36,7 @@ import ReleaserDashboard from "./pages/Releaser/ReleaserDashboard";
 import ReleaserAllDocuments from "./pages/Releaser/ReleaserAllDocuments";
 import ReleaserPendingDocuments from "./pages/Releaser/ReleaserPendingDocuments";
 import ReleaserReleasedDocuments from "./pages/Releaser/ReleaserReleasedDocuments";
+import DocumentViewer from "./pages/DocumentViewer";
 // Note: ManageEmployees, ReleasedDocuments and DocumentResponses were removed
 import NotFound from "./pages/NotFound";
 
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/approved" element={<ApprovedDocuments />} />
               <Route path="/revision" element={<RevisionDocuments />} />
               <Route path="/received" element={<ReceivedRequests />} />
+              <Route path="/documents/view/:id" element={<DocumentViewer />} />
               {/* Super Admin Routes */}
               <Route path="/super-admin" element={<SuperAdminDashboard />} />
               <Route path="/manage-admins" element={<ManageAdmins />} />

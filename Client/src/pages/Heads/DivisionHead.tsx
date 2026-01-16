@@ -191,18 +191,26 @@ const DivisionHead: React.FC = () => {
 						)}
 					</TableBody>
 				</Table>
-				<div className="p-3 border-t flex items-center justify-between text-sm">
-					<span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
-					<Pagination>
-						<PaginationContent>
-							<PaginationItem>
-								<PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
-							</PaginationItem>
-							<PaginationItem>
-								<PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
-							</PaginationItem>
-						</PaginationContent>
-					</Pagination>
+				<div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+					<div className="justify-self-start">
+						<Pagination>
+							<PaginationContent>
+								<PaginationItem>
+									<PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+								</PaginationItem>
+							</PaginationContent>
+						</Pagination>
+					</div>
+					<div className="justify-self-center text-xs text-muted-foreground">Page {currentPage} of {totalPages}</div>
+					<div className="justify-self-end">
+						<Pagination>
+							<PaginationContent>
+								<PaginationItem>
+									<PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+								</PaginationItem>
+							</PaginationContent>
+						</Pagination>
+					</div>
 				</div>
 			</div>
 		</div>

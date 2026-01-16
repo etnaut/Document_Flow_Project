@@ -152,6 +152,7 @@ const ReceivedRequests: React.FC = () => {
       <DocumentTable
         documents={documents}
         renderActions={renderActions}
+        showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}
         showDate={false}

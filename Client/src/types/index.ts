@@ -87,6 +87,7 @@ export interface AuthContextType {
   login: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
   // Accept either a User object (preferred) or a role string
   getDefaultRoute: (userOrRole: User | string) => string;
-}
+} 
