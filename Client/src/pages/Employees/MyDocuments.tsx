@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocuments, getDocumentsByStatus, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
-import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
 import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 import {
@@ -244,7 +244,7 @@ const MyDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle 
+          <DocumentTable 
             documents={currentDocuments} 
             onEdit={handleEdit} 
             onDelete={handleDelete}
@@ -252,7 +252,6 @@ const MyDocuments: React.FC = () => {
             showDescription 
             enablePagination 
             pageSizeOptions={[10,20,50]}
-            defaultView="table"
             showStatusFilter={false}
           />
         </TabsContent>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import DocumentTable from '@/components/documents/DocumentTable';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -158,7 +158,7 @@ const AllRecorderDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle
+          <DocumentTable
             documents={currentDocuments}
             showDescription
             descriptionLabel="Admin"
@@ -166,7 +166,6 @@ const AllRecorderDocuments: React.FC = () => {
             onRecord={activeTab === 'not_recorded' ? handleRecord : undefined}
             enablePagination
             pageSizeOptions={[10,20,50]}
-            defaultView="table"
             showStatusFilter={false}
           />
         </TabsContent>

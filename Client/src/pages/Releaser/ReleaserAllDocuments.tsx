@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
 import { Document } from '@/types';
-import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -177,7 +177,7 @@ const ReleaserAllDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle
+          <DocumentTable
             documents={currentDocuments}
             showDescription
             descriptionLabel="Comment"
@@ -188,7 +188,6 @@ const ReleaserAllDocuments: React.FC = () => {
               const doc = currentDocuments.find((d) => d.Document_Id === id);
               if (doc) openRelease(doc);
             } : undefined}
-            defaultView="table"
             showStatusFilter={false}
           />
         </TabsContent>

@@ -12,7 +12,7 @@ import {
   markRelease,
 } from '@/services/api';
 import { Document } from '@/types';
-import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import DocumentTable from '@/components/documents/DocumentTable';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import RespondDocumentDialog from '@/components/documents/RespondDocumentDialog';
 import { toast } from '@/hooks/use-toast';
@@ -333,7 +333,7 @@ const AllDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle
+          <DocumentTable
             documents={currentDocuments}
             onApprove={activeTab === 'pending' ? handleApprove : undefined}
             onReject={activeTab === 'pending' ? handleReject : undefined}
@@ -346,7 +346,6 @@ const AllDocuments: React.FC = () => {
             showDate={false}
             enablePagination
             pageSizeOptions={[10, 20, 50]}
-            defaultView="table"
             showStatusFilter={false}
           />
         </TabsContent>

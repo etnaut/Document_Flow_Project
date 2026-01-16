@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
-import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import DocumentTable from '@/components/documents/DocumentTable';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
@@ -126,7 +126,7 @@ const HeadAllDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle
+          <DocumentTable
             documents={currentDocuments}
             onForward={activeTab === 'not_forwarded' ? handleForward : undefined}
             showDescription
@@ -134,7 +134,6 @@ const HeadAllDocuments: React.FC = () => {
             showDate={false}
             enablePagination
             pageSizeOptions={[10, 20, 50]}
-            defaultView="table"
             showStatusFilter={false}
           />
         </TabsContent>
