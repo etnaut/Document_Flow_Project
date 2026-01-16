@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getUsers } from '@/services/api';
 import { Shield, Users, UserCog } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, BarChart, Bar } from 'recharts';
 import { getMonthlyStats } from '@/services/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -150,8 +150,8 @@ const SuperAdminDashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill={"hsl(var(--primary))"} />
-                  <Cell fill={"hsl(var(--secondary))"} />
+                  <Cell fill="#8b5cf6" />
+                  <Cell fill="#06b6d4" />
                 </Pie>
                 <Tooltip
                      contentStyle={{
@@ -211,7 +211,7 @@ const SuperAdminDashboard: React.FC = () => {
                   labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                   itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 />
-                <Line type="monotone" dataKey="total" stroke={"hsl(var(--primary))"} strokeWidth={3} dot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey="total" stroke="#ec4899" strokeWidth={3} dot={{ r: 4, fill: '#ec4899' }} activeDot={{ r: 6, fill: '#db2777' }} connectNulls={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

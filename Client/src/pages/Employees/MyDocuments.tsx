@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteDocument, getDocuments, getDocumentsByStatus, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import ViewToggle from '@/components/documents/ViewToggle';
 import { Button } from '@/components/ui/button';
 import TrackDocumentDialog from '@/components/documents/TrackDocumentDialog';
 import {
@@ -57,6 +58,7 @@ const MyDocuments: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [trackDialogOpen, setTrackDialogOpen] = useState(false);
   const [selectedTrackDocument, setSelectedTrackDocument] = useState<Document | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
   useEffect(() => {
     fetchAllDocuments();
@@ -215,37 +217,42 @@ const MyDocuments: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
-          <TabsTrigger 
-            value="all" 
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            All ({counts.all})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="pending"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Pending ({counts.pending})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="approved"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Approved ({counts.approved})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="revision"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            For Revision ({counts.revision})
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
+            <TabsTrigger 
+              value="all" 
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              All ({counts.all})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pending"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              Pending ({counts.pending})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="approved"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              Approved ({counts.approved})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="revision"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              For Revision ({counts.revision})
+            </TabsTrigger>
+          </TabsList>
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+        </div>
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentTable 
-            documents={currentDocuments} 
+          <DocumentViewToggle 
+            documents={currentDocuments}
+            view={viewMode}
+            onViewChange={setViewMode}
             onEdit={handleEdit} 
             onDelete={handleDelete}
             onTrack={handleTrack} 
@@ -253,6 +260,7 @@ const MyDocuments: React.FC = () => {
             enablePagination 
             pageSizeOptions={[10,20,50]}
             showStatusFilter={false}
+            renderToggleInHeader={true}
           />
         </TabsContent>
       </Tabs>

@@ -12,7 +12,8 @@ import {
   markRelease,
 } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import ViewToggle from '@/components/documents/ViewToggle';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import RespondDocumentDialog from '@/components/documents/RespondDocumentDialog';
 import { toast } from '@/hooks/use-toast';
@@ -24,6 +25,8 @@ type TabValue = 'all' | 'pending' | 'approved' | 'revision' | 'received' | 'not_
 
 const AllDocuments: React.FC = () => {
   const { user } = useAuth();
+  // Check if user is a Department Head (not Admin)
+  const isDepartmentHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
@@ -37,10 +40,18 @@ const AllDocuments: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [respondDialogOpen, setRespondDialogOpen] = useState(false);
   const [selectedRespondDocument, setSelectedRespondDocument] = useState<Document | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
   useEffect(() => {
     fetchAllDocuments();
   }, [user]);
+
+  // Reset active tab if admin user is on a restricted tab
+  useEffect(() => {
+    if (!isDepartmentHead && (activeTab === 'not_forwarded' || activeTab === 'forwarded')) {
+      setActiveTab('all');
+    }
+  }, [isDepartmentHead, activeTab]);
 
   const fetchAllDocuments = async () => {
     if (!user) return;
@@ -60,7 +71,10 @@ const AllDocuments: React.FC = () => {
         getDocumentsByStatus('Approved', undefined, user.User_Role, user.User_Id),
         getDocumentsByStatus('Revision', undefined, user.User_Role, user.User_Id),
         user.Department ? getReceivedRequests(user.Department, user?.Division, user.User_Id).catch(() => []) : Promise.resolve([]),
-        getApprovedDocuments(user.Department, undefined, user.User_Id).catch(() => []),
+        // Only fetch approved documents for forward status if user is a Department Head
+        (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge') 
+          ? getApprovedDocuments(user.Department, undefined, user.User_Id).catch(() => [])
+          : Promise.resolve([]),
       ]);
 
       // Map all documents
@@ -86,7 +100,7 @@ const AllDocuments: React.FC = () => {
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
         Status: (r.status ?? 'Released') as any,
-        Priority: 'Normal',
+        Priority: 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
         sender_department: r.department || '',
@@ -101,21 +115,26 @@ const AllDocuments: React.FC = () => {
       }));
       setReceivedDocuments(mappedReceived);
 
-      // Map approved documents for forward status
-      const mappedApproved = (approvedForForward || []).map((d: any) => ({
-        ...d,
-        description: d.forwarded_by_admin || d.admin || '',
-      }));
-      
-      const notForwarded = mappedApproved.filter((d: any) => 
-        (d.Status || '').toLowerCase() === 'not forwarded'
-      );
-      const forwarded = mappedApproved.filter((d: any) => 
-        (d.Status || '').toLowerCase() === 'forwarded'
-      );
-      
-      setNotForwardedDocuments(notForwarded);
-      setForwardedDocuments(forwarded);
+      // Map approved documents for forward status (only for Department Heads)
+      if (isDepartmentHead) {
+        const mappedApproved = (approvedForForward || []).map((d: any) => ({
+          ...d,
+          description: d.forwarded_by_admin || d.admin || '',
+        }));
+        
+        const notForwarded = mappedApproved.filter((d: any) => 
+          (d.Status || '').toLowerCase() === 'not forwarded'
+        );
+        const forwarded = mappedApproved.filter((d: any) => 
+          (d.Status || '').toLowerCase() === 'forwarded'
+        );
+        
+        setNotForwardedDocuments(notForwarded);
+        setForwardedDocuments(forwarded);
+      } else {
+        setNotForwardedDocuments([]);
+        setForwardedDocuments([]);
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({ title: 'Failed to load documents', variant: 'destructive' });
@@ -219,19 +238,6 @@ const AllDocuments: React.FC = () => {
       <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
         <Reply className="mr-2 h-4 w-4" /> Respond
       </Button>
-      <Button
-        variant={
-          (String((doc as any).mark || '').toLowerCase() === 'not_done')
-            ? 'destructive'
-            : (String((doc as any).mark || '').toLowerCase() === 'done')
-            ? 'success'
-            : 'ghost'
-        }
-        size="sm"
-        onClick={() => handleArchive(doc)}
-      >
-        <CheckCircle2 className="mr-2 h-4 w-4" /> Done
-      </Button>
     </div>
   );
 
@@ -278,15 +284,18 @@ const AllDocuments: React.FC = () => {
     <div className="space-y-6 min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
       {/* Header */}
       <div className="bg-transparent">
-        <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
-        <p className="mt-1 text-gray-600">
-          Review and manage business permit applications.
-        </p>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
+          <p className="mt-1 text-gray-600">
+            Review and manage business permit applications.
+          </p>
+        </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs with Toggle */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
           <TabsTrigger 
             value="all" 
             className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
@@ -317,24 +326,32 @@ const AllDocuments: React.FC = () => {
           >
             Received Requests ({counts.received})
           </TabsTrigger>
-          <TabsTrigger 
-            value="not_forwarded"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Not Forwarded ({counts.not_forwarded})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="forwarded"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Forwarded Documents ({counts.forwarded})
-          </TabsTrigger>
-        </TabsList>
+          {isDepartmentHead && (
+            <>
+              <TabsTrigger 
+                value="not_forwarded"
+                className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+              >
+                Not Forwarded ({counts.not_forwarded})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="forwarded"
+                className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+              >
+                Forwarded Documents ({counts.forwarded})
+              </TabsTrigger>
+            </>
+          )}
+          </TabsList>
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+        </div>
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentTable
+          <DocumentViewToggle
             documents={currentDocuments}
+            view={viewMode}
+            onViewChange={setViewMode}
             onApprove={activeTab === 'pending' ? handleApprove : undefined}
             onReject={activeTab === 'pending' ? handleReject : undefined}
             onRevision={activeTab === 'pending' ? handleRevision : undefined}
@@ -347,6 +364,7 @@ const AllDocuments: React.FC = () => {
             enablePagination
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}
+            renderToggleInHeader={true}
           />
         </TabsContent>
       </Tabs>

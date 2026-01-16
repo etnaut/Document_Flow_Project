@@ -3,7 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import ViewToggle from '@/components/documents/ViewToggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,6 +28,7 @@ const ReleaserAllDocuments: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
@@ -154,31 +156,36 @@ const ReleaserAllDocuments: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
-          <TabsTrigger 
-            value="all" 
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            All ({counts.all})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="pending"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Pending Release ({counts.pending})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="released"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Released ({counts.released})
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4">
+          <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
+            <TabsTrigger 
+              value="all" 
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              All ({counts.all})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pending"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              Pending Release ({counts.pending})
+            </TabsTrigger>
+            <TabsTrigger 
+              value="released"
+              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            >
+              Released ({counts.released})
+            </TabsTrigger>
+          </TabsList>
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+        </div>
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-          <DocumentTable
+          <DocumentViewToggle
             documents={currentDocuments}
+            view={viewMode}
+            onViewChange={setViewMode}
             showDescription
             descriptionLabel="Comment"
             showDate={false}
@@ -189,6 +196,7 @@ const ReleaserAllDocuments: React.FC = () => {
               if (doc) openRelease(doc);
             } : undefined}
             showStatusFilter={false}
+            renderToggleInHeader={true}
           />
         </TabsContent>
       </Tabs>

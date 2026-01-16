@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Eye, Download, ExternalLink, Search } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -102,7 +103,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   showStatusFilter = true,
 }) => {
   const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
-  const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
+  // Show comment/description column if showDescription is true OR if any document has comments
+  const hasComments = documents.some(doc => doc.comments);
+  const showCommentColumn = showDescription || hasComments;
+  const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showCommentColumn ? 1 : 0) + (renderActions ? 1 : 0);
 
   const navigate = useNavigate();
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
@@ -251,7 +255,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             {showPriority && <TableHead className="font-semibold text-gray-700">Priority</TableHead>}
             <TableHead className="font-semibold text-gray-700">Document</TableHead>
             {showDate && <TableHead className="font-semibold text-gray-700">Date</TableHead>}
-            {showDescription && <TableHead className="font-semibold text-gray-700">{descriptionLabel}</TableHead>}
+            {showCommentColumn && (
+              <TableHead className="font-semibold text-gray-700">
+                {showDescription ? descriptionLabel : (hasComments ? 'Comment' : descriptionLabel)}
+              </TableHead>
+            )}
             <TableHead className="font-semibold text-gray-700">Status</TableHead>
             {renderActions && <TableHead className="font-semibold text-gray-700">Actions</TableHead>}
           </TableRow>
@@ -275,17 +283,28 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 <TableCell className="text-gray-700">{doc.sender_name}</TableCell>
                 {showPriority && (
                   <TableCell>
-                    <Badge
-                      variant={
-                        doc.Priority === 'High'
-                          ? 'destructive'
-                          : doc.Priority === 'Medium'
-                          ? 'warning'
-                          : 'secondary'
+                    {(() => {
+                      // Map Priority values: High, Low, Moderate
+                      let priorityValue = doc.Priority || '';
+                      let priorityVariant: 'destructive' | 'warning' | 'secondary' = 'secondary';
+                      
+                      if (priorityValue.toLowerCase() === 'high') {
+                        priorityValue = 'High';
+                        priorityVariant = 'destructive';
+                      } else if (priorityValue.toLowerCase() === 'medium' || priorityValue.toLowerCase() === 'moderate') {
+                        priorityValue = 'Moderate';
+                        priorityVariant = 'warning';
+                      } else {
+                        priorityValue = 'Low';
+                        priorityVariant = 'secondary';
                       }
-                    >
-                      {doc.Priority}
-                    </Badge>
+                      
+                      return (
+                        <Badge variant={priorityVariant}>
+                          {priorityValue}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                 )}
                 <TableCell>
@@ -303,14 +322,25 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     <span className="text-xs text-muted-foreground">None</span>
                   )}
                 </TableCell>
-                {showDate && <TableCell>{doc.created_at}</TableCell>}
-                {showDescription && (
-                  <TableCell className="max-w-[240px] truncate" title={doc.description || ''}>
-                    {doc.description || '—'}
+                {showDate && <TableCell>{formatDate(doc.created_at)}</TableCell>}
+                {showCommentColumn && (
+                  <TableCell className="max-w-[240px] truncate" title={doc.description || doc.comments || ''}>
+                    {doc.description || doc.comments || '—'}
                   </TableCell>
                 )}
                 <TableCell>
                   {(() => {
+                    // For received requests, show Done/undone based on mark field
+                    const mark = String((doc as any).mark || '').toLowerCase();
+                    if (mark === 'done' || mark === 'not_done' || mark === 'not done') {
+                      const statusLabel = mark === 'done' ? 'Done' : 'undone';
+                      return (
+                        <Badge variant={mark === 'done' ? 'success' : 'default'}>
+                          {statusLabel}
+                        </Badge>
+                      );
+                    }
+                    
                     const statusLower = doc.Status?.toLowerCase();
                     const statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
 

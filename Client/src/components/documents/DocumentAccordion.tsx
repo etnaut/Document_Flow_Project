@@ -49,6 +49,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 interface DocumentAccordionProps {
   documents: Document[];
@@ -177,33 +178,6 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
 
   const handleAttachmentClick = (doc: Document) => {
     navigate(`/documents/view/${doc.Document_Id}`, { state: { doc } });
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '—';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const formatDateTime = (dateString?: string) => {
-    if (!dateString) return '—';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch {
-      return dateString;
-    }
   };
 
   const generateDocumentId = (doc: Document): string => {
@@ -387,8 +361,25 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
           No documents found.
         </div>
       ) : (
-        <Accordion type="single" collapsible className="w-full">
-          {pageSlice.map((doc, index) => {
+        <>
+          {/* Header Row */}
+          <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200 text-center">
+            <div className="w-12 font-semibold text-gray-700 text-sm">ID</div>
+            <div className="flex-1 font-semibold text-gray-700 text-sm">Type</div>
+            <div className="flex-1 font-semibold text-gray-700 text-sm">Sender</div>
+            {showPriority && <div className="w-20 font-semibold text-gray-700 text-sm">Priority</div>}
+            <div className="w-24 font-semibold text-gray-700 text-sm">Document</div>
+            {showDate && <div className="w-28 font-semibold text-gray-700 text-sm">Date</div>}
+            {(showDescription || documents.some(doc => doc.comments)) && (
+              <div className="flex-1 font-semibold text-gray-700 text-sm">
+                {showDescription ? descriptionLabel : (documents.some(doc => doc.comments) ? 'Comment' : descriptionLabel)}
+              </div>
+            )}
+            <div className="flex-1 font-semibold text-gray-700 text-sm">Status</div>
+            {renderActions && <div className="w-24 font-semibold text-gray-700 text-sm">Actions</div>}
+          </div>
+          <Accordion type="multiple" className="w-full">
+            {pageSlice.map((doc, index) => {
             const directionBadge = getDirectionBadge(doc);
             const statusVariant = getStatusBadgeVariant(doc.Status || '');
             const docId = generateDocumentId(doc);
@@ -401,71 +392,148 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
             return (
               <AccordionItem key={doc.Document_Id} value={`item-${doc.Document_Id}`} className="border-b">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline group">
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-muted-foreground w-8 shrink-0">
-                            {rowNumber}
-                          </span>
-                          <span className="font-semibold text-base truncate">
-                            {docId} {doc.Type}
-                          </span>
-                        </div>
-                      </div>
+                  <div className="flex items-center gap-2 w-full pr-4 text-center">
+                    <div className="w-12 text-sm font-medium text-muted-foreground">
+                      {rowNumber}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex-1 font-semibold text-base truncate">
+                      {doc.Type}
+                    </div>
+                    <div className="flex-1 text-sm text-foreground truncate">
+                      {doc.sender_name || '—'}
+                    </div>
+                    {showPriority && (
+                      <div className="w-20 flex items-center justify-center">
+                        {(() => {
+                          // Map Priority values: High, Low, Moderate
+                          let priorityValue = doc.Priority || '';
+                          let priorityVariant: 'destructive' | 'warning' | 'secondary' = 'secondary';
+                          
+                          if (priorityValue.toLowerCase() === 'high') {
+                            priorityValue = 'High';
+                            priorityVariant = 'destructive';
+                          } else if (priorityValue.toLowerCase() === 'medium' || priorityValue.toLowerCase() === 'moderate') {
+                            priorityValue = 'Moderate';
+                            priorityVariant = 'warning';
+                          } else {
+                            priorityValue = 'Low';
+                            priorityVariant = 'secondary';
+                          }
+                          
+                          return (
+                            <Badge variant={priorityVariant} className="text-xs">
+                              {priorityValue}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
+                    )}
+                    <div className="w-24 flex items-center justify-center">
+                      {hasAttachment ? (
+                        <Button
+                          variant="link"
+                          className="px-0 h-auto text-xs text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAttachmentClick(doc);
+                          }}
+                        >
+                          Attached
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">None</span>
+                      )}
+                    </div>
+                    {showDate && (
+                      <div className="w-28 text-sm text-foreground">
+                        {doc.created_at ? formatDate(doc.created_at) : '—'}
+                      </div>
+                    )}
+                    {(showDescription || documents.some(d => d.comments)) && (
+                      <div className="flex-1 text-sm text-foreground truncate">
+                        {doc.description || doc.comments || '—'}
+                      </div>
+                    )}
+                    <div className="flex-1 flex items-center justify-center gap-2">
                       <Badge 
                         variant={directionBadge.variant === 'default' ? 'success' : 'secondary'} 
                         className="text-xs bg-green-100 text-green-800 border-green-200"
                       >
                         {directionBadge.label}
                       </Badge>
-                      <Badge variant={statusVariant} className="text-xs">
-                        {doc.Status === 'Revision' ? 'Needs Revision' : doc.Status}
-                      </Badge>
-                      {showPriority && doc.Priority && doc.Priority === 'High' && (
-                        <Badge variant="destructive" className="text-xs">
-                          {doc.Priority}
-                        </Badge>
-                      )}
+                      {(() => {
+                        // For received requests, show Done/undone based on mark field
+                        const mark = String((doc as any).mark || '').toLowerCase();
+                        if (mark === 'done' || mark === 'not_done' || mark === 'not done') {
+                          const statusLabel = mark === 'done' ? 'Done' : 'undone';
+                          return (
+                            <Badge variant={mark === 'done' ? 'success' : 'default'} className="text-xs">
+                              {statusLabel}
+                            </Badge>
+                          );
+                        }
+                        
+                        return (
+                          <Badge variant={statusVariant} className="text-xs">
+                            {doc.Status === 'Revision' ? 'Needs Revision' : doc.Status}
+                          </Badge>
+                        );
+                      })()}
                     </div>
+                    {renderActions && (
+                      <div className="w-24 flex items-center justify-center">
+                        {renderActions(doc)}
+                      </div>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4">
-                  <div className="space-y-4 pt-2 pl-4 border-l-2 border-muted">
+                  <div className="space-y-4 pt-2 pl-4 border-l-2 border-muted text-left">
                     {/* Description */}
                     {showDescription && doc.description && (
-                      <div className="text-sm text-foreground">
+                      <div className="text-sm text-foreground text-left">
                         {doc.description}
+                      </div>
+                    )}
+                    
+                    {/* Comments - Always visible if they exist */}
+                    {doc.comments && (
+                      <div className="text-sm text-foreground text-left">
+                        <div className="flex items-center justify-start gap-2">
+                          <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="flex-1 text-left">
+                            <span className="font-medium text-muted-foreground">Comment: </span>
+                            <span className="break-words">{doc.comments}</span>
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {/* Details Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-foreground">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-foreground text-left">
                       {showDate && doc.created_at && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground">{formatDate(doc.created_at)}</span>
                         </div>
                       )}
 
                       {doc.sender_department && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground">{doc.sender_department}</span>
                         </div>
                       )}
 
                       {doc.sender_name && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <User className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground">{doc.sender_name}</span>
                         </div>
                       )}
 
                       {doc.Type && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground">Kind: {doc.Type}</span>
                           {doc.Priority === 'High' && (
@@ -475,7 +543,7 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                       )}
 
                       {hasAttachment && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                           <Button
                             variant="link"
@@ -490,11 +558,11 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
 
                     {/* Assigned To / Target Department */}
                     {(doc.target_department || doc.sender_name) && (
-                      <div className="flex items-start gap-2 text-sm">
+                      <div className="flex items-start justify-start gap-2 text-sm text-left">
                         <User className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 text-left">
                           <span className="text-muted-foreground">Assigned to:</span>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 justify-start">
                             {doc.target_department && (
                               <Badge variant="info" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
                                 {doc.target_department}
@@ -511,19 +579,34 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                     )}
 
                     {/* Priority and Follow-up */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {showPriority && doc.Priority && doc.Priority !== 'High' && (
-                        <Badge
-                          variant={
-                            doc.Priority === 'Medium'
-                              ? 'warning'
-                              : 'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {doc.Priority}
-                        </Badge>
-                      )}
+                    <div className="flex items-center justify-start gap-2 flex-wrap">
+                      {showPriority && (() => {
+                        // Map Priority values: High, Low, Moderate
+                        let priorityValue = doc.Priority || '';
+                        let priorityVariant: 'destructive' | 'warning' | 'secondary' = 'secondary';
+                        
+                        if (priorityValue.toLowerCase() === 'high') {
+                          priorityValue = 'High';
+                          priorityVariant = 'destructive';
+                        } else if (priorityValue.toLowerCase() === 'medium' || priorityValue.toLowerCase() === 'moderate') {
+                          priorityValue = 'Moderate';
+                          priorityVariant = 'warning';
+                        } else if (priorityValue) {
+                          priorityValue = 'Low';
+                          priorityVariant = 'secondary';
+                        }
+                        
+                        if (!priorityValue) return null;
+                        
+                        return (
+                          <Badge
+                            variant={priorityVariant}
+                            className="text-xs"
+                          >
+                            {priorityValue}
+                          </Badge>
+                        );
+                      })()}
                       {doc.Status === 'Approved' && (
                         <Badge variant="success" className="text-xs bg-green-100 text-green-800 border-green-200">
                           Follow-up: Completed
@@ -532,15 +615,15 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                     </div>
 
                     {/* Audit Trail */}
-                    <div className="flex flex-col gap-1.5 pt-2 border-t text-xs text-muted-foreground">
+                    <div className="flex flex-col gap-1.5 pt-2 border-t text-xs text-muted-foreground text-left">
                       {doc.created_at && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Clock className="h-3.5 w-3.5 shrink-0" />
                           <span>Created: {formatDateTime(doc.created_at)}</span>
                         </div>
                       )}
                       {doc.created_at && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <Clock className="h-3.5 w-3.5 shrink-0" />
                           <span>Updated: {formatDateTime(doc.created_at)}</span>
                         </div>
@@ -548,7 +631,7 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                    <div className="flex flex-wrap items-center justify-start gap-2 pt-2 border-t">
                       {onView && (
                         <Button
                           variant="default"
@@ -661,7 +744,8 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
               </AccordionItem>
             );
           })}
-        </Accordion>
+          </Accordion>
+        </>
       )}
 
       {/* Pagination */}
