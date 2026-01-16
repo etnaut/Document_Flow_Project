@@ -12,10 +12,11 @@ const Layout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ backgroundColor: '#f6f2ee' }}>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />
       <main
         className={`min-h-screen p-6 transition-[margin-left] duration-200 ${collapsed ? 'ml-16' : 'ml-64'}`}
+        style={{ backgroundColor: '#f6f2ee' }}
       >
         <Outlet />
       </main>

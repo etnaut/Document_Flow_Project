@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, Download, ExternalLink } from 'lucide-react';
+import { Eye, Download, ExternalLink, Search } from 'lucide-react';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -101,7 +101,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   pageSizeOptions = [5, 10, 20],
   showStatusFilter = true,
 }) => {
-  const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
+  const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
   const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
 
   const navigate = useNavigate();
@@ -205,61 +205,74 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   }, [query, statusFilter, pageSize, documents]);
 
   return (
-    <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-      <div className="flex flex-col gap-3 p-3 border-b">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents..." className="w-[240px]" />
-            {showStatusFilter && (
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {availableStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Search..." 
+              className="w-[260px] pl-9" 
+            />
           </div>
-          {enablePagination && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Rows per page</span>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
+          {showStatusFilter && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {availableStatuses.map((s) => (
+                  <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
+        {enablePagination && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Show:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
-      <Table>
+      <div className="overflow-x-auto">
+        <Table>
         <TableHeader>
-          <TableRow className="bg-muted/50">
-            <TableHead>Type</TableHead>
-            <TableHead>Sender</TableHead>
-            {showPriority && <TableHead>Priority</TableHead>}
-            <TableHead>Document</TableHead>
-            {showDate && <TableHead>Date</TableHead>}
-            {showDescription && <TableHead>{descriptionLabel}</TableHead>}
-            <TableHead>Status</TableHead>
-            {renderActions && <TableHead>Actions</TableHead>}
+          <TableRow className="bg-gray-50">
+            <TableHead className="w-12 text-center font-semibold text-gray-700">ID</TableHead>
+            <TableHead className="font-semibold text-gray-700">Type</TableHead>
+            <TableHead className="font-semibold text-gray-700">Sender</TableHead>
+            {showPriority && <TableHead className="font-semibold text-gray-700">Priority</TableHead>}
+            <TableHead className="font-semibold text-gray-700">Document</TableHead>
+            {showDate && <TableHead className="font-semibold text-gray-700">Date</TableHead>}
+            {showDescription && <TableHead className="font-semibold text-gray-700">{descriptionLabel}</TableHead>}
+            <TableHead className="font-semibold text-gray-700">Status</TableHead>
+            {renderActions && <TableHead className="font-semibold text-gray-700">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageSlice.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columnsCount} className="h-24 text-center text-black/80">
+              <TableCell colSpan={columnsCount + 1} className="h-24 text-center text-black/80">
                 No documents found.
               </TableCell>
             </TableRow>
           ) : (
-            pageSlice.map((doc) => (
-              <TableRow key={doc.Document_Id} className="animate-fade-in">
-                <TableCell>{doc.Type}</TableCell>
-                <TableCell>{doc.sender_name}</TableCell>
+            pageSlice.map((doc, index) => {
+              const rowNumber = enablePagination 
+                ? (currentPage - 1) * pageSize + index + 1 
+                : index + 1;
+              return (
+              <TableRow key={doc.Document_Id} className="animate-fade-in border-b border-gray-200 hover:bg-gray-50">
+                <TableCell className="font-medium text-gray-600 text-center">{rowNumber}</TableCell>
+                <TableCell className="text-gray-700">{doc.Type}</TableCell>
+                <TableCell className="text-gray-700">{doc.sender_name}</TableCell>
                 {showPriority && (
                   <TableCell>
                     <Badge
@@ -470,29 +483,39 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </TableCell>
                 )}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
+      </div>
       {enablePagination && (
-        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+        <div className="p-4 border-t border-gray-200 grid grid-cols-3 items-center text-sm bg-gray-50">
           <div className="justify-self-start">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} 
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>
-          <div className="justify-self-center text-xs text-muted-foreground">
+          <div className="justify-self-center text-sm text-gray-600">
             Page {currentPage} of {totalPages}
           </div>
           <div className="justify-self-end">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                  <PaginationNext 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} 
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>

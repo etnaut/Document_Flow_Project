@@ -39,6 +39,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Search,
 } from 'lucide-react';
 import {
   Dialog,
@@ -108,10 +109,12 @@ const getDirectionBadge = (doc: Document): { label: string; variant: 'default' |
 const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
   documents,
   onApprove,
+  onReject,
   onRevision,
   onRelease,
-  onForward,
   onRecord,
+  onForward,
+  onView,
   onEdit,
   onDelete,
   onTrack,
@@ -332,63 +335,68 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
   };
 
   return (
-    <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-      <div className="flex flex-col gap-3 p-3 border-b">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search documents..."
-              className="w-[240px]"
+              placeholder="Search..."
+              className="w-[260px] pl-9"
             />
-            {showStatusFilter && (
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {availableStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {labelForStatus(s)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
-          {enablePagination && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Rows per page</span>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-                <SelectTrigger className="w-[90px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((n) => (
-                    <SelectItem key={n} value={String(n)}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {showStatusFilter && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {availableStatuses.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {labelForStatus(s)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
+        {enablePagination && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Show:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {pageSlice.length === 0 ? (
-        <div className="p-12 text-center text-muted-foreground">
+        <div className="p-12 text-center text-gray-600">
           No documents found.
         </div>
       ) : (
         <Accordion type="single" collapsible className="w-full">
-          {pageSlice.map((doc) => {
+          {pageSlice.map((doc, index) => {
             const directionBadge = getDirectionBadge(doc);
             const statusVariant = getStatusBadgeVariant(doc.Status || '');
             const docId = generateDocumentId(doc);
             const hasAttachment = !!doc.Document;
+            const statusLower = (doc.Status || '').toLowerCase();
+            const rowNumber = enablePagination 
+              ? (currentPage - 1) * pageSize + index + 1 
+              : index + 1;
 
             return (
               <AccordionItem key={doc.Document_Id} value={`item-${doc.Document_Id}`} className="border-b">
@@ -397,6 +405,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground w-8 shrink-0">
+                            {rowNumber}
+                          </span>
                           <span className="font-semibold text-base truncate">
                             {docId} {doc.Type}
                           </span>
@@ -537,10 +548,20 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 pt-2 border-t">
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                      {onView && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => onView(doc)}
+                        >
+                          View
+                        </Button>
+                      )}
                       {onEdit && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onEdit(doc)}
@@ -551,9 +572,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                       )}
                       {onDelete && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
-                          className="h-8 text-xs text-destructive hover:text-destructive"
+                          className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           onClick={() => setDeleteDialogDoc(doc)}
                         >
                           <Trash2 className="h-3 w-3 mr-1" />
@@ -563,7 +584,7 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                       {renderActions && renderActions(doc)}
                       {onTrack && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onTrack(doc)}
@@ -571,9 +592,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           Track
                         </Button>
                       )}
-                      {onForward && (doc.Status === 'Not Forwarded' || doc.Status === 'not forwarded') && (
+                      {onForward && (statusLower === 'not forwarded' || statusLower === 'not_forwarded') && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onForward(doc)}
@@ -581,9 +602,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           Forward
                         </Button>
                       )}
-                      {onApprove && doc.Status === 'Pending' && (
+                      {onApprove && statusLower === 'pending' && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onApprove(doc.Document_Id)}
@@ -591,9 +612,19 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           Approve
                         </Button>
                       )}
-                      {onRevision && doc.Status === 'Pending' && (
+                      {onReject && statusLower === 'pending' && (
                         <Button
-                          variant="ghost"
+                          variant="default"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => onReject(doc.Document_Id)}
+                        >
+                          Reject
+                        </Button>
+                      )}
+                      {onRevision && statusLower === 'pending' && (
+                        <Button
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => {
@@ -604,9 +635,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           Send for Revision
                         </Button>
                       )}
-                      {onRelease && (doc.Status === 'Approved' || doc.Status === 'not released') && (
+                      {onRelease && (statusLower === 'approved' || statusLower === 'not released') && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onRelease(doc.Document_Id)}
@@ -614,9 +645,9 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           Release
                         </Button>
                       )}
-                      {onRecord && doc.Status === 'Not Recorded' && (
+                      {onRecord && statusLower === 'not recorded' && (
                         <Button
-                          variant="ghost"
+                          variant="default"
                           size="sm"
                           className="h-8 text-xs"
                           onClick={() => onRecord(doc)}
@@ -634,8 +665,8 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
       )}
 
       {/* Pagination */}
-      {enablePagination && totalPages > 1 && (
-        <div className="p-3 border-t">
+      {enablePagination && (
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
           <Pagination>
             <PaginationContent>
               <PaginationItem>
@@ -648,7 +679,7 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                   className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
-              {getPaginationItems()}
+              {totalPages > 1 && getPaginationItems()}
               <PaginationItem>
                 <PaginationNext
                   href="#"
