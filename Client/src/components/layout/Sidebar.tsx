@@ -38,18 +38,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/send-document', icon: Send, label: 'Send Document' },
     { to: '/my-documents', icon: FileText, label: 'My Documents' },
-    { to: '/my-documents/pending', icon: Clock, label: 'Pending Documents' },
-    { to: '/my-documents/revision', icon: RotateCcw, label: 'Needs Revision' },
-    { to: '/my-documents/approved', icon: CheckCircle, label: 'Approved Documents' },
   ];
 
   const adminLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/pending', icon: FileText, label: 'Pending' },
-    { to: '/approved', icon: CheckCircle, label: 'Approved' },
-    { to: '/revision', icon: RotateCcw, label: 'For Revision' },
-    { to: '/received', icon: Inbox, label: 'Received Requests' },
   ];
 
   const superAdminLinks = [
@@ -62,22 +55,16 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
     { to: manageEmployeesPath, icon: User, label: 'Manage Employees' },
     { to: '/head/all-documents', icon: FileText, label: 'All Documents' },
-    { to: '/head/not-forwarded', icon: FileText, label: 'Not Forwarded' },
-    { to: '/head/forwarded', icon: Inbox, label: 'Forwarded Documents' },
   ];
 
   const recorderLinks = [
     { to: '/records', icon: LayoutDashboard, label: 'Recorder Dashboard' },
     { to: '/records/all', icon: FileText, label: 'All Documents' },
-    { to: '/records/not-recorded', icon: Clock, label: 'Not Recorded' },
-    { to: '/records/recorded', icon: CheckCircle, label: 'Recorded' },
   ];
 
   const releaserLinks = [
     { to: '/releaser', icon: LayoutDashboard, label: 'Releaser Dashboard' },
     { to: '/releaser/all', icon: FileText, label: 'All Documents' },
-    { to: '/releaser/pending', icon: Clock, label: 'Pending Release' },
-    { to: '/releaser/released', icon: CheckCircle, label: 'Released' },
   ];
 
   const isHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');

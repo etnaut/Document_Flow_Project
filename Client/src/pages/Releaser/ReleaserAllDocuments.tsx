@@ -1,18 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
 import { Document } from '@/types';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+type TabValue = 'all' | 'pending' | 'released';
 
 const ReleaserAllDocuments: React.FC = () => {
   const { user } = useAuth();
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [activeTab, setActiveTab] = useState<TabValue>('all');
+  const [allDocuments, setAllDocuments] = useState<Document[]>([]);
+  const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
+  const [releasedDocuments, setReleasedDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [releaseDialogDoc, setReleaseDialogDoc] = useState<Document | null>(null);
   const [releaseStatus, setReleaseStatus] = useState<'low' | 'medium' | 'high'>('low');
@@ -28,8 +34,14 @@ const ReleaserAllDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-      const docs = await getRecordedDocuments(user.Department);
-      setDocuments(docs || []);
+      const allDocs = await getRecordedDocuments(user.Department);
+      setAllDocuments(allDocs || []);
+
+      const pending = await getRecordedDocuments(user.Department, 'recorded');
+      setPendingDocuments(pending || []);
+
+      const released = await getRecordedDocuments(user.Department, 'released');
+      setReleasedDocuments(released || []);
     } catch (err: any) {
       console.error('Releaser all documents load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -102,6 +114,23 @@ const ReleaserAllDocuments: React.FC = () => {
     void loadDivs();
   }, [releaseDept]);
 
+  const counts = useMemo(() => ({
+    all: allDocuments.length,
+    pending: pendingDocuments.length,
+    released: releasedDocuments.length,
+  }), [allDocuments, pendingDocuments, releasedDocuments]);
+
+  const currentDocuments = useMemo(() => {
+    switch (activeTab) {
+      case 'pending':
+        return pendingDocuments;
+      case 'released':
+        return releasedDocuments;
+      default:
+        return allDocuments;
+    }
+  }, [activeTab, allDocuments, pendingDocuments, releasedDocuments]);
+
   if (!user) return <Navigate to="/login" replace />;
   if (!isReleaser) return <Navigate to="/dashboard" replace />;
 
@@ -114,27 +143,56 @@ const ReleaserAllDocuments: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Recorded Documents</h1>
-          <p className="text-muted-foreground">Record status for documents routed to {user.Department}.</p>
-        </div>
-        <Button onClick={() => void load()} variant="outline">Refresh</Button>
+    <div className="space-y-6 min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
+      {/* Header */}
+      <div className="bg-transparent">
+        <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
+        <p className="mt-1 text-gray-600">
+          Review and manage business permit applications.
+        </p>
       </div>
 
-      <DocumentTable
-        documents={documents}
-        showDescription
-        descriptionLabel="Comment"
-        showDate={false}
-        enablePagination
-        pageSizeOptions={[10, 20, 50]}
-        onRelease={(id) => {
-          const doc = documents.find((d) => d.Document_Id === id);
-          if (doc) openRelease(doc);
-        }}
-      />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
+        <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
+          <TabsTrigger 
+            value="all" 
+            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            All ({counts.all})
+          </TabsTrigger>
+          <TabsTrigger 
+            value="pending"
+            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            Pending Release ({counts.pending})
+          </TabsTrigger>
+          <TabsTrigger 
+            value="released"
+            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            Released ({counts.released})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Content */}
+        <TabsContent value={activeTab} className="mt-4">
+          <DocumentViewToggle
+            documents={currentDocuments}
+            showDescription
+            descriptionLabel="Comment"
+            showDate={false}
+            enablePagination
+            pageSizeOptions={[10, 20, 50]}
+            onRelease={activeTab === 'pending' ? (id) => {
+              const doc = currentDocuments.find((d) => d.Document_Id === id);
+              if (doc) openRelease(doc);
+            } : undefined}
+            defaultView="table"
+            showStatusFilter={false}
+          />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={!!releaseDialogDoc} onOpenChange={(open) => { if (!open) setReleaseDialogDoc(null); }}>
         <DialogContent>
