@@ -1010,6 +1010,7 @@ router.get('/releases', async (req: Request, res: Response) => {
       'ad.approved_doc_id',
       'sd.document_id',
       'sd.type',
+      'sd.priority',
       'sd.document',
       'sd.user_id',
       'u.full_name',
@@ -1018,6 +1019,7 @@ router.get('/releases', async (req: Request, res: Response) => {
       "COALESCE(r.division, dv.Division) AS division",
       'u.department_id AS sender_department_id',
       'u.division_id AS sender_division_id',
+      'ad.admin AS admin',
     ];
 
     if (cols.has('mark')) {

@@ -157,12 +157,6 @@ const SendDocument: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-<<<<<<< HEAD
-      const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
-
-      // Use the description field as the submitted content
-      const fullDescription = formData.description.trim();
-=======
       let documentFile: string | undefined = undefined;
       
       // If multiple files, combine them into a ZIP
@@ -176,7 +170,6 @@ const SendDocument: React.FC = () => {
           documentFile = await fileToBase64(zipFile);
         }
       }
->>>>>>> origin/feature/updates
 
       await createDocument({
         Type: resolvedType,
@@ -287,11 +280,7 @@ const SendDocument: React.FC = () => {
                   </div>
                 </div>
 
-<<<<<<< HEAD
-                {/* Communication Details (used as the main content) */}
-=======
                 {/* Communication Details */}
->>>>>>> origin/feature/updates
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
                     Communication Details<span className="text-red-500 ml-1">*</span>

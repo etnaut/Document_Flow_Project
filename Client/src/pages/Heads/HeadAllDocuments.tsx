@@ -23,12 +23,9 @@ const HeadAllDocuments: React.FC = () => {
   const [forwardedDocuments, setForwardedDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<number | null>(null);
-<<<<<<< HEAD
   const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
   const [forwardCommentLocal, setForwardCommentLocal] = useState('');
-=======
   const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
->>>>>>> origin/feature/updates
 
   useEffect(() => {
     if (!allowed) return;

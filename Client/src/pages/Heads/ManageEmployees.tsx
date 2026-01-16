@@ -10,12 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-<<<<<<< HEAD
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-=======
 import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
->>>>>>> origin/feature/updates
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -29,26 +24,6 @@ const ManageEmployees: React.FC = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-<<<<<<< HEAD
-
-  // Add employee dialog state
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [divisions, setDivisions] = useState<string[]>([]);
-  const [form, setForm] = useState({
-    ID_Number: '',
-    Full_Name: '',
-    Gender: '',
-    Email: '',
-    Department: user?.Department || '',
-    Division: user?.Division || '',
-    User_Name: '',
-    Password: '',
-    Role: 'Employee',
-  });
-
-=======
->>>>>>> origin/feature/updates
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
     if (value && typeof value === 'object') {

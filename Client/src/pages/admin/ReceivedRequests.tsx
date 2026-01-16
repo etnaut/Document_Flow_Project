@@ -36,12 +36,13 @@ const ReceivedRequests: React.FC = () => {
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
         Status: (r.status ?? 'Released') as any,
-        Priority: 'Low',
+        Priority: r.priority || 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
         sender_department: r.department || '',
         target_department: r.department || '',
-        comments: r.status || '',
+        description: r.admin || r.forwarded_by_admin || '',
+        comments: r.admin || r.forwarded_by_admin || '',
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
         // optional sender dept/div ids
@@ -143,6 +144,8 @@ const ReceivedRequests: React.FC = () => {
         enablePagination
         pageSizeOptions={[10,20,50]}
         showDate={false}
+        showDescription={true}
+        descriptionLabel="Admin"
       />
 
       <RespondDocumentDialog
