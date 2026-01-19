@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments } from '@/services/api';
@@ -15,33 +15,34 @@ const RecorderDashboard: React.FC = () => {
     notRecorded: 0,
   });
 
-  useEffect(() => {
-    if (!user) return;
-    void loadCounts();
-  }, [user]);
-
-  const loadCounts = async () => {
+  const loadCounts = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
-  const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
-  const forwarded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'forwarded').length;
-  const recorded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'recorded').length;
-  const total = forwarded + recorded;
-  const notRecorded = forwarded;
+      const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
+      const forwarded = (approved || []).filter((d) => (d.Status || '').toLowerCase() === 'forwarded').length;
+      const recorded = (approved || []).filter((d) => (d.Status || '').toLowerCase() === 'recorded').length;
+      const total = forwarded + recorded;
+      const notRecorded = forwarded;
 
       setCounts({
         total,
         recorded,
         notRecorded,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RecorderDashboard load error', error);
-      toast({ title: 'Failed to load counts', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load counts', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadCounts();
+  }, [loadCounts, user]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!isRecorder) return <Navigate to="/dashboard" replace />;
@@ -145,8 +146,8 @@ const RecorderDashboard: React.FC = () => {
                 <Bar
                   dataKey="count"
                   radius={[8, 8, 0, 0]}
-                  shape={(props: any) => {
-                    const { x, y, width, height, payload } = props;
+                  shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { name?: string } }) => {
+                    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
                     const colors: { [key: string]: string } = {
                       'Recorded': '#10b981',
                       'Not Recorded': '#f59e0b',
@@ -157,7 +158,7 @@ const RecorderDashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#3b82f6'}
+                        fill={colors[payload?.name || ''] || '#3b82f6'}
                         rx={8}
                         ry={8}
                       />
