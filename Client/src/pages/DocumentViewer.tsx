@@ -10,9 +10,9 @@ import { formatDateTime } from '@/lib/utils';
 
 const DocumentViewer: React.FC = () => {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
   const params = useParams();
-  const doc = (state as any)?.doc as Document | undefined;
+  const doc = (location.state as { doc?: Document } | null)?.doc as Document | undefined;
   const docId = doc?.Document_Id ?? Number(params.id);
 
   const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
@@ -24,7 +24,7 @@ const DocumentViewer: React.FC = () => {
 
   const revokePreviewUrl = (url?: string | null) => { if (url) URL.revokeObjectURL(url); };
 
-  const decodePayload = (payload: any): Uint8Array | null => {
+  const decodePayload = (payload: unknown): Uint8Array | null => {
     if (!payload) return null;
     try {
       if (typeof payload === 'string') {
@@ -34,11 +34,18 @@ const DocumentViewer: React.FC = () => {
         for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i);
         return arr;
       }
-      if (payload?.data) {
-        return new Uint8Array(payload.data);
+      if (typeof payload === 'object' && payload !== null) {
+        const p = payload as Record<string, unknown>;
+        if (Array.isArray(p.data)) {
+          return new Uint8Array(p.data.map((n) => Number(n) || 0));
+        }
+        if (p.data instanceof ArrayBuffer) {
+          return new Uint8Array(p.data as ArrayBuffer);
+        }
       }
       return null;
-    } catch {
+    } catch (error: unknown) {
+      console.warn('Failed decoding payload', error);
       return null;
     }
   };
@@ -73,8 +80,8 @@ const DocumentViewer: React.FC = () => {
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
       setPreviewError(null);
-    } catch (error) {
-      console.error('Preview fetch error', error);
+    } catch (err: unknown) {
+      console.error('Preview fetch error', err);
       setPreviewUrl(null);
       setPreviewError('Unable to generate a PDF preview for this file. You can still open/download it.');
     } finally {
@@ -113,7 +120,7 @@ const DocumentViewer: React.FC = () => {
   React.useEffect(() => {
     const run = async () => {
       if (!docId) return;
-      let bytes = doc ? decodePayload((doc as any).Document) : null;
+      const bytes = doc ? decodePayload(doc.Document) : null;
       if (bytes) {
         const detected = detectMimeChoice(bytes);
         setFileBytes(bytes);
@@ -137,7 +144,7 @@ const DocumentViewer: React.FC = () => {
           const byDoc = revs.filter((r) => r.document_id === docId);
           const latest = byDoc.length ? byDoc[byDoc.length - 1] : null;
           setRevisionEntry(latest);
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('Failed to load revision entry', err);
           setRevisionEntry(null);
         }
@@ -161,7 +168,7 @@ const DocumentViewer: React.FC = () => {
           {doc?.Priority && <Badge className="ml-2 shrink-0">{doc.Priority}</Badge>}
         </div>
         <div className="flex items-center gap-2">
-          <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
+          <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as 'pdf' | 'word' | 'excel' | 'auto')}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="View as" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="pdf">PDF</SelectItem>
