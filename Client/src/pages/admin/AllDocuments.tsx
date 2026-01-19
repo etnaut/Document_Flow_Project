@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   getDocuments, 
@@ -43,18 +43,7 @@ const AllDocuments: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
   const [forwardIncludeNotes, setForwardIncludeNotes] = useState(true);
 
-  useEffect(() => {
-    fetchAllDocuments();
-  }, [user]);
-
-  // Reset active tab if admin user is on a restricted tab
-  useEffect(() => {
-    if (!isDepartmentHead && (activeTab === 'not_forwarded' || activeTab === 'forwarded')) {
-      setActiveTab('all');
-    }
-  }, [isDepartmentHead, activeTab]);
-
-  const fetchAllDocuments = async () => {
+  const fetchAllDocuments = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -79,7 +68,7 @@ const AllDocuments: React.FC = () => {
       ]);
 
       // Map all documents
-      const mappedAll = (allDocs || []).map((d: any) => ({
+      const mappedAll = (allDocs || []).map((d: Document) => ({
         ...d,
         description: d.forwarded_by_admin || d.comments || d.sender_name || '',
       }));
@@ -95,12 +84,28 @@ const AllDocuments: React.FC = () => {
       setRevisionDocuments(revision || []);
 
       // Map received requests
-      const mappedReceived: Document[] = (received || []).map((r: any, idx: number) => ({
+      type ReceivedRaw = {
+        document_id?: number;
+        record_doc_id?: number;
+        type?: string;
+        user_id?: number;
+        status?: string;
+        document?: string | null;
+        full_name?: string;
+        name?: string;
+        department?: string;
+        division?: string;
+        mark?: string | number;
+        sender_department_id?: number;
+        sender_division_id?: number;
+      };
+
+      const mappedReceived: Document[] = (received || []).map((r: ReceivedRaw, idx: number) => ({
         Document_Id: r.document_id ?? r.record_doc_id ?? idx,
         record_doc_id: r.record_doc_id,
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
-        Status: (r.status ?? 'Released') as any,
+        Status: (r.status ?? 'Released') as Document['Status'],
         Priority: 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
@@ -109,24 +114,22 @@ const AllDocuments: React.FC = () => {
         comments: r.status || '',
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
-        // @ts-ignore
         sender_department_id: r.sender_department_id ?? undefined,
-        // @ts-ignore
         sender_division_id: r.sender_division_id ?? undefined,
       }));
       setReceivedDocuments(mappedReceived);
 
       // Map approved documents for forward status (only for Department Heads)
       if (isDepartmentHead) {
-        const mappedApproved = (approvedForForward || []).map((d: any) => ({
+        const mappedApproved = (approvedForForward || []).map((d: Document) => ({
           ...d,
-          description: d.forwarded_by_admin || d.admin || '',
+          description: d.forwarded_by_admin || d.approved_admin || '',
         }));
         
-        const notForwarded = mappedApproved.filter((d: any) => 
+        const notForwarded = mappedApproved.filter((d: Document) => 
           (d.Status || '').toLowerCase() === 'not forwarded'
         );
-        const forwarded = mappedApproved.filter((d: any) => 
+        const forwarded = mappedApproved.filter((d: Document) => 
           (d.Status || '').toLowerCase() === 'forwarded'
         );
         
@@ -136,13 +139,25 @@ const AllDocuments: React.FC = () => {
         setNotForwardedDocuments([]);
         setForwardedDocuments([]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching documents:', error);
-      toast({ title: 'Failed to load documents', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load documents', description: message || undefined, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, isDepartmentHead]);
+
+  useEffect(() => {
+    fetchAllDocuments();
+  }, [fetchAllDocuments]);
+
+  // Reset active tab if admin user is on a restricted tab
+  useEffect(() => {
+    if (!isDepartmentHead && (activeTab === 'not_forwarded' || activeTab === 'forwarded')) {
+      setActiveTab('all');
+    }
+  }, [isDepartmentHead, activeTab]);
 
   const handleApprove = async (id: number) => {
     if (!user) return;
@@ -195,7 +210,7 @@ const AllDocuments: React.FC = () => {
   };
 
   const handleRespondClick = (doc: Document) => {
-    const mark = String((doc as any).mark || '').toLowerCase();
+    const mark = String(doc.mark || '').toLowerCase();
     if (mark !== 'done') {
       toast({ title: 'Cannot respond', description: 'This request has not been marked done yet.', variant: 'destructive' });
       return;
@@ -211,12 +226,12 @@ const AllDocuments: React.FC = () => {
       await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
       toast({ title: 'Response saved successfully.' });
       fetchAllDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving response:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to save response';
+      const errMsg = error instanceof Error ? error.message : String(error);
       toast({ 
         title: 'Failed to save response', 
-        description: errorMessage,
+        description: errMsg,
         variant: 'destructive' 
       });
       throw error;
@@ -225,9 +240,9 @@ const AllDocuments: React.FC = () => {
 
   const handleArchive = async (doc: Document) => {
     try {
-      if ((doc as any).record_doc_id) {
+      if (doc.record_doc_id) {
         try {
-          await markRelease((doc as any).record_doc_id, 'done');
+          await markRelease(doc.record_doc_id, 'done');
         } catch (err) {
           console.warn('Failed to mark release done:', err);
         }
@@ -235,9 +250,10 @@ const AllDocuments: React.FC = () => {
       await archiveDocument(doc.Document_Id);
       toast({ title: 'Request marked as done.' });
       fetchAllDocuments();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to mark request done', error);
-      toast({ title: 'Failed to mark request done', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to mark request done', description: message || undefined, variant: 'destructive' });
     }
   };
 
@@ -246,15 +262,16 @@ const AllDocuments: React.FC = () => {
       await markRelease(recordDocId, 'done');
       toast({ title: 'Request marked as done.' });
       fetchAllDocuments();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to mark release', error);
-      toast({ title: 'Failed to mark request', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to mark request', description: message || undefined, variant: 'destructive' });
       throw error;
     }
   };
 
   const renderReceivedActions = (doc: Document) => {
-    const mark = String((doc as any).mark || '').toLowerCase();
+    const mark = String(doc.mark || '').toLowerCase();
     const disabled = mark !== 'done';
 
     return (

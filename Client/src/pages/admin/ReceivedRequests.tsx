@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getReceivedRequests,
@@ -20,22 +20,33 @@ const ReceivedRequests: React.FC = () => {
   const [respondDialogOpen, setRespondDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
-  useEffect(() => {
-    fetchDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.Department, user?.Division]);
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!user?.Department) return;
     setLoading(true);
     try {
       const data = await getReceivedRequests(user.Department, user?.Division, user.User_Id);
-      const mapped: Document[] = (data || []).map((r: any, idx: number) => ({
+      type ReceivedRaw = {
+        document_id?: number;
+        record_doc_id?: number;
+        type?: string;
+        user_id?: number;
+        status?: string;
+        document?: string | null;
+        full_name?: string;
+        name?: string;
+        department?: string;
+        division?: string;
+        mark?: string | number;
+        sender_department_id?: number;
+        sender_division_id?: number;
+      };
+
+      const mapped: Document[] = (data || []).map((r: ReceivedRaw, idx: number) => ({
         Document_Id: r.document_id ?? r.record_doc_id ?? idx,
         record_doc_id: r.record_doc_id,
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
-        Status: (r.status ?? 'Released') as any,
+        Status: (r.status ?? 'Released') as Document['Status'],
         Priority: 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
@@ -44,24 +55,26 @@ const ReceivedRequests: React.FC = () => {
         comments: r.status || '',
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
-        // optional sender dept/div ids
-        // @ts-ignore
         sender_department_id: r.sender_department_id ?? undefined,
-        // @ts-ignore
         sender_division_id: r.sender_division_id ?? undefined,
       }));
       setDocuments(mapped);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching received requests:', error);
-      toast({ title: 'Unable to load received requests', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Unable to load received requests', description: message || undefined, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.Department, user?.Division, user?.User_Id]);
+
+  useEffect(() => {
+    void fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleRespondClick = (doc: Document) => {
     // Only allow responding when the mark is 'done'
-    const mark = String((doc as any).mark || '').toLowerCase();
+    const mark = String(doc.mark || '').toLowerCase();
     if (mark !== 'done') {
       toast({ title: 'Cannot respond', description: 'This request has not been marked done yet.', variant: 'destructive' });
       return;
@@ -78,9 +91,9 @@ const ReceivedRequests: React.FC = () => {
       await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
       toast({ title: 'Response saved successfully.' });
       fetchDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving response:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to save response';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({ 
         title: 'Failed to save response', 
         description: errorMessage,
@@ -93,9 +106,9 @@ const ReceivedRequests: React.FC = () => {
   const handleArchive = async (doc: Document) => {
     try {
       // If we have a release record ID, mark the release as done
-      if ((doc as any).record_doc_id) {
+      if (doc.record_doc_id) {
         try {
-          await markRelease((doc as any).record_doc_id, 'done');
+          await markRelease(doc.record_doc_id, 'done');
         } catch (err) {
           // Non-fatal: log and continue to archive the document
           console.warn('Failed to mark release done:', err);
@@ -105,9 +118,10 @@ const ReceivedRequests: React.FC = () => {
       await archiveDocument(doc.Document_Id);
       toast({ title: 'Request marked as done.' });
       fetchDocuments();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to mark request done', error);
-      toast({ title: 'Failed to mark request done', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to mark request done', description: message || undefined, variant: 'destructive' });
     }
   };
 
@@ -117,16 +131,17 @@ const ReceivedRequests: React.FC = () => {
       await markRelease(recordDocId, 'done');
       toast({ title: 'Request marked as done.' });
       fetchDocuments();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to mark release', error);
-      toast({ title: 'Failed to mark request', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to mark request', description: message || undefined, variant: 'destructive' });
       throw error;
     }
   };
 
   // render actions
   const renderActions = (doc: Document) => {
-    const mark = String((doc as any).mark || '').toLowerCase();
+    const mark = String(doc.mark || '').toLowerCase();
     const disabled = mark !== 'done';
 
     return (

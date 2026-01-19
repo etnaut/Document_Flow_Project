@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
@@ -27,17 +27,17 @@ const HeadAllDocuments: React.FC = () => {
   useEffect(() => {
     if (!allowed) return;
     fetchAllDocuments();
-  }, [allowed, user?.Department]);
+  }, [allowed, fetchAllDocuments]);
 
-  const fetchAllDocuments = async () => {
+  const fetchAllDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
-      const mapped = (approvedDocs || []).map((d: any) => ({
+      const mapped = (approvedDocs || []).map((d: Document) => ({
         ...d,
         // Prefer forwarded comment when present
-        description: d.comments || d.forwarded_by_admin || d.admin || '',
+        description: d.comments || d.forwarded_by_admin || d.approved_admin || '',
       }));
 
       setAllDocuments(mapped);
@@ -47,13 +47,14 @@ const HeadAllDocuments: React.FC = () => {
       
       setNotForwardedDocuments(notForwarded);
       setForwardedDocuments(forwarded);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Head All Documents load error', error);
-      toast({ title: 'Failed to load documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const handleForward = (doc: Document, _includeNotes?: boolean) => {
     setForwardDialogDoc(doc);
@@ -68,9 +69,10 @@ const HeadAllDocuments: React.FC = () => {
       toast({ title: 'Document forwarded' });
       setForwardDialogDoc(null);
       await fetchAllDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Forward failed', error);
-      toast({ title: 'Failed to forward document', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to forward document', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setSubmittingId(null);
     }
