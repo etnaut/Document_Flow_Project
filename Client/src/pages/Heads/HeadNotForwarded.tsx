@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
@@ -16,29 +16,49 @@ const HeadNotForwarded: React.FC = () => {
   const [submittingId, setSubmittingId] = useState<number | null>(null);
   const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
 
-  useEffect(() => {
-    if (!allowed) return;
-    void loadDocuments();
-  }, [allowed, user?.Department]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
+      type Approved = Document & { admin?: string; forwarded_by_admin?: string };
       const mapped = (approvedDocs || [])
-        .map((d: any) => ({
+        .map((d: Approved) => ({
           ...d,
           // prefer forwarded admin name when available
           description: d.forwarded_by_admin || d.admin || '',
         }))
         .filter((d) => (d.Status || '').toLowerCase() === 'not forwarded');
       setDocuments(mapped);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Head Not Forwarded load error', error);
-      toast({ title: 'Failed to load documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    void loadDocuments();
+  }, [allowed, loadDocuments]);
+
+  const handleConfirmForward = async () => {
+    if (!forwardDialogDoc || !user) return;
+    try {
+      setSubmittingId(forwardDialogDoc.Document_Id);
+      // Do not send a comment when forwarding (comments no longer required)
+      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name);
+      toast({ title: 'Document forwarded' });
+      setForwardDialogDoc(null);
+      await loadDocuments();
+    } catch (error: unknown) {
+      console.error('Forward failed', error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to forward document', description: message || 'Please try again', variant: 'destructive' });
+    } finally {
+      setSubmittingId(null);
     }
   };
 
@@ -87,22 +107,7 @@ const HeadNotForwarded: React.FC = () => {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setForwardDialogDoc(null); }} disabled={submittingId !== null}>Cancel</Button>
-            <Button onClick={async () => {
-              if (!forwardDialogDoc || !user) return;
-              try {
-                setSubmittingId(forwardDialogDoc.Document_Id);
-                // Do not send a comment when forwarding (comments no longer required)
-                await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name);
-                toast({ title: 'Document forwarded' });
-                setForwardDialogDoc(null);
-                await loadDocuments();
-              } catch (error: any) {
-                console.error('Forward failed', error);
-                toast({ title: 'Failed to forward document', description: error?.message || 'Please try again', variant: 'destructive' });
-              } finally {
-                setSubmittingId(null);
-              }
-            }} disabled={submittingId !== null}>{submittingId ? 'Forwarding…' : 'Forward'}</Button>
+            <Button onClick={handleConfirmForward} disabled={submittingId !== null}>{submittingId ? 'Forwarding…' : 'Forward'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

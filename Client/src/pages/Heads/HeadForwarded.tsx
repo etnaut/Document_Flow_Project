@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments } from '@/services/api';
@@ -12,30 +12,32 @@ const HeadForwarded: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!allowed) return;
-    void loadDocuments();
-  }, [allowed, user?.Department]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
+      type Approved = Document & { admin?: string; forwarded_by_admin?: string };
       const mapped = (approvedDocs || [])
-        .map((d: any) => ({
+        .map((d: Approved) => ({
           ...d,
           description: d.forwarded_by_admin || d.admin || '',
         }))
         .filter((d) => (d.Status || '').toLowerCase() === 'forwarded');
       setDocuments(mapped);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Head Forwarded load error', error);
-      toast({ title: 'Failed to load documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    void loadDocuments();
+  }, [allowed, loadDocuments]);
 
   if (!allowed) return <Navigate to="/dashboard" replace />;
 
