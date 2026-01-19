@@ -27,6 +27,7 @@ interface ForwardDocumentDialogProps {
   document: Document | null;
   currentDepartment: string;
   onForward: (documentId: number, targetDepartment: string, notes: string) => void;
+  showNotes?: boolean; // when false, hide notes field
 }
 
 const ForwardDocumentDialog: React.FC<ForwardDocumentDialogProps> = ({
@@ -35,6 +36,7 @@ const ForwardDocumentDialog: React.FC<ForwardDocumentDialogProps> = ({
   document,
   currentDepartment,
   onForward,
+  showNotes = true,
 }) => {
   const [departments, setDepartments] = useState<string[]>([]);
   const [targetDepartment, setTargetDepartment] = useState('');
@@ -54,7 +56,8 @@ const ForwardDocumentDialog: React.FC<ForwardDocumentDialogProps> = ({
     if (!document || !targetDepartment) return;
     setLoading(true);
     try {
-      await onForward(document.Document_Id, targetDepartment, notes);
+      // If notes are hidden, send empty notes
+      await onForward(document.Document_Id, targetDepartment, showNotes ? notes : '');
       setTargetDepartment('');
       setNotes('');
       onOpenChange(false);
@@ -99,6 +102,7 @@ const ForwardDocumentDialog: React.FC<ForwardDocumentDialogProps> = ({
               </Select>
             </div>
 
+            {showNotes && (
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
@@ -109,6 +113,7 @@ const ForwardDocumentDialog: React.FC<ForwardDocumentDialogProps> = ({
                 className="min-h-[80px]"
               />
             </div>
+            )}
           </div>
         )}
 

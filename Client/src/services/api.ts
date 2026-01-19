@@ -241,16 +241,24 @@ export const createRespondDocument = async (
   releaseDocId: number,
   userId: number,
   status: 'actioned' | 'not actioned',
-  comment: string
+  comment: string,
+  documentBase64?: string,
+  filename?: string,
+  mimetype?: string
 ): Promise<any> => {
+  const body: any = {
+    release_doc_id: releaseDocId,
+    user_id: userId,
+    status: status,
+    comment: comment,
+  };
+  if (documentBase64 !== undefined) body.document = documentBase64;
+  if (filename !== undefined) body.document_name = filename;
+  if (mimetype !== undefined) body.document_type = mimetype;
+
   return apiRequest('/documents/respond', {
     method: 'POST',
-    body: JSON.stringify({
-      release_doc_id: releaseDocId,
-      user_id: userId,
-      status: status,
-      comment: comment,
-    }),
+    body: JSON.stringify(body),
   });
 };
 

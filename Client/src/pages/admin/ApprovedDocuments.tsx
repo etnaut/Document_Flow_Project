@@ -14,6 +14,7 @@ const ApprovedDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [forwardIncludeNotes, setForwardIncludeNotes] = useState(true);
 
   useEffect(() => {
     fetchDocuments();
@@ -31,8 +32,9 @@ const ApprovedDocuments: React.FC = () => {
     }
   };
 
-  const handleForwardClick = (doc: Document) => {
+  const handleForwardClick = (doc: Document, includeNotes: boolean = true) => {
     setSelectedDocument(doc);
+    setForwardIncludeNotes(includeNotes);
     setForwardDialogOpen(true);
   };
 
@@ -83,6 +85,7 @@ const ApprovedDocuments: React.FC = () => {
         document={selectedDocument}
         currentDepartment={user?.Department || ''}
         onForward={handleForward}
+        showNotes={forwardIncludeNotes}
       />
     </div>
   );

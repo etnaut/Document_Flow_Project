@@ -41,6 +41,7 @@ const AllDocuments: React.FC = () => {
   const [respondDialogOpen, setRespondDialogOpen] = useState(false);
   const [selectedRespondDocument, setSelectedRespondDocument] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
+  const [forwardIncludeNotes, setForwardIncludeNotes] = useState(true);
 
   useEffect(() => {
     fetchAllDocuments();
@@ -178,8 +179,9 @@ const AllDocuments: React.FC = () => {
     }
   };
 
-  const handleForwardClick = (doc: Document) => {
+  const handleForwardClick = (doc: Document, includeNotes: boolean = true) => {
     setSelectedDocument(doc);
+    setForwardIncludeNotes(includeNotes);
     setForwardDialogOpen(true);
   };
 
@@ -193,14 +195,20 @@ const AllDocuments: React.FC = () => {
   };
 
   const handleRespondClick = (doc: Document) => {
+    const mark = String((doc as any).mark || '').toLowerCase();
+    if (mark !== 'done') {
+      toast({ title: 'Cannot respond', description: 'This request has not been marked done yet.', variant: 'destructive' });
+      return;
+    }
+
     setSelectedRespondDocument(doc);
     setRespondDialogOpen(true);
   };
 
-  const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string) => {
+  const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string, documentBase64?: string, filename?: string, mimetype?: string) => {
     if (!user) return;
     try {
-      await createRespondDocument(releaseDocId, user.User_Id, status, comment);
+      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
       toast({ title: 'Response saved successfully.' });
       fetchAllDocuments();
     } catch (error: any) {
@@ -233,13 +241,36 @@ const AllDocuments: React.FC = () => {
     }
   };
 
-  const renderReceivedActions = (doc: Document) => (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
-        <Reply className="mr-2 h-4 w-4" /> Respond
-      </Button>
-    </div>
-  );
+  const handleMarkRelease = async (recordDocId: number, mark?: 'done' | 'not_done') => {
+    try {
+      await markRelease(recordDocId, 'done');
+      toast({ title: 'Request marked as done.' });
+      fetchAllDocuments();
+    } catch (error) {
+      console.error('Failed to mark release', error);
+      toast({ title: 'Failed to mark request', variant: 'destructive' });
+      throw error;
+    }
+  };
+
+  const renderReceivedActions = (doc: Document) => {
+    const mark = String((doc as any).mark || '').toLowerCase();
+    const disabled = mark !== 'done';
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleRespondClick(doc)}
+          disabled={disabled}
+          title={disabled ? 'Cannot respond until the request is marked done' : 'Respond'}
+        >
+          <Reply className="mr-2 h-4 w-4" /> Respond
+        </Button>
+      </div>
+    );
+  };
 
   // Get counts for tabs
   const counts = useMemo(() => ({
@@ -357,6 +388,7 @@ const AllDocuments: React.FC = () => {
             onRevision={activeTab === 'pending' ? handleRevision : undefined}
             onForward={activeTab === 'approved' ? handleForwardClick : undefined}
             renderActions={activeTab === 'received' ? renderReceivedActions : undefined}
+            onMarkRelease={activeTab === 'received' ? handleMarkRelease : undefined}
             showPriority
             showDescription
             descriptionLabel="Admin"
@@ -376,6 +408,7 @@ const AllDocuments: React.FC = () => {
         document={selectedDocument}
         currentDepartment={user?.Department || ''}
         onForward={handleForward}
+        showNotes={forwardIncludeNotes}
       />
 
       <RespondDocumentDialog

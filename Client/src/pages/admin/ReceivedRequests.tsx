@@ -60,15 +60,22 @@ const ReceivedRequests: React.FC = () => {
   };
 
   const handleRespondClick = (doc: Document) => {
+    // Only allow responding when the mark is 'done'
+    const mark = String((doc as any).mark || '').toLowerCase();
+    if (mark !== 'done') {
+      toast({ title: 'Cannot respond', description: 'This request has not been marked done yet.', variant: 'destructive' });
+      return;
+    }
+
     setSelectedDocument(doc);
     setRespondDialogOpen(true);
   };
 
-  const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string) => {
+  const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string, documentBase64?: string, filename?: string, mimetype?: string) => {
     if (!user) return;
     try {
-      console.log('Saving response:', { releaseDocId, userId: user.User_Id, status, comment });
-      await createRespondDocument(releaseDocId, user.User_Id, status, comment);
+      console.log('Saving response:', { releaseDocId, userId: user.User_Id, status, comment, filename });
+      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
       toast({ title: 'Response saved successfully.' });
       fetchDocuments();
     } catch (error: any) {
@@ -104,13 +111,38 @@ const ReceivedRequests: React.FC = () => {
     }
   };
 
-  const renderActions = (doc: Document) => (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
-        <Reply className="mr-2 h-4 w-4" /> Respond
-      </Button>
-    </div>
-  );
+  const handleMarkRelease = async (recordDocId: number, mark?: 'done' | 'not_done') => {
+    if (!user) return;
+    try {
+      await markRelease(recordDocId, 'done');
+      toast({ title: 'Request marked as done.' });
+      fetchDocuments();
+    } catch (error) {
+      console.error('Failed to mark release', error);
+      toast({ title: 'Failed to mark request', variant: 'destructive' });
+      throw error;
+    }
+  };
+
+  // render actions
+  const renderActions = (doc: Document) => {
+    const mark = String((doc as any).mark || '').toLowerCase();
+    const disabled = mark !== 'done';
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleRespondClick(doc)}
+          disabled={disabled}
+          title={disabled ? 'Cannot respond until the request is marked done' : 'Respond'}
+        >
+          <Reply className="mr-2 h-4 w-4" /> Respond
+        </Button>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -143,6 +175,7 @@ const ReceivedRequests: React.FC = () => {
         enablePagination
         pageSizeOptions={[10,20,50]}
         showDate={false}
+        onMarkRelease={handleMarkRelease}
       />
 
       <RespondDocumentDialog

@@ -58,7 +58,7 @@ interface DocumentAccordionProps {
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
-  onForward?: (doc: Document) => void;
+  onForward?: (doc: Document, includeNotes?: boolean) => void;
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onDelete?: (id: number) => void;
@@ -680,7 +680,7 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
                           variant="default"
                           size="sm"
                           className="h-8 text-xs"
-                          onClick={() => onForward(doc)}
+                          onClick={() => onForward(doc, false)}
                         >
                           Forward
                         </Button>

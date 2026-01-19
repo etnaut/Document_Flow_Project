@@ -1198,17 +1198,23 @@ router.get('/releases/track', async (req: Request, res: Response) => {
 // POST /documents/respond - Create a respond document entry in respond_document_tbl
 router.post('/respond', async (req: Request, res: Response) => {
   try {
-    const { release_doc_id, user_id, status, comment } = req.body as {
+    const { release_doc_id, user_id, status, comment, document, document_name, document_type } = req.body as {
       release_doc_id?: number;
       user_id?: number;
       status?: string;
       comment?: string;
+      document?: string; // base64
+      document_name?: string;
+      document_type?: string;
     };
 
     const releaseDocId = Number(release_doc_id);
     const userId = Number(user_id);
     const statusVal = String(status || '').trim().toLowerCase();
     const commentVal = String(comment || '').trim();
+    const documentBase64 = document ? String(document) : '';
+    const docName = document_name ? String(document_name) : '';
+    const docType = document_type ? String(document_type) : '';
 
     if (!Number.isFinite(releaseDocId)) {
       return sendResponse(res, { error: 'Invalid release_doc_id' }, 400);
@@ -1219,8 +1225,10 @@ router.post('/respond', async (req: Request, res: Response) => {
     if (!statusVal || (statusVal !== 'actioned' && statusVal !== 'not actioned')) {
       return sendResponse(res, { error: 'Status must be "actioned" or "not actioned"' }, 400);
     }
-    if (!commentVal) {
-      return sendResponse(res, { error: 'Comment is required' }, 400);
+
+    // Require either a comment or a file attachment
+    if (!commentVal && !documentBase64) {
+      return sendResponse(res, { error: 'Comment or file is required' }, 400);
     }
 
     // Find the foreign key constraint to determine what column it references
@@ -1341,12 +1349,40 @@ router.post('/respond', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'respond_document_tbl does not have status column' }, 500);
     }
 
-    // comment is required
+    // comment is required unless a document is attached
     if (columns.has('comment')) {
-      insertCols.push('comment');
-      insertValues.push(commentVal);
-    } else {
-      return sendResponse(res, { error: 'respond_document_tbl does not have comment column' }, 500);
+      if (commentVal) {
+        insertCols.push('comment');
+        insertValues.push(commentVal);
+      } else if (!(columns.has('document') && documentBase64)) {
+        return sendResponse(res, { error: 'Comment is required when no file is attached' }, 400);
+      }
+    } else if (!columns.has('document') || !documentBase64) {
+      return sendResponse(res, { error: 'respond_document_tbl does not have comment column and no document provided' }, 500);
+    }
+
+    // If respond_document_tbl has a document column and a file was provided, include it
+    if (columns.has('document') && documentBase64) {
+      insertCols.push('document');
+      try {
+        insertValues.push(Buffer.from(documentBase64, 'base64'));
+      } catch (err) {
+        return sendResponse(res, { error: 'Invalid base64 document data' }, 400);
+      }
+    }
+
+    // Optional document name / filename
+    if (docName && (columns.has('document_name') || columns.has('filename') || columns.has('file_name'))) {
+      const nameCol = columns.has('document_name') ? 'document_name' : (columns.has('filename') ? 'filename' : 'file_name');
+      insertCols.push(nameCol);
+      insertValues.push(docName);
+    }
+
+    // Optional document mime/type
+    if (docType && (columns.has('document_type') || columns.has('mime') || columns.has('content_type'))) {
+      const typeCol = columns.has('document_type') ? 'document_type' : (columns.has('mime') ? 'mime' : 'content_type');
+      insertCols.push(typeCol);
+      insertValues.push(docType);
     }
 
     // Build the INSERT statement
@@ -1358,7 +1394,16 @@ router.post('/respond', async (req: Request, res: Response) => {
       insertValues
     );
 
-    return sendResponse(res, result.rows[0], 201);
+    const row = result.rows[0] || {};
+    // Convert any Buffer fields to base64 strings for JSON transport
+    for (const key of Object.keys(row)) {
+      const val = row[key];
+      if (val && Buffer.isBuffer(val)) {
+        row[key] = val.toString('base64');
+      }
+    }
+
+    return sendResponse(res, row, 201);
   } catch (error: any) {
     console.error('Create respond document error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
@@ -1479,9 +1524,6 @@ router.get('/track', async (req: Request, res: Response) => {
       }
 
       if (respondCols.has(fkColumnName)) {
-        // Fetch responses by following the chain backwards from document_id:
-        // approved_document_tbl.document_id -> record_document_tbl.approved_doc_id 
-        // -> release_document_tbl.record_doc_id -> respond_document_tbl.release_doc_id
         // First, check what column in release_document_tbl the foreign key references
         const fkInfoRes = await pool.query(`
           SELECT 
@@ -1507,20 +1549,47 @@ router.get('/track', async (req: Request, res: Response) => {
 
         // Fetch responses with user, department, and division information
         // Join chain: approved_document_tbl -> record_document_tbl -> release_document_tbl -> respond_document_tbl
+        const respondSelectCols: string[] = [
+          'rd.respond_doc_id',
+          'rd.user_id',
+          'rd.status',
+          `rd.${fkColumnName}`,
+        ];
+
+        if (respondCols.has('comment')) respondSelectCols.push('rd.comment');
+        if (respondCols.has('document')) respondSelectCols.push('rd.document');
+        if (respondCols.has('document_name')) respondSelectCols.push('rd.document_name');
+        else if (respondCols.has('filename')) respondSelectCols.push('rd.filename');
+        else if (respondCols.has('file_name')) respondSelectCols.push('rd.file_name');
+        if (respondCols.has('document_type')) respondSelectCols.push('rd.document_type');
+        else if (respondCols.has('mime')) respondSelectCols.push('rd.mime');
+        else if (respondCols.has('content_type')) respondSelectCols.push('rd.content_type');
+
+        // Always include sender document info
+        respondSelectCols.push('sd.document_id', 'sd.type', 'sd.document');
+
         const respondRes = await pool.query(
-          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.${fkColumnName},
-             sd.document_id, sd.type, sd.document
-            FROM respond_document_tbl rd
-            JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
-            JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
-            JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
-           WHERE sd.document_id = $1
-           ORDER BY rd.respond_doc_id DESC`,
+          `SELECT ${respondSelectCols.join(',\n         ')}
+           FROM respond_document_tbl rd
+           JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
+           JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+           JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
+          WHERE sd.document_id = $1
+          ORDER BY rd.respond_doc_id DESC`,
          [documentId]
        );
         
         if (respondRes.rows && respondRes.rows.length > 0) {
-          responses.push(...respondRes.rows);
+          // Convert any Buffer fields to base64 for JSON
+          const converted = respondRes.rows.map((r: any) => {
+            for (const k of Object.keys(r)) {
+              if (r[k] && Buffer.isBuffer(r[k])) {
+                r[k] = r[k].toString('base64');
+              }
+            }
+            return r;
+          });
+          responses.push(...converted);
         }
       }
     }

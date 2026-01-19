@@ -22,7 +22,7 @@ const ReleaserDashboard: React.FC = () => {
     try {
       setLoading(true);
       const docs = await getRecordedDocuments(user.Department);
-      setDocuments(docs || []);
+      setDocuments((docs || []).map((d) => ({ ...d, description: (d as any).approved_admin || (d as any).approved_comments || d.description || '' })));
     } catch (err: any) {
       console.error('Releaser dashboard load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -184,7 +184,9 @@ const ReleaserDashboard: React.FC = () => {
           renderActions={() => null}
           enablePagination
           pageSizeOptions={[8, 16, 24]}
-          prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
+          prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
+          showDescription
+          descriptionLabel="Admin"
         />
       </div>
     </div>
