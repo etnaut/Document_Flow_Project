@@ -8,7 +8,7 @@ import { FileText, Clock, CheckCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import DocumentTable from '@/components/dashboard/DocumentTable';
+import DocumentTable from '@/components/documents/DocumentTable';
 
 const ReleaserDashboard: React.FC = () => {
   const { user } = useAuth();

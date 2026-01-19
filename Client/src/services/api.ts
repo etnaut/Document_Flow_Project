@@ -123,8 +123,8 @@ export const releaseRecordedDocument = async (recordDocId: number): Promise<any>
 export const createReleaseDocument = async (
   recordDocId: number,
   status: 'low' | 'medium' | 'high',
-  department: string,
-  division: string
+  department: string | string[],
+  division?: string | string[]
 ): Promise<any> => {
   // documents router is mounted under /api/documents
   return apiRequest('/documents/releases', {

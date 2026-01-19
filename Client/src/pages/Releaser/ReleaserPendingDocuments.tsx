@@ -9,7 +9,6 @@ import { toast } from '@/hooks/use-toast';
 import { Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 
 const ReleaserPendingDocuments: React.FC = () => {
   const { user } = useAuth();
@@ -17,8 +16,8 @@ const ReleaserPendingDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [releaseDialogDoc, setReleaseDialogDoc] = useState<Document | null>(null);
   const [releaseStatus, setReleaseStatus] = useState<'low' | 'medium' | 'high'>('low');
-  const [releaseDept, setReleaseDept] = useState<string>('');
-  const [releaseDiv, setReleaseDiv] = useState<string>('');
+  const [releaseDepts, setReleaseDepts] = useState<string[]>([]);
+  const [releaseDivs, setReleaseDivs] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
@@ -29,8 +28,12 @@ const ReleaserPendingDocuments: React.FC = () => {
     if (!user) return;
     try {
       setLoading(true);
-  const data = await getRecordedDocuments(user.Department, 'recorded');
-  setDocuments(data || []);
+      const data = await getRecordedDocuments(user.Department, 'recorded');
+      const mapped = (data || []).map((d) => ({
+        ...d,
+        description: (d as any).approved_admin || (d as any).approved_comments || d.description || '',
+      }));
+      setDocuments(mapped);
     } catch (err: any) {
       console.error('Releaser pending load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -57,43 +60,58 @@ const ReleaserPendingDocuments: React.FC = () => {
 
   useEffect(() => {
     const loadDivs = async () => {
-      if (!releaseDept) {
+      if (!releaseDepts || releaseDepts.length === 0) {
         setDivisions([]);
-        setReleaseDiv('');
+        setReleaseDivs([]);
         return;
       }
       try {
-        const divs = await getDivisions(releaseDept);
-        setDivisions(divs || []);
-        if (divs && divs.length > 0 && !divs.includes(releaseDiv)) {
-          setReleaseDiv(divs[0]);
+        const lists = await Promise.all(releaseDepts.map((d) => getDivisions(d)));
+        const merged = Array.from(new Set(lists.flat().filter(Boolean)));
+        setDivisions(merged);
+        // If user division is available and in list, preselect it otherwise keep prior selections that still exist
+        if (merged.length > 0) {
+          if (releaseDivs.length === 0) {
+            const defaultDiv = user?.Division && merged.includes(user.Division) ? user.Division : merged[0];
+            setReleaseDivs([defaultDiv]);
+          } else {
+            setReleaseDivs((prev) => prev.filter((d) => merged.includes(d)));
+          }
         }
       } catch {
         setDivisions([]);
+        setReleaseDivs([]);
       }
     };
     void loadDivs();
-  }, [releaseDept]);
+  }, [releaseDepts]);
 
   const openRelease = (doc: Document) => {
     setReleaseDialogDoc(doc);
     setReleaseStatus('low');
-    setReleaseDept('');
-    setReleaseDiv('');
+    // Preselect own department for convenience
+    setReleaseDepts(user?.Department ? [user.Department] : []);
+    setReleaseDivs([]);
   };
 
   const submitRelease = async () => {
     if (!releaseDialogDoc || !releaseDialogDoc.record_doc_id) return;
+    if (!releaseDepts || releaseDepts.length === 0) {
+      toast({ title: 'Select department', description: 'Please select at least one department to send to', variant: 'destructive' });
+      return;
+    }
     try {
       setSaving(true);
       await createReleaseDocument(
         releaseDialogDoc.record_doc_id,
         releaseStatus,
-        releaseDept || '',
-        releaseDiv || ''
+        releaseDepts,
+        releaseDivs
       );
       toast({ title: 'Document released' });
       setReleaseDialogDoc(null);
+      setReleaseDepts([]);
+      setReleaseDivs([]);
       await load();
     } catch (err: any) {
       console.error('Release error', err);
@@ -136,12 +154,11 @@ const ReleaserPendingDocuments: React.FC = () => {
           if (doc) openRelease(doc);
         }}
         showDescription
-        descriptionLabel="Comment"
+        descriptionLabel="Admin"
         showDate={false}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
-        prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
       />
 
       <Dialog open={!!releaseDialogDoc} onOpenChange={(open) => { if (!open) setReleaseDialogDoc(null); }}>
@@ -175,30 +192,35 @@ const ReleaserPendingDocuments: React.FC = () => {
               <Label htmlFor="releaseDept">Sent to Department</Label>
               <select
                 id="releaseDept"
+                multiple
+                size={Math.min(8, Math.max(3, departments.length))}
                 className="w-full rounded-md border bg-background p-2 text-sm"
-                value={releaseDept}
-                onChange={(e) => setReleaseDept(e.target.value)}
+                value={releaseDepts}
+                onChange={(e) => setReleaseDepts(Array.from(e.target.selectedOptions).map((o) => o.value))}
               >
-                <option value="">Select department</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">Select one or more departments (hold Ctrl/Cmd to select multiple).</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="releaseDiv">In Division</Label>
               <select
                 id="releaseDiv"
+                multiple
+                size={Math.min(8, Math.max(3, divisions.length))}
                 className="w-full rounded-md border bg-background p-2 text-sm"
-                value={releaseDiv}
-                onChange={(e) => setReleaseDiv(e.target.value)}
+                value={releaseDivs}
+                onChange={(e) => setReleaseDivs(Array.from(e.target.selectedOptions).map((o) => o.value))}
+                disabled={divisions.length === 0}
               >
-                <option value="">Select division</option>
                 {divisions.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">Optionally select one or more divisions. Leave empty to send to department-level only.</p>
             </div>
           </div>
 

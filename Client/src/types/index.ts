@@ -38,6 +38,7 @@ export interface Document {
   created_at?: string;
   comments?: string;
   approved_comments?: string;
+  approved_admin?: string;
   description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded

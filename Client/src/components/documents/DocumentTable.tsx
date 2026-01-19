@@ -59,7 +59,6 @@ interface DocumentTableProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
-  prioritySuffix?: (doc: Document) => string | undefined;
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
@@ -102,7 +101,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   enablePagination = false,
   pageSizeOptions = [5, 10, 20],
   showStatusFilter = true,
-  prioritySuffix,
 }) => {
   const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
   // Show comment/description column if showDescription is true OR if any document has comments
@@ -304,11 +302,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                       return (
                         <>
                           <Badge variant={priorityVariant}>{priorityValue}</Badge>
-                          {prioritySuffix && (() => {
-                            const suffix = prioritySuffix(doc);
-                            if (!suffix) return null;
-                            return <span className="ml-2 text-xs text-gray-700">/{suffix}</span>;
-                          })()}
                         </>
                       );
                     })()}

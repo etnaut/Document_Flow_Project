@@ -20,7 +20,11 @@ const ReleaserReleasedDocuments: React.FC = () => {
     try {
       setLoading(true);
       const data = await getRecordedDocuments(user.Department, 'released');
-      setDocuments(data || []);
+      const mapped = (data || []).map((d) => ({
+        ...d,
+        description: (d as any).approved_admin || (d as any).approved_comments || d.description || '',
+      }));
+      setDocuments(mapped);
     } catch (err: any) {
       console.error('Releaser released load error', err);
       toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
@@ -62,12 +66,11 @@ const ReleaserReleasedDocuments: React.FC = () => {
       <DocumentTable
         documents={documents}
         showDescription
-        descriptionLabel="Comment"
+        descriptionLabel="Admin"
         showDate={false}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}
-        prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
       />
     </div>
   );

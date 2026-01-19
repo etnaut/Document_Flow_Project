@@ -29,6 +29,8 @@ interface DocumentViewToggleProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
+  // Optional passthrough for priority suffix behavior
+  prioritySuffix?: (doc: Document) => string | undefined;
 }
 
 const DocumentViewToggle: React.FC<DocumentViewToggleProps> = ({

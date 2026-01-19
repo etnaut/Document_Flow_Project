@@ -237,7 +237,7 @@ router.get('/approved', async (req: Request, res: Response) => {
       sd.document AS "Document",
       INITCAP(REPLACE(COALESCE(a.status, 'not_forwarded'), '_', ' ')) AS "Status",
       u.full_name AS sender_name,
-      a.admin AS approved_by,
+      CASE WHEN a.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(a.admin AS INTEGER) LIMIT 1) ELSE a.admin END AS approved_by,
       a.status AS approved_status,
       u.department_id AS sender_department_id,
       u.division_id AS sender_division_id
@@ -740,12 +740,25 @@ router.get('/records', async (req: Request, res: Response) => {
       console.error('Failed to check for approved_document_tbl.comments column', err);
     }
 
+    // Check if the approved_document_tbl has a nullable admin column and include it if present
+    let approvedAdminSelect = 'NULL AS approved_admin,';
+    try {
+      const adminColRes = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'admin' LIMIT 1");
+      if (adminColRes && adminColRes.rowCount && adminColRes.rowCount > 0) {
+        // If ad.admin stores a user_id (numeric), resolve to the user's full_name. Otherwise return the stored value.
+        approvedAdminSelect = `CASE WHEN ad.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(ad.admin AS INTEGER) LIMIT 1) ELSE ad.admin END AS approved_admin,`;
+      }
+    } catch (err) {
+      console.error('Failed to check for approved_document_tbl.admin column', err);
+    }
+
     const result = await pool.query(
       `
       SELECT
         rd.record_doc_id,
         rd.approved_doc_id,
         ${approvedCommentsSelect}
+        ${approvedAdminSelect}
         rd.status AS record_status,
         ad.status AS approved_status,
         ad.document_id,
@@ -792,6 +805,7 @@ router.get('/records', async (req: Request, res: Response) => {
         Status: statusLabel,
         description: row.description ?? null,
         approved_comments: row.approved_comments ?? null,
+        approved_admin: row.approved_admin ?? null,
         created_at: row.created_at,
         sender_name: row.sender_name || '',
         target_department: row.target_department || '',
@@ -846,12 +860,22 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
 
 // POST /releases - create a release entry and mark record as released
 router.post('/releases', async (req: Request, res: Response) => {
-  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string; division?: string };
+  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string | string[]; division?: string | string[] };
 
   const recordDocId = Number(record_doc_id);
   const statusVal = String(status || '').trim().toLowerCase();
-  const departmentVal = String(department || '').trim();
-  const divisionVal = String(division || '').trim();
+
+  // Normalize departments and divisions into arrays
+  const departmentsArr: string[] = Array.isArray(department)
+    ? department.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(department || '').trim() ? [String(department || '').trim()] : []);
+
+  const divisionsArrRaw: string[] = Array.isArray(division)
+    ? division.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(division || '').trim() ? [String(division || '').trim()] : []);
+
+  // divisionsArr may be empty meaning department-level release (no specific division)
+  const divisionsArr = divisionsArrRaw.length > 0 ? divisionsArrRaw : [null as any];
 
   if (!Number.isFinite(recordDocId)) {
     return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
@@ -859,12 +883,8 @@ router.post('/releases', async (req: Request, res: Response) => {
   if (!statusVal) {
     return sendResponse(res, { error: 'Status is required' }, 400);
   }
-  if (!departmentVal) {
-    return sendResponse(res, { error: 'Department is required' }, 400);
-  }
-
-  if (!divisionVal) {
-    return sendResponse(res, { error: 'Division is required' }, 400);
+  if (departmentsArr.length === 0) {
+    return sendResponse(res, { error: 'At least one Department is required' }, 400);
   }
 
   const client = await pool.connect();
@@ -902,8 +922,8 @@ router.post('/releases', async (req: Request, res: Response) => {
       ['type', rec.type],
       ['document', rec.document],
       ['status', statusVal],
-      ['department', departmentVal],
-      ['division', divisionVal],
+      ['department', null], // placeholder
+      ['division', null], // placeholder
       ['mark', 'not_done'],
     ];
 
@@ -915,12 +935,28 @@ router.post('/releases', async (req: Request, res: Response) => {
 
     const columnNames = columnsToInsert.map(([col]) => col).join(', ');
     const placeholders = columnsToInsert.map((_, idx) => `$${idx + 1}`).join(', ');
-    const values = columnsToInsert.map(([, val]) => val);
 
-    await client.query(
-      `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
-      values
-    );
+    // Insert a row for each department/division pair
+    const inserted: Array<{ department: string | null; division: string | null }> = [];
+
+    for (const dept of departmentsArr) {
+      for (const div of divisionsArr) {
+        const values = columnsToInsert.map(([col]) => {
+          if (col === 'department') return dept;
+          if (col === 'division') return div;
+          // find value from candidateColumns
+          const found = candidateColumns.find(([c]) => c === col);
+          return found ? found[1] : null;
+        });
+
+        await client.query(
+          `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
+          values
+        );
+
+        inserted.push({ department: dept || null, division: div || null });
+      }
+    }
 
     await client.query('UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2', ['released', rec.record_doc_id]);
 
@@ -932,8 +968,7 @@ router.post('/releases', async (req: Request, res: Response) => {
       document_id: rec.document_id,
       type: rec.type,
       status: statusVal,
-      department: departmentVal,
-      division: divisionVal,
+      inserted,
     });
   } catch (error: any) {
     try {

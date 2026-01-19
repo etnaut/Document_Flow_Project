@@ -10,12 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-<<<<<<< HEAD
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-=======
 import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
->>>>>>> origin/feature/updates
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -29,26 +24,7 @@ const ManageEmployees: React.FC = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-<<<<<<< HEAD
 
-  // Add employee dialog state
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [divisions, setDivisions] = useState<string[]>([]);
-  const [form, setForm] = useState({
-    ID_Number: '',
-    Full_Name: '',
-    Gender: '',
-    Email: '',
-    Department: user?.Department || '',
-    Division: user?.Division || '',
-    User_Name: '',
-    Password: '',
-    Role: 'Employee',
-  });
-
-=======
->>>>>>> origin/feature/updates
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
     if (value && typeof value === 'object') {
@@ -143,6 +119,7 @@ const ManageEmployees: React.FC = () => {
           <p className="text-muted-foreground">Set employees as Active or Inactive using the dropdown.</p>
         </div>
         <div className="flex items-center gap-3">
+          <AddEmployeeDialog onAdded={() => void loadEmployees()} />
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filter status" />
@@ -231,18 +208,26 @@ const ManageEmployees: React.FC = () => {
             )}
           </TableBody>
         </Table>
-        <div className="p-3 border-t flex items-center justify-between text-sm">
-          <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+          <div className="justify-self-start">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-xs text-muted-foreground">Page {currentPage} of {totalPages}</div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </div>
       </div>
     </div>

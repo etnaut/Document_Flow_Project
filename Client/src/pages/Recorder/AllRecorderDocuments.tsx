@@ -44,7 +44,7 @@ const AllRecorderDocuments: React.FC = () => {
             ...d,
             Type: d.Type || d.type || '',
             sender_name: d.sender_name || '',
-            description: d.admin || d.forwarded_by_admin || '',
+            description: d.approved_by || d.approved_admin || d.admin || d.forwarded_by_admin || '',
             Status: statusRaw === 'forwarded' ? 'Not Recorded' : 'Recorded',
           } as Document;
         })
