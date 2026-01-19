@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentTable from '@/components/documents/DocumentTable';
@@ -13,19 +13,16 @@ const RecordedDocuments: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    void loadDocuments();
-  }, [user]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       // Include both recorded and released so entries that were marked released in approved table are also shown as recorded
       const approved = await getApprovedDocuments(user.Department, 'recorded,released', user.User_Id);
+      type ApiRecord = Document & { approved_by?: string; approved_admin?: string; admin?: string; forwarded_by_admin?: string; type?: string };
       const mapped = (approved || [])
-        .map((d: any) => {
+        .map((d: ApiRecord | null) => {
+          if (!d) return null;
           const statusRaw = (d.Status || '').toLowerCase();
           if (statusRaw !== 'recorded' && statusRaw !== 'released') return null;
           return {
@@ -38,13 +35,19 @@ const RecordedDocuments: React.FC = () => {
         })
         .filter(Boolean) as Document[];
       setDocuments(mapped);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RecordedDocuments load error', error);
-      toast({ title: 'Failed to load recorded documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load recorded documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadDocuments();
+  }, [loadDocuments, user]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!isRecorder) return <Navigate to="/dashboard" replace />;
