@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
@@ -24,27 +24,29 @@ const ReleaserPendingDocuments: React.FC = () => {
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const data = await getRecordedDocuments(user.Department, 'recorded');
-      const mapped = (data || []).map((d) => ({
+      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
+      const mapped = (data || []).map((d: RecordedRaw) => ({
         ...d,
-        description: (d as any).approved_admin || (d as any).approved_comments || d.description || '',
+        description: d.approved_admin ?? d.approved_comments ?? d.description ?? '',
       }));
       setDocuments(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Releaser pending load error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load documents', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     void load();
-  }, [user]);
+  }, [load]);
 
   useEffect(() => {
     const loadDepts = async () => {
@@ -84,7 +86,7 @@ const ReleaserPendingDocuments: React.FC = () => {
       }
     };
     void loadDivs();
-  }, [releaseDepts]);
+  }, [releaseDepts, releaseDivs.length, user?.Division]);
 
   const openRelease = (doc: Document) => {
     setReleaseDialogDoc(doc);
@@ -113,9 +115,10 @@ const ReleaserPendingDocuments: React.FC = () => {
       setReleaseDepts([]);
       setReleaseDivs([]);
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Release error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to release document', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to release document', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
