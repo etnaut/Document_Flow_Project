@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentTable from '@/components/documents/DocumentTable';
@@ -18,19 +18,16 @@ const NotRecordedDocuments: React.FC = () => {
   const [recordStatus, setRecordStatus] = useState<'recorded' | 'not_recorded'>('recorded');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    void loadDocuments();
-  }, [user]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       // Include both forwarded and recorded approved rows so items that progressed to 'recorded' still show up as forwarded for the recorder
       const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
+      type ApiRecord = Document & { approved_by?: string; approved_admin?: string; admin?: string; forwarded_by_admin?: string; type?: string };
       const mapped = (approved || [])
-        .map((d: any) => {
+        .map((d: ApiRecord | null) => {
+          if (!d) return null;
           const statusRaw = (d.Status || '').toLowerCase();
           if (statusRaw !== 'forwarded' && statusRaw !== 'recorded') return null;
           return {
@@ -43,13 +40,19 @@ const NotRecordedDocuments: React.FC = () => {
         })
         .filter(Boolean) as Document[];
       setDocuments(mapped);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('NotRecordedDocuments load error', error);
-      toast({ title: 'Failed to load not recorded documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load not recorded documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadDocuments();
+  }, [loadDocuments, user]);
 
   const handleRecord = (doc: Document) => {
     setRecordDialogDoc(doc);
@@ -71,9 +74,10 @@ const NotRecordedDocuments: React.FC = () => {
       toast({ title: 'Document recorded' });
       setRecordDialogDoc(null);
       await loadDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Record document error', error);
-      toast({ title: 'Failed to record document', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to record document', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
