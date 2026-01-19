@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments } from '@/services/api';
@@ -15,27 +15,29 @@ const ReleaserReleasedDocuments: React.FC = () => {
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const data = await getRecordedDocuments(user.Department, 'released');
-      const mapped = (data || []).map((d) => ({
+      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
+      const mapped = (data || []).map((d: RecordedRaw) => ({
         ...d,
-        description: (d as any).approved_admin || (d as any).approved_comments || d.description || '',
+        description: d.approved_admin ?? d.approved_comments ?? d.description ?? '',
       }));
       setDocuments(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Releaser released load error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load documents', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     void load();
-  }, [user]);
+  }, [load]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!isReleaser) return <Navigate to="/dashboard" replace />;
