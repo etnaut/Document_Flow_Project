@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Download, ArrowLeft } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
+import PdfViewer from '@/components/documents/PdfViewer';
 
 const DocumentViewer: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const DocumentViewer: React.FC = () => {
   const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
   const [fileBytes, setFileBytes] = React.useState<Uint8Array | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
   const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
   const [revisionEntry, setRevisionEntry] = React.useState<RevisionEntry | null>(null);
@@ -67,6 +69,7 @@ const DocumentViewer: React.FC = () => {
     const blob = new Blob([buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
+    setPreviewBlob(blob);
     setPreviewError(null);
   };
 
@@ -79,10 +82,12 @@ const DocumentViewer: React.FC = () => {
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
+      setPreviewBlob(blob);
       setPreviewError(null);
     } catch (err: unknown) {
       console.error('Preview fetch error', err);
       setPreviewUrl(null);
+      setPreviewBlob(null);
       setPreviewError('Unable to generate a PDF preview for this file. You can still open/download it.');
     } finally {
       setPreviewLoading(false);
@@ -90,24 +95,39 @@ const DocumentViewer: React.FC = () => {
   };
 
   const openDocument = () => {
-    if (!fileBytes) return;
     try {
-      if (mimeChoice === 'pdf' && previewUrl) {
-        window.open(previewUrl, '_blank');
+      // Prefer preview URL or blob for PDFs
+      if (mimeChoice === 'pdf' && (previewUrl || previewBlob)) {
+        const url = previewUrl ?? URL.createObjectURL(previewBlob!);
+        window.open(url, '_blank');
+        // If we created the object URL, clean it up later
+        if (!previewUrl) setTimeout(() => URL.revokeObjectURL(url), 30000);
         return;
       }
-      const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
-      const mime = mimeChoice === 'pdf'
-        ? 'application/pdf'
-        : mimeChoice === 'word'
-        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        : mimeChoice === 'excel'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'application/octet-stream';
-      const blob = new Blob([buffer], { type: mime });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+      // If we have raw file bytes (original payload), open them
+      if (fileBytes) {
+        const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
+        const mime = mimeChoice === 'pdf'
+          ? 'application/pdf'
+          : mimeChoice === 'word'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : mimeChoice === 'excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/octet-stream';
+        const blob = new Blob([buffer], { type: mime });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        return;
+      }
+
+      // As a final fallback, if we have a generated preview blob, open that
+      if (previewBlob) {
+        const url = URL.createObjectURL(previewBlob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
     } catch (error) {
       console.error('Open document error', error);
     }
@@ -198,6 +218,11 @@ const DocumentViewer: React.FC = () => {
           {previewLoading ? (
             <div className="flex h-[75vh] items-center justify-center">
               <div className="animate-pulse rounded-md border bg-muted/30 w-[92%] h-[65vh]" />
+            </div>
+          ) : ((mimeChoice === 'pdf' || (fileBytes && detectMimeChoice(fileBytes) === 'pdf')) && (previewBlob || fileBytes || previewUrl)) ? (
+            <div className="w-full p-4 bg-background">
+              {/* PdfViewer renders PDF pages into the DOM so content scrolls naturally with the page */}
+              <PdfViewer file={previewBlob || fileBytes || previewUrl} />
             </div>
           ) : previewUrl ? (
             <iframe title="Attachment preview" src={previewUrl} className="h-[75vh] w-full" />
