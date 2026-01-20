@@ -988,18 +988,42 @@ router.get('/releases', async (req: Request, res: Response) => {
     }
 
     // If userId provided, prefer numeric comparison against sender's user_tbl entries
-    if (userId) {
-      const adminRes = await pool.query('SELECT department_id, division_id FROM user_tbl WHERE user_id = $1 LIMIT 1', [userId]);
+    // If userId provided and no explicit department/division query params are given,
+    // derive the user's Department/Division names and filter releases by the target
+    // department/division (r.department/r.division or the joined Department/Division names).
+    // If department/division query params are explicitly passed, skip this to avoid
+    // overly restrictive sender-based filtering (which caused empty results for admins
+    // viewing received releases targeted to their department).
+    if (userId && !department && !division) {
+      const adminRes = await pool.query(
+        `SELECT d.Department AS department, dv.Division AS division
+           FROM user_tbl u
+           LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
+           LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
+          WHERE u.user_id = $1 LIMIT 1`,
+        [userId]
+      );
+
       if (adminRes.rows.length > 0) {
-        const adminDeptId = adminRes.rows[0].department_id;
-        const adminDivId = adminRes.rows[0].division_id;
-        if (adminDeptId !== null && adminDeptId !== undefined) {
-          values.push(adminDeptId);
-          where.push(`u.department_id = $${values.length}`);
+        const adminDept = adminRes.rows[0].department;
+        const adminDiv = adminRes.rows[0].division;
+
+        if (adminDept) {
+          values.push(String(adminDept).toLowerCase());
+          if (cols.has('department')) {
+            where.push(`LOWER(COALESCE(r.department, '')) = $${values.length}`);
+          } else {
+            where.push(`LOWER(COALESCE(d.Department, '')) = $${values.length}`);
+          }
         }
-        if (adminDivId !== null && adminDivId !== undefined) {
-          values.push(adminDivId);
-          where.push(`u.division_id = $${values.length}`);
+
+        if (adminDiv) {
+          values.push(String(adminDiv).toLowerCase());
+          if (cols.has('division')) {
+            where.push(`LOWER(COALESCE(r.division, '')) = $${values.length}`);
+          } else {
+            where.push(`LOWER(COALESCE(dv.Division, '')) = $${values.length}`);
+          }
         }
       }
     }
