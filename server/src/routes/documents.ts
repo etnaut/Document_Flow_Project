@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureApprovedCommentsColumn } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -550,12 +550,6 @@ router.put('/', async (req: Request, res: Response) => {
 
       // When marking as forwarded, update approved_document_tbl status accordingly
       if (statusValue === 'forwarded') {
-        // Ensure comments column exists so we can persist forwarding notes
-        try {
-          await ensureApprovedCommentsColumn();
-        } catch (err) {
-          // ignore errors - insertion/update will proceed and may fail if column missing
-        }
         const approvedCheck = await client.query(
           'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
           [input.Document_Id]
@@ -563,13 +557,13 @@ router.put('/', async (req: Request, res: Response) => {
 
         if (approvedCheck.rows.length === 0) {
           await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, comments) VALUES ($1, $2, $3, $4, $5)',
-            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded', input.comments ?? null]
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
           );
         } else {
           await client.query(
-            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), comments = COALESCE($3, comments) WHERE document_id = $4',
-            ['forwarded', input.admin ?? null, input.comments ?? null, input.Document_Id]
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            ['forwarded', input.admin ?? null, input.Document_Id]
           );
         }
       }
@@ -729,36 +723,11 @@ router.get('/records', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Check if the approved_document_tbl has a nullable comments column and include it if present
-    let approvedCommentsSelect = 'NULL AS approved_comments,';
-    try {
-      const colRes = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'comments' LIMIT 1");
-      if (colRes && colRes.rowCount && colRes.rowCount > 0) {
-        approvedCommentsSelect = 'ad.comments AS approved_comments,';
-      }
-    } catch (err) {
-      console.error('Failed to check for approved_document_tbl.comments column', err);
-    }
-
-    // Check if the approved_document_tbl has a nullable admin column and include it if present
-    let approvedAdminSelect = 'NULL AS approved_admin,';
-    try {
-      const adminColRes = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'admin' LIMIT 1");
-      if (adminColRes && adminColRes.rowCount && adminColRes.rowCount > 0) {
-        // If ad.admin stores a user_id (numeric), resolve to the user's full_name. Otherwise return the stored value.
-        approvedAdminSelect = `CASE WHEN ad.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(ad.admin AS INTEGER) LIMIT 1) ELSE ad.admin END AS approved_admin,`;
-      }
-    } catch (err) {
-      console.error('Failed to check for approved_document_tbl.admin column', err);
-    }
-
     const result = await pool.query(
       `
       SELECT
         rd.record_doc_id,
         rd.approved_doc_id,
-        ${approvedCommentsSelect}
-        ${approvedAdminSelect}
         rd.status AS record_status,
         ad.status AS approved_status,
         ad.document_id,
@@ -804,8 +773,6 @@ router.get('/records', async (req: Request, res: Response) => {
         Priority: row.priority || 'Normal',
         Status: statusLabel,
         description: row.description ?? null,
-        approved_comments: row.approved_comments ?? null,
-        approved_admin: row.approved_admin ?? null,
         created_at: row.created_at,
         sender_name: row.sender_name || '',
         target_department: row.target_department || '',

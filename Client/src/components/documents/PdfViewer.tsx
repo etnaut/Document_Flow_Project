@@ -255,18 +255,31 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ file, className }) => {
             // fade-in
             canvas.style.opacity = '1';
           } catch (err: unknown) {
+            const errAny: any = err as any;
+            const errName = errAny?.name || '';
+            const errMsg = errAny?.message || '';
+
+            // Ignore expected cancellation exceptions from PDF.js (e.g., when a render
+            // is cancelled due to viewport/scale changes or a newer render taking over).
+            if (/RenderingCancelledException/i.test(errName) || /cancelled/i.test(errMsg)) {
+              return;
+            }
+
             if (!cancelled) {
               console.error('Render page error', err);
-              setError((err as Error)?.message || String(err));
+              setError(errMsg || String(err));
             }
           }
         }
 
       } catch (err: unknown) {
-        if (!cancelled) {
-          console.error('Failed to render PDF', err);
-          setError((err as Error)?.message || 'Failed to render PDF');
-        }
+        const errAny: any = err as any;
+        const errMsg = errAny?.message || '';
+        if (cancelled) return;
+        // If the error is a rendering cancellation, ignore it
+        if (/RenderingCancelledException/i.test(errAny?.name || '') || /cancelled/i.test(errMsg)) return;
+        console.error('Failed to render PDF', err);
+        setError(errMsg || 'Failed to render PDF');
       }
     };
 

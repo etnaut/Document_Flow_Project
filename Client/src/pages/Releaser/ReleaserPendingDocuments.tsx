@@ -42,10 +42,9 @@ const ReleaserPendingDocuments: React.FC = () => {
     try {
       setLoading(true);
       const data = await getRecordedDocuments(effectiveDept, 'recorded');
-      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
-      const mapped = (data || []).map((d: RecordedRaw) => ({
+      const mapped = (data || []).map((d: Document) => ({
         ...d,
-        description: d.approved_admin ?? d.approved_comments ?? d.description ?? '',
+        description: d.description ?? '',
       }));
       setDocuments(mapped);
     } catch (err: unknown) {
@@ -175,8 +174,6 @@ const ReleaserPendingDocuments: React.FC = () => {
           const doc = documents.find((d) => d.Document_Id === id);
           if (doc) openRelease(doc);
         }}
-        showDescription
-        descriptionLabel="Admin"
         showDate={false}
         showStatusFilter={false}
         enablePagination

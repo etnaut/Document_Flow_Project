@@ -33,10 +33,9 @@ const ReleaserReleasedDocuments: React.FC = () => {
     try {
       setLoading(true);
       const data = await getRecordedDocuments(effectiveDept, 'released');
-      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
-      const mapped = (data || []).map((d: RecordedRaw) => ({
+      const mapped = (data || []).map((d: Document) => ({
         ...d,
-        description: d.approved_admin ?? d.approved_comments ?? d.description ?? '',
+        description: d.description ?? '',
       }));
       setDocuments(mapped);
     } catch (err: unknown) {
@@ -112,8 +111,6 @@ const ReleaserReleasedDocuments: React.FC = () => {
 
       <DocumentTable
         documents={documents}
-        showDescription
-        descriptionLabel="Admin"
         showDate={false}
         showStatusFilter={false}
         enablePagination

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
 import { Document } from '@/types';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
+import ViewToggle from '@/components/documents/ViewToggle';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,6 +27,7 @@ const ReleaserAllDocuments: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
+  // DocumentViewToggle renders a table by default
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
@@ -34,14 +36,13 @@ const ReleaserAllDocuments: React.FC = () => {
     try {
       setLoading(true);
       const allDocs = await getRecordedDocuments(user.Department);
-      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
-      setAllDocuments((allDocs || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+      setAllDocuments((allDocs || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
       
       const pending = await getRecordedDocuments(user.Department, 'recorded');
-      setPendingDocuments((pending || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+      setPendingDocuments((pending || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
       
       const released = await getRecordedDocuments(user.Department, 'released');
-      setReleasedDocuments((released || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+      setReleasedDocuments((released || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
     } catch (err: unknown) {
       console.error('Releaser all documents load error', err);
       const message = err instanceof Error ? err.message : String(err);
@@ -198,11 +199,7 @@ const ReleaserAllDocuments: React.FC = () => {
         <TabsContent value={activeTab} className="mt-4">
           <DocumentViewToggle
             documents={currentDocuments}
-            view={viewMode}
-            onViewChange={setViewMode}
             renderToggleInHeader={true}
-            showDescription
-            descriptionLabel="Comment"
             showDate={false}
             enablePagination
             pageSizeOptions={[10, 20, 50]}
@@ -211,7 +208,6 @@ const ReleaserAllDocuments: React.FC = () => {
               if (doc) openRelease(doc);
             } : undefined}
             showStatusFilter={false}
-            prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
           />
         </TabsContent>
       </Tabs>

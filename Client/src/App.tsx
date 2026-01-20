@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
@@ -47,6 +47,60 @@ import Layout from "./components/layout/Layout";
 
 const queryClient = new QueryClient();
 
+const router = createBrowserRouter(
+  [
+    { path: "/", element: <Index /> },
+    { path: "/login", element: <Login /> },
+
+    // Protected routes that share the main app layout
+    {
+      element: <Layout />,
+      children: [
+        { path: "/dashboard", element: <Dashboard /> },
+        { path: "/send-document", element: <SendDocument /> },
+        { path: "/my-documents", element: <MyDocuments /> },
+        { path: "/my-documents/pending", element: <MyPendingDocuments /> },
+        { path: "/my-documents/approved", element: <MyApprovedDocuments /> },
+        { path: "/my-documents/revision", element: <MyRevisionDocuments /> },
+        { path: "/all-documents", element: <AllDocuments /> },
+        { path: "/pending", element: <PendingDocuments /> },
+        { path: "/approved", element: <ApprovedDocuments /> },
+        { path: "/revision", element: <RevisionDocuments /> },
+        { path: "/received", element: <ReceivedRequests /> },
+        { path: "/documents/view/:id", element: <DocumentViewer /> },
+        { path: "/super-admin", element: <SuperAdminDashboard /> },
+        { path: "/manage-admins", element: <ManageAdmins /> },
+        { path: "/head", element: <HeadDashboard /> },
+        { path: "/head/all-documents", element: <HeadAllDocuments /> },
+        { path: "/head/not-forwarded", element: <HeadNotForwarded /> },
+        { path: "/head/forwarded", element: <HeadForwarded /> },
+        { path: "/division-head", element: <DivisionHead /> },
+        { path: "/head/manage-employees", element: <ManageEmployees /> },
+        { path: "/releaser", element: <ReleaserDashboard /> },
+        { path: "/releaser/all", element: <ReleaserAllDocuments /> },
+        { path: "/releaser/pending", element: <ReleaserPendingDocuments /> },
+        { path: "/releaser/released", element: <ReleaserReleasedDocuments /> },
+        { path: "/settings", element: <Settings /> },
+      ],
+    },
+
+    // Recorder-specific standalone layout (no sidebar)
+    {
+      element: <RecordLayout />,
+      children: [
+        { path: "/records", element: <RecorderDashboard /> },
+        { path: "/records/all", element: <AllRecorderDocuments /> },
+        { path: "/records/not-recorded", element: <NotRecordedDocuments /> },
+        { path: "/records/recorded", element: <RecordedDocuments /> },
+        { path: "/settings", element: <Settings /> },
+      ],
+    },
+
+    { path: "*", element: <NotFound /> },
+  ],
+  { future: { v7_startTransition: true, v7_relativeSplatPath: true } as any }
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -54,59 +108,8 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected Routes */}
-            <Route element={<Layout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/send-document" element={<SendDocument />} />
-              <Route path="/my-documents" element={<MyDocuments />} />
-              <Route path="/my-documents/pending" element={<MyPendingDocuments />} />
-              <Route path="/my-documents/approved" element={<MyApprovedDocuments />} />
-              <Route path="/my-documents/revision" element={<MyRevisionDocuments />} />
-              <Route path="/all-documents" element={<AllDocuments />} />
-              <Route path="/pending" element={<PendingDocuments />} />
-              <Route path="/approved" element={<ApprovedDocuments />} />
-              <Route path="/revision" element={<RevisionDocuments />} />
-              <Route path="/received" element={<ReceivedRequests />} />
-              <Route path="/documents/view/:id" element={<DocumentViewer />} />
-              {/* Super Admin Routes */}
-              <Route path="/super-admin" element={<SuperAdminDashboard />} />
-              <Route path="/manage-admins" element={<ManageAdmins />} />
-              {/* Head roles (DepartmentHead / DivisionHead / OfficerInCharge) */}
-              <Route path="/head" element={<HeadDashboard />} />
-              <Route path="/head/all-documents" element={<HeadAllDocuments />} />
-              <Route path="/head/not-forwarded" element={<HeadNotForwarded />} />
-              <Route path="/head/forwarded" element={<HeadForwarded />} />
-              <Route path="/division-head" element={<DivisionHead />} />
-              <Route path="/head/manage-employees" element={<ManageEmployees />} />
-              {/* Releaser Routes */}
-              <Route path="/releaser" element={<ReleaserDashboard />} />
-              <Route path="/releaser/all" element={<ReleaserAllDocuments />} />
-              <Route path="/releaser/pending" element={<ReleaserPendingDocuments />} />
-              <Route path="/releaser/released" element={<ReleaserReleasedDocuments />} />
-              {/* Settings - Available to all authenticated users */}
-              <Route path="/settings" element={<Settings />} />
-              {/* Admin Routes */}
-            </Route>
-
-            {/* Recorder-specific standalone layout (no sidebar) */}
-            <Route element={<RecordLayout />}>
-              <Route path="/records" element={<RecorderDashboard />} />
-              <Route path="/records/all" element={<AllRecorderDocuments />} />
-              <Route path="/records/not-recorded" element={<NotRecordedDocuments />} />
-              <Route path="/records/recorded" element={<RecordedDocuments />} />
-              {/* Settings - Available to all authenticated users */}
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
       </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>

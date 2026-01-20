@@ -56,9 +56,16 @@ const apiRequest = async (endpoint: string, options?: RequestInit) => {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const message =
+      let message =
         (data && (data.error || data.message)) ||
         `Request failed with status ${response.status}`;
+
+      // If server included a database error message, replace it with a generic message
+      // so we don't leak sensitive details (e.g., DB auth errors) to the client.
+      if (/database error/i.test(message) || /password authentication failed/i.test(message)) {
+        message = 'Internal server error';
+      }
+
       throw new Error(message);
     }
 
