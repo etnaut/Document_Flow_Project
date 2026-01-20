@@ -175,9 +175,9 @@ const HeadDashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#8b5cf6" />
-                  <Cell fill="#f59e0b" />
+                  <Cell fill="#10b981" /> {/* Success - keep green */}
+                  <Cell fill="#982B1C" /> {/* Info/Other - use muted red */}
+                  <Cell fill="#f59e0b" /> {/* Warning - keep amber */}
                 </Pie>
                 <Tooltip
                   contentStyle={{
@@ -250,7 +250,7 @@ const HeadDashboard: React.FC = () => {
                     itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                     labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                   />
-                  <Line type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6' }} activeDot={{ r: 6, fill: '#7c3aed' }} connectNulls={false} />
+                  <Line type="monotone" dataKey="total" stroke="#982B1C" strokeWidth={3} dot={{ r: 4, fill: '#982B1C' }} activeDot={{ r: 6, fill: '#800000' }} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

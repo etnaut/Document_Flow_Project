@@ -13,7 +13,6 @@ import {
 } from '@/services/api';
 import { Document } from '@/types';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
-import ViewToggle from '@/components/documents/ViewToggle';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
 import RespondDocumentDialog from '@/components/documents/RespondDocumentDialog';
 import { toast } from '@/hooks/use-toast';
@@ -40,7 +39,6 @@ const AllDocuments: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [respondDialogOpen, setRespondDialogOpen] = useState(false);
   const [selectedRespondDocument, setSelectedRespondDocument] = useState<Document | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
   useEffect(() => {
     fetchAllDocuments();
@@ -282,12 +280,12 @@ const AllDocuments: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
+    <div className="space-y-6 min-h-screen p-6">
       {/* Header */}
       <div className="bg-transparent">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-3xl font-bold text-foreground">Application Review</h1>
+          <p className="mt-1 text-muted-foreground">
             Review and manage business permit applications.
           </p>
         </div>
@@ -296,34 +294,34 @@ const AllDocuments: React.FC = () => {
       {/* Tabs with Toggle */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
         <div className="flex items-center justify-between gap-4">
-          <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
+          <TabsList className="bg-card border border-border rounded-lg p-1.5 h-auto gap-1 inline-flex">
           <TabsTrigger 
             value="all" 
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
             All ({counts.all})
           </TabsTrigger>
           <TabsTrigger 
             value="pending"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
             Pending ({counts.pending})
           </TabsTrigger>
           <TabsTrigger 
             value="approved"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
             Approved ({counts.approved})
           </TabsTrigger>
           <TabsTrigger 
             value="revision"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
             For Revision ({counts.revision})
           </TabsTrigger>
           <TabsTrigger 
             value="received"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
             Received Requests ({counts.received})
           </TabsTrigger>
@@ -331,28 +329,26 @@ const AllDocuments: React.FC = () => {
             <>
               <TabsTrigger 
                 value="not_forwarded"
-                className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
               >
                 Not Forwarded ({counts.not_forwarded})
               </TabsTrigger>
               <TabsTrigger 
                 value="forwarded"
-                className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
               >
                 Forwarded Documents ({counts.forwarded})
               </TabsTrigger>
             </>
           )}
           </TabsList>
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          
         </div>
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
           <DocumentViewToggle
             documents={currentDocuments}
-            view={viewMode}
-            onViewChange={setViewMode}
             onApprove={activeTab === 'pending' ? handleApprove : undefined}
             onReject={activeTab === 'pending' ? handleReject : undefined}
             onRevision={activeTab === 'pending' ? handleRevision : undefined}
@@ -365,7 +361,7 @@ const AllDocuments: React.FC = () => {
             enablePagination
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}
-            renderToggleInHeader={true}
+            renderToggleInHeader={false}
           />
         </TabsContent>
       </Tabs>

@@ -93,9 +93,9 @@ const ReleaserDashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#f59e0b" />
-                  <Cell fill="#3b82f6" />
+                  <Cell fill="#10b981" /> {/* Success - keep green */}
+                  <Cell fill="#f59e0b" /> {/* Warning - keep amber */}
+                  <Cell fill="#982B1C" /> {/* Awaiting Release - use muted red */}
                 </Pie>
                 <Tooltip
                   contentStyle={{
@@ -125,7 +125,7 @@ const ReleaserDashboard: React.FC = () => {
                 data={[
                   { name: 'Recorded', count: stats.recorded, color: '#10b981' },
                   { name: 'Not Recorded', count: stats.notRecorded, color: '#f59e0b' },
-                  { name: 'Awaiting Release', count: stats.awaitingRelease, color: '#3b82f6' },
+                  { name: 'Awaiting Release', count: stats.awaitingRelease, color: '#982B1C' },
                 ]}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
@@ -156,7 +156,7 @@ const ReleaserDashboard: React.FC = () => {
                     const colors: { [key: string]: string } = {
                       'Recorded': '#10b981',
                       'Not Recorded': '#f59e0b',
-                      'Awaiting Release': '#3b82f6',
+                      'Awaiting Release': '#982B1C',
                     };
                     return (
                       <rect
@@ -164,7 +164,7 @@ const ReleaserDashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#3b82f6'}
+                        fill={colors[payload.name] || '#982B1C'}
                         rx={8}
                         ry={8}
                       />

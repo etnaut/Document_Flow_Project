@@ -92,9 +92,9 @@ const Dashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#f59e0b" />
-                  <Cell fill="#10b981" />
-                  <Cell fill="#3b82f6" />
+                  <Cell fill="#f59e0b" /> {/* Warning - keep amber */}
+                  <Cell fill="#10b981" /> {/* Success - keep green */}
+                  <Cell fill="#982B1C" /> {/* Revision - use muted red */}
                 </Pie>
                 <Tooltip
                   contentStyle={{
@@ -124,7 +124,7 @@ const Dashboard: React.FC = () => {
                 data={[
                   { name: 'Pending', count: stats.pending, color: '#f59e0b' },
                   { name: 'Approved', count: stats.approved, color: '#10b981' },
-                  { name: 'Revision', count: stats.revision, color: '#3b82f6' },
+                  { name: 'Revision', count: stats.revision, color: '#982B1C' },
                 ]}
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
                     const colors: { [key: string]: string } = {
                       'Pending': '#f59e0b',
                       'Approved': '#10b981',
-                      'Revision': '#3b82f6',
+                      'Revision': '#982B1C',
                     };
                     return (
                       <rect
@@ -163,7 +163,7 @@ const Dashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#3b82f6'}
+                        fill={colors[payload.name] || '#982B1C'}
                         rx={8}
                         ry={8}
                       />

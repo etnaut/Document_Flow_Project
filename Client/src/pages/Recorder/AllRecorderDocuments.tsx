@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
-import ViewToggle from '@/components/documents/ViewToggle';
+
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -24,7 +24,6 @@ const AllRecorderDocuments: React.FC = () => {
   const [recordDialogDoc, setRecordDialogDoc] = useState<Document | null>(null);
   const [recordStatus, setRecordStatus] = useState<'recorded' | 'not_recorded'>('recorded');
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
   useEffect(() => {
     if (!user) return;
@@ -122,7 +121,7 @@ const AllRecorderDocuments: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
+    <div className="space-y-6 min-h-screen p-6 bg-background">
       {/* Header */}
       <div className="bg-transparent">
         <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
@@ -137,32 +136,29 @@ const AllRecorderDocuments: React.FC = () => {
           <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
             <TabsTrigger 
               value="all" 
-              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
             >
               All ({counts.all})
             </TabsTrigger>
             <TabsTrigger 
               value="not_recorded"
-              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
             >
               Not Recorded ({counts.not_recorded})
             </TabsTrigger>
             <TabsTrigger 
               value="recorded"
-              className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground data-[state=inactive]:hover:bg-muted rounded-md px-4 py-2 text-sm font-medium transition-all"
             >
               Recorded ({counts.recorded})
             </TabsTrigger>
           </TabsList>
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
         </div>
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
           <DocumentViewToggle
             documents={currentDocuments}
-            view={viewMode}
-            onViewChange={setViewMode}
             showDescription
             descriptionLabel="Admin"
             showDate={false}
@@ -170,7 +166,6 @@ const AllRecorderDocuments: React.FC = () => {
             enablePagination
             pageSizeOptions={[10,20,50]}
             showStatusFilter={false}
-            renderToggleInHeader={true}
           />
         </TabsContent>
       </Tabs>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getUsers } from '@/services/api';
 import { Shield, Users, UserCog } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, BarChart, Bar } from 'recharts';
 import { getMonthlyStats } from '@/services/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import StatCard from '@/components/dashboard/StatCard';
 
 const SuperAdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -87,44 +88,9 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold text-muted-foreground">
-              Total Admins
-            </CardTitle>
-            <Shield className="h-7 w-7 text-primary" />
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="text-4xl font-bold text-foreground">{stats.admins}</div>
-            <p className="text-sm text-muted-foreground mt-1">Department administrators</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold text-muted-foreground">
-              Total Employees
-            </CardTitle>
-            <Users className="h-7 w-7 text-primary" />
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="text-4xl font-bold text-foreground">{stats.employees}</div>
-            <p className="text-sm text-muted-foreground mt-1">Across all departments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-semibold text-muted-foreground">
-              Total Users
-            </CardTitle>
-            <UserCog className="h-7 w-7 text-primary" />
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="text-4xl font-bold text-foreground">{stats.admins + stats.employees}</div>
-            <p className="text-sm text-muted-foreground mt-1">System-wide</p>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Admins" value={stats.admins} icon={Shield} variant="primary" />
+        <StatCard title="Total Employees" value={stats.employees} icon={Users} variant="info" />
+        <StatCard title="Total Users" value={stats.admins + stats.employees} icon={UserCog} variant="default" />
       </div>
 
       {/* Charts Section */}
@@ -150,8 +116,8 @@ const SuperAdminDashboard: React.FC = () => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#8b5cf6" />
-                  <Cell fill="#06b6d4" />
+                  <Cell fill="#800000" /> {/* Admins - dark maroon */}
+                  <Cell fill="#982B1C" /> {/* Employees - muted red */}
                 </Pie>
                 <Tooltip
                      contentStyle={{
@@ -211,7 +177,7 @@ const SuperAdminDashboard: React.FC = () => {
                   labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                   itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 />
-                <Line type="monotone" dataKey="total" stroke="#ec4899" strokeWidth={3} dot={{ r: 4, fill: '#ec4899' }} activeDot={{ r: 6, fill: '#db2777' }} connectNulls={false} />
+                <Line type="monotone" dataKey="total" stroke="#982B1C" strokeWidth={3} dot={{ r: 4, fill: '#982B1C' }} activeDot={{ r: 6, fill: '#800000' }} connectNulls={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

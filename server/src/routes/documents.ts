@@ -1010,7 +1010,6 @@ router.get('/releases', async (req: Request, res: Response) => {
       'ad.approved_doc_id',
       'sd.document_id',
       'sd.type',
-      'sd.priority',
       'sd.document',
       'sd.user_id',
       'u.full_name',

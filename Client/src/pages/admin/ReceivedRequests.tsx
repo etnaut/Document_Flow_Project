@@ -106,7 +106,7 @@ const ReceivedRequests: React.FC = () => {
   };
 
   const renderActions = (doc: Document) => (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex w-full justify-center gap-2">
       <Button variant="outline" size="sm" onClick={() => handleRespondClick(doc)}>
         <Reply className="mr-2 h-4 w-4" /> Respond
       </Button>

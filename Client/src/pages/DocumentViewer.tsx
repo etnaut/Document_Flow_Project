@@ -2,25 +2,44 @@ import React from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { Document, RevisionEntry } from '@/types';
 import { API_BASE_URL, getRevisions } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Download, ArrowLeft } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { 
+  FileText, 
+  Menu,
+  X
+} from 'lucide-react';
+import { formatDateTime, cn } from '@/lib/utils';
 
 const DocumentViewer: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const params = useParams();
+  const { user } = useAuth();
   const doc = (state as any)?.doc as Document | undefined;
-  const docId = doc?.Document_Id ?? Number(params.id);
+  const initialDocId = doc?.Document_Id ?? Number(params.id);
 
-  const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
+  const [selectedDoc, setSelectedDoc] = React.useState<Document | null>(doc || null);
   const [fileBytes, setFileBytes] = React.useState<Uint8Array | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
   const [revisionEntry, setRevisionEntry] = React.useState<RevisionEntry | null>(null);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = React.useState<boolean>(false);
+  
+  // Responsive: make details collapsible on small screens
+  React.useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setIsDetailsCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const revokePreviewUrl = (url?: string | null) => { if (url) URL.revokeObjectURL(url); };
 
@@ -82,141 +101,187 @@ const DocumentViewer: React.FC = () => {
     }
   };
 
-  const openDocument = () => {
-    if (!fileBytes) return;
-    try {
-      if (mimeChoice === 'pdf' && previewUrl) {
-        window.open(previewUrl, '_blank');
-        return;
-      }
-      const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
-      const mime = mimeChoice === 'pdf'
-        ? 'application/pdf'
-        : mimeChoice === 'word'
-        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        : mimeChoice === 'excel'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'application/octet-stream';
-      const blob = new Blob([buffer], { type: mime });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (error) {
-      console.error('Open document error', error);
-    }
-  };
-
-  React.useEffect(() => {
-    return () => revokePreviewUrl(previewUrl);
-  }, [previewUrl]);
-
-  React.useEffect(() => {
-    const run = async () => {
-      if (!docId) return;
-      let bytes = doc ? decodePayload((doc as any).Document) : null;
+  const loadDocument = async (doc: Document) => {
+    setSelectedDoc(doc);
+    
+    const docId = doc.Document_Id;
+    let bytes = decodePayload((doc as any).Document);
+    
       if (bytes) {
         const detected = detectMimeChoice(bytes);
         setFileBytes(bytes);
-        setMimeChoice(detected);
         if (detected === 'pdf') {
           buildPdfPreview(bytes);
         } else {
-          if (mimeChoice === 'pdf') await fetchPreviewPdf(docId);
-          else setPreviewUrl(null);
+          await fetchPreviewPdf(docId);
         }
       } else {
         setFileBytes(null);
         await fetchPreviewPdf(docId);
       }
 
-      // If in revision status, try to fetch the latest revision comment for this document
-      const isRevision = String(doc?.Status || '').toLowerCase() === 'revision';
-      if (isRevision) {
-        try {
-          const revs = await getRevisions();
-          const byDoc = revs.filter((r) => r.document_id === docId);
-          const latest = byDoc.length ? byDoc[byDoc.length - 1] : null;
-          setRevisionEntry(latest);
-        } catch (err) {
-          console.warn('Failed to load revision entry', err);
-          setRevisionEntry(null);
-        }
-      } else {
+    // Load revision entry if status is revision
+    const isRevision = String(doc.Status || '').toLowerCase() === 'revision';
+    if (isRevision) {
+      try {
+        const revs = await getRevisions();
+        const byDoc = revs.filter((r) => r.document_id === docId);
+        const latest = byDoc.length ? byDoc[byDoc.length - 1] : null;
+        setRevisionEntry(latest);
+      } catch (err) {
+        console.warn('Failed to load revision entry', err);
         setRevisionEntry(null);
       }
+    } else {
+      setRevisionEntry(null);
+    }
+  };
+
+
+  const getPriorityColor = (priority?: string) => {
+    const p = (priority || '').toLowerCase();
+    if (p === 'high') return 'bg-red-600 text-white';
+    if (p === 'medium' || p === 'moderate') return 'bg-yellow-600 text-white';
+    if (p === 'low') return 'bg-green-600 text-white';
+    return 'bg-gray-600 text-white';
+  };
+
+  // Load the document if we have one from props/params
+  React.useEffect(() => {
+    if (doc && !selectedDoc) {
+      setSelectedDoc(doc);
+    }
+  }, [doc]);
+
+  // Load selected document when it changes
+  React.useEffect(() => {
+    if (selectedDoc) {
+      void loadDocument(selectedDoc);
+    }
+  }, [selectedDoc?.Document_Id]);
+
+  React.useEffect(() => {
+    return () => revokePreviewUrl(previewUrl);
+  }, [previewUrl]);
+
+  // Prevent horizontal scrollbars while viewing a document (PDF iframe toolbars can overflow)
+  React.useEffect(() => {
+    const prevBody = document.body.style.overflowX;
+    const prevHtml = document.documentElement.style.overflowX;
+    document.body.style.overflowX = 'hidden';
+    document.documentElement.style.overflowX = 'hidden';
+    return () => {
+      document.body.style.overflowX = prevBody;
+      document.documentElement.style.overflowX = prevHtml;
     };
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docId]);
+  }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="shrink-0"><ArrowLeft className="h-4 w-4" /></Button>
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground truncate">{doc?.Type || 'Attachment'}</p>
-            <h1 className="text-xl font-semibold truncate">{doc?.sender_name || 'Document'}</h1>
-          </div>
-          {doc?.Priority && <Badge className="ml-2 shrink-0">{doc.Priority}</Badge>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="View as" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pdf">PDF</SelectItem>
-              <SelectItem value="word">Word</SelectItem>
-              <SelectItem value="excel">Excel</SelectItem>
-              <SelectItem value="auto">Auto (detected)</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => openDocument()} disabled={!fileBytes}>
-            <ExternalLink className="mr-2 h-4 w-4" /> Open
-          </Button>
-          <Button onClick={() => openDocument()} disabled={!fileBytes}>
-            <Download className="mr-2 h-4 w-4" /> Download
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-12 rounded-xl border overflow-hidden bg-card shadow-card">
-        <div className="md:col-span-8 bg-background">
-          {revisionEntry && (
-            <div className="border-b bg-muted/30 px-4 py-3">
-              <p className="text-sm font-medium text-foreground">Revision Comment</p>
-              <p className="text-xs text-muted-foreground mt-1">{revisionEntry.admin ? `By ${revisionEntry.admin}` : ''}</p>
-              <p className="mt-2 text-sm text-foreground/90 break-words">{revisionEntry.comment || '—'}</p>
+    <div className="h-screen w-screen overflow-hidden overflow-x-hidden flex flex-col" style={{ fontFamily: 'Inter, sans-serif' }}>
+      {/* Details Panel - Top */}
+      {!isDetailsCollapsed && selectedDoc && (
+        <div className="border-b border-gray-200 shrink-0">
+          <div className="bg-white p-4 w-full max-w-[1280px] mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#8C1D18]">Details</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setIsDetailsCollapsed(true)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          )}
-          {previewLoading ? (
-            <div className="flex h-[75vh] items-center justify-center">
-              <div className="animate-pulse rounded-md border bg-muted/30 w-[92%] h-[65vh]" />
+            <div className="grid grid-cols-5 gap-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Type</label>
+                <p className="text-sm text-gray-900 mt-1">{selectedDoc.Type || '—'}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sender</label>
+                <p className="text-sm text-gray-900 mt-1">{selectedDoc.sender_name || '—'}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Priority</label>
+                <div className="mt-1">
+                  {selectedDoc.Priority ? (
+                    <Badge className={cn("text-xs", getPriorityColor(selectedDoc.Priority))}>
+                      {selectedDoc.Priority}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-gray-900">—</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</label>
+                <p className="text-sm text-gray-900 mt-1">{selectedDoc.Status || '—'}</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Date</label>
+                <p className="text-sm text-gray-900 mt-1">{formatDateTime(selectedDoc.created_at)}</p>
+              </div>
             </div>
-          ) : previewUrl ? (
-            <iframe title="Attachment preview" src={previewUrl} className="h-[75vh] w-full" />
-          ) : (
-            <div className="flex h-[75vh] items-center justify-center text-sm text-muted-foreground text-center px-6">
-              {previewError
-                ? previewError
-                : 'Preview will be generated as PDF when available. For Word or Excel files, we convert a temporary PDF preview.'}
-            </div>
-          )}
-        </div>
-        <div className="md:col-span-4 border-l bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-medium text-foreground">Details</p>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <div><span className="font-medium text-foreground">Type:</span> {doc?.Type || '—'}</div>
-            <div><span className="font-medium text-foreground">Sender:</span> {doc?.sender_name || '—'}</div>
-            <div><span className="font-medium text-foreground">Priority:</span> {doc?.Priority || '—'}</div>
-            <div><span className="font-medium text-foreground">Status:</span> {doc?.Status || '—'}</div>
-            <div><span className="font-medium text-foreground">Date:</span> {formatDateTime(doc?.created_at)}</div>
-            {doc?.description && (
-              <div className="mt-2">
-                <span className="font-medium text-foreground">Notes:</span>
-                <p className="mt-1 text-xs text-foreground/80 break-words">{doc.description}</p>
+            {selectedDoc.description && (
+              <div className="mt-4">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2">Notes</label>
+                <p className="text-sm text-gray-900">{selectedDoc.description}</p>
               </div>
             )}
           </div>
+        </div>
+      )}
+      
+      {isDetailsCollapsed && (
+        <div className="border-b border-gray-200 shrink-0 p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => setIsDetailsCollapsed(false)}
+          >
+            <Menu className="h-4 w-4 mr-2" /> Show Details
+          </Button>
+        </div>
+      )}
+
+      {/* Document Viewer - Full Width */}
+      <div className="flex-1 flex overflow-hidden" style={{ height: isDetailsCollapsed ? 'calc(100vh)' : 'calc(100vh - 200px)' }}>
+        {/* PDF Preview Canvas */}
+        <div 
+          className="flex items-center justify-center overflow-hidden w-full" 
+          style={{ 
+            height: '100%', 
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+            <div className="w-full h-full max-w-[1280px] mx-auto overflow-hidden">
+            {previewLoading ? (
+              <div className="w-full h-full animate-pulse bg-white" style={{ height: '100%' }} />
+            ) : previewUrl ? (
+              <iframe 
+                title="PDF preview" 
+                src={previewUrl} 
+                className="border-0"
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  overflow: 'hidden',
+                  display: 'block'
+                }}
+                scrolling="no"
+              />
+            ) : (
+              <div className="text-center text-gray-500 p-8">
+                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-sm">
+                  {previewError || 'Document preview will appear here'}
+                </p>
+              </div>
+            )}
+            </div>
         </div>
       </div>
     </div>

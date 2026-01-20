@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, Download, ExternalLink, Search } from 'lucide-react';
+import { Eye, Download, ExternalLink, Search, Paperclip } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 interface DocumentTableProps {
@@ -211,11 +211,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   }, [query, statusFilter, pageSize, documents]);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               value={query} 
               onChange={(e) => setQuery(e.target.value)} 
@@ -237,7 +237,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         </div>
         {enablePagination && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Show:</span>
+            <span className="text-sm text-muted-foreground">Show:</span>
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
               <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -250,26 +250,26 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       <div className="overflow-x-auto">
         <Table>
         <TableHeader>
-          <TableRow className="bg-gray-50">
-            <TableHead className="w-12 text-center font-semibold text-gray-700">ID</TableHead>
-            <TableHead className="font-semibold text-gray-700">Type</TableHead>
-            <TableHead className="font-semibold text-gray-700">Sender</TableHead>
-            {showPriority && <TableHead className="font-semibold text-gray-700">Priority</TableHead>}
-            <TableHead className="font-semibold text-gray-700">Document</TableHead>
-            {showDate && <TableHead className="font-semibold text-gray-700">Date</TableHead>}
+          <TableRow className="bg-muted/50">
+            <TableHead className="w-12 text-center font-semibold">ID</TableHead>
+            <TableHead className="font-semibold">Type</TableHead>
+            <TableHead className="font-semibold">Sender</TableHead>
+            {showPriority && <TableHead className="font-semibold">Priority</TableHead>}
+            <TableHead className="font-semibold">Document</TableHead>
+            {showDate && <TableHead className="font-semibold">Date</TableHead>}
             {showCommentColumn && (
-              <TableHead className="font-semibold text-gray-700">
+              <TableHead className="font-semibold">
                 {showDescription ? descriptionLabel : (hasComments ? 'Comment' : descriptionLabel)}
               </TableHead>
             )}
-            <TableHead className="font-semibold text-gray-700">Status</TableHead>
-            {renderActions && <TableHead className="font-semibold text-gray-700">Actions</TableHead>}
+            <TableHead className="font-semibold">Status</TableHead>
+            {renderActions && <TableHead className="font-semibold">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageSlice.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columnsCount + 1} className="h-24 text-center text-black/80">
+              <TableCell colSpan={columnsCount + 1} className="h-24 text-center text-muted-foreground">
                 No documents found.
               </TableCell>
             </TableRow>
@@ -279,10 +279,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 ? (currentPage - 1) * pageSize + index + 1 
                 : index + 1;
               return (
-              <TableRow key={doc.Document_Id} className="animate-fade-in border-b border-gray-200 hover:bg-gray-50">
-                <TableCell className="font-medium text-gray-600 text-center">{rowNumber}</TableCell>
-                <TableCell className="text-gray-700">{doc.Type}</TableCell>
-                <TableCell className="text-gray-700">{doc.sender_name}</TableCell>
+              <TableRow key={doc.Document_Id} className={`animate-fade-in ${index % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-muted/40'}`}> 
+                <TableCell className="font-medium text-foreground text-center">{rowNumber}</TableCell>
+                <TableCell className="text-foreground">{doc.Type}</TableCell>
+                <TableCell className="text-foreground">{doc.sender_name}</TableCell>
                 {showPriority && (
                   <TableCell>
                     {(() => {
@@ -307,7 +307,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           {prioritySuffix && (() => {
                             const suffix = prioritySuffix(doc);
                             if (!suffix) return null;
-                            return <span className="ml-2 text-xs text-gray-700">/{suffix}</span>;
+                            return <span className="ml-2 text-xs text-muted-foreground">/{suffix}</span>;
                           })()}
                         </>
                       );
@@ -318,12 +318,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   {doc.Document ? (
                     <Button
                       variant="link"
-                      className="px-0 text-xs text-black hover:underline"
+                      className="px-0 text-xs text-blue-600 underline inline-flex items-center gap-1"
                       onClick={() => {
                         void handleAttachmentClick(doc);
                       }}
                     >
-                      Attached
+                      <Paperclip className="h-4 w-4" />
+                      <span>Attached</span>
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">None</span>
@@ -527,7 +528,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       </Table>
       </div>
       {enablePagination && (
-        <div className="p-4 border-t border-gray-200 grid grid-cols-3 items-center text-sm bg-gray-50">
+        <div className="p-4 border-t border-border grid grid-cols-3 items-center text-sm bg-muted/30">
           <div className="justify-self-start">
             <Pagination>
               <PaginationContent>
@@ -541,7 +542,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               </PaginationContent>
             </Pagination>
           </div>
-          <div className="justify-self-center text-sm text-gray-600">
+          <div className="justify-self-center text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
           </div>
           <div className="justify-self-end">

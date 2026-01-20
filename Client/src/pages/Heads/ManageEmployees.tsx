@@ -172,9 +172,9 @@ const ManageEmployees: React.FC = () => {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading employees…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Loading employees…</TableCell></TableRow>
             ) : filteredEmployees.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">No employees found</TableCell></TableRow>
             ) : (
               pageSlice.map((emp) => (
                 <TableRow key={emp.User_Id} className="animate-fade-in">

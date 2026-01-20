@@ -17,6 +17,7 @@ import {
   MessageCircle,
   ChevronLeft,
   ChevronRight,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <aside
       className={cn(
-        'fixed left-4 top-4 bottom-4 z-40 rounded-3xl',
+        'fixed inset-y-0 left-0 z-50 rounded-r-3xl h-screen',
         'bg-primary/80 backdrop-blur-xl',
         'border border-primary/30 shadow-2xl',
         'text-white transition-[width] duration-300 ease-in-out',
@@ -166,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         )}
 
         {/* Navigation */}
-        <nav className={cn('flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 pb-3', collapsed && 'px-2')}>
+        <nav className={cn('flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 pb-3 overscroll-contain', collapsed && 'px-2')}>
           {links.map((link) => {
             const isActiveRoute = location.pathname === link.to || 
               (link.to !== '/dashboard' && link.to !== '/super-admin' && link.to !== '/head' && 
@@ -235,6 +236,67 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             );
           })}
         </nav>
+
+        {/* Settings */}
+        <div className={cn('px-3 pb-3', collapsed && 'px-2')}>
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              cn(
+                'group relative flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium',
+                'transition-all duration-500 ease-out overflow-hidden',
+                collapsed && 'justify-center'
+              )
+            }
+          >
+            {/* Glow effect behind the pill */}
+            <span
+              className={cn(
+                'absolute inset-0 rounded-full bg-white/20 blur-md transition-all duration-500 ease-out',
+                'overflow-hidden',
+                location.pathname === '/settings'
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-100 group-hover:opacity-30 group-hover:scale-100'
+              )}
+            />
+            {/* White pill background for active state with enhanced shadow */}
+            <span
+              className={cn(
+                'absolute inset-0 rounded-full bg-white transition-all duration-500 ease-out',
+                location.pathname === '/settings'
+                  ? 'opacity-100 scale-100'
+                  : 'opacity-0 scale-95 group-hover:opacity-10 group-hover:scale-100'
+              )}
+              style={{
+                boxShadow: location.pathname === '/settings'
+                  ? '0 4px 16px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+                  : 'none',
+              }}
+            />
+            {/* Icon */}
+            <Settings 
+              className={cn(
+                'relative z-10 h-5 w-5 transition-all duration-500 ease-out',
+                location.pathname === '/settings'
+                  ? 'text-primary scale-105'
+                  : 'text-white scale-100'
+              )} 
+            />
+            {/* Label */}
+            {!collapsed && (
+              <span 
+                className={cn(
+                  'relative z-10 transition-all duration-500 ease-out',
+                  location.pathname === '/settings'
+                    ? 'text-primary font-semibold scale-105'
+                    : 'text-white scale-100'
+                )}
+              >
+                Settings
+              </span>
+            )}
+          </NavLink>
+        </div>
 
         {/* Logout */}
         <div className={cn('px-3 pb-4', collapsed && 'px-2')}>

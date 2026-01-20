@@ -415,3 +415,21 @@ export const getDocumentTrack = async (documentId?: number): Promise<any> => {
   const q = `?documentId=${documentId}`;
   return apiRequest(`/documents/track${q}`, { method: 'GET' });
 };
+
+// Get department theme
+export const getDepartmentTheme = async (department: string): Promise<{ theme: string }> => {
+  return apiRequest(`/departments/theme/${encodeURIComponent(department)}`, { method: 'GET' });
+};
+
+// Update department theme (Admin only)
+export const updateDepartmentTheme = async (
+  department: string,
+  theme: 'light' | 'dark',
+  userRole: string,
+  userDepartment: string
+): Promise<{ department: string; theme: string }> => {
+  return apiRequest(`/departments/theme/${encodeURIComponent(department)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ theme, userRole, userDepartment }),
+  });
+};

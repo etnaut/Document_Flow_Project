@@ -200,7 +200,7 @@ const SendDocument: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
+    <div className="min-h-screen p-6 bg-background">
       {/* Header - Outside cards */}
       <div className="mb-6 animate-slide-up">
         <h1 className="text-3xl font-bold text-foreground">Send Document</h1>

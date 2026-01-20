@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { FileText, Clock, CheckCircle } from 'lucide-react';
+import StatCard from '@/components/dashboard/StatCard';
 
 const RecorderDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -50,7 +52,7 @@ const RecorderDashboard: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Recorder Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Quick counts for your department's documents.</p>
         </div>
         <button
@@ -62,10 +64,10 @@ const RecorderDashboard: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Documents" value={counts.total} loading={loading} />
-        <StatCard title="Not Recorded" value={counts.notRecorded} loading={loading} />
-        <StatCard title="Recorded" value={counts.recorded} loading={loading} />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Total Documents" value={counts.total} icon={FileText} loading={loading} variant="default" />
+        <StatCard title="Not Recorded" value={counts.notRecorded} icon={Clock} loading={loading} variant="warning" />
+        <StatCard title="Recorded" value={counts.recorded} icon={CheckCircle} loading={loading} variant="success" />
       </div>
 
       {/* Charts */}
@@ -157,7 +159,7 @@ const RecorderDashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#3b82f6'}
+                        fill={colors[payload.name] || '#982B1C'}
                         rx={8}
                         ry={8}
                       />
@@ -172,12 +174,5 @@ const RecorderDashboard: React.FC = () => {
     </div>
   );
 };
-
-const StatCard: React.FC<{ title: string; value: number; loading?: boolean }> = ({ title, value, loading }) => (
-  <div className="rounded-lg border bg-card p-4 shadow-sm">
-    <p className="text-sm text-muted-foreground">{title}</p>
-    <p className="text-2xl font-bold text-foreground">{loading ? '…' : value}</p>
-  </div>
-);
 
 export default RecorderDashboard;

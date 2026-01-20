@@ -125,9 +125,9 @@ const DivisionHead: React.FC = () => {
 					</TableHeader>
 					<TableBody>
 						{loading ? (
-							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading...</TableCell></TableRow>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Loading...</TableCell></TableRow>
 						) : employees.length === 0 ? (
-							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">No employees found</TableCell></TableRow>
 						) : (
 							pageSlice.map((emp) => (
 								<TableRow key={emp.User_Id} className="animate-fade-in">
