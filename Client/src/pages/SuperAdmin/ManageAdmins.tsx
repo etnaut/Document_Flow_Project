@@ -524,7 +524,6 @@ const ManageAdmins: React.FC = () => {
                         <DropdownMenuContent>
                           <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, true)}>Activate</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, false)}>Deactivate</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => openOverrideDialog(a)}>Override</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => openImpersonateDialog(a)}>Sign in as</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
