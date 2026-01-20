@@ -1553,27 +1553,31 @@ router.get('/track', async (req: Request, res: Response) => {
           'rd.respond_doc_id',
           'rd.user_id',
           'rd.status',
-          `rd.${fkColumnName}`,
         ];
 
         if (respondCols.has('comment')) respondSelectCols.push('rd.comment');
         if (respondCols.has('document')) respondSelectCols.push('rd.document');
-        if (respondCols.has('document_name')) respondSelectCols.push('rd.document_name');
-        else if (respondCols.has('filename')) respondSelectCols.push('rd.filename');
-        else if (respondCols.has('file_name')) respondSelectCols.push('rd.file_name');
-        if (respondCols.has('document_type')) respondSelectCols.push('rd.document_type');
-        else if (respondCols.has('mime')) respondSelectCols.push('rd.mime');
-        else if (respondCols.has('content_type')) respondSelectCols.push('rd.content_type');
-
-        // Always include sender document info
-        respondSelectCols.push('sd.document_id', 'sd.type', 'sd.document');
+        if (respondCols.has('document_name')) respondSelectCols.push('rd.document_name AS document_name');
+        else if (respondCols.has('filename')) respondSelectCols.push('rd.filename AS document_name');
+        else if (respondCols.has('file_name')) respondSelectCols.push('rd.file_name AS document_name');
+        if (respondCols.has('document_type')) respondSelectCols.push('rd.document_type AS mime');
+        else if (respondCols.has('mime')) respondSelectCols.push('rd.mime AS mime');
+        else if (respondCols.has('content_type')) respondSelectCols.push('rd.content_type AS mime');
 
         const respondRes = await pool.query(
-          `SELECT ${respondSelectCols.join(',\n         ')}
+          `SELECT ${respondSelectCols.join(',\n         ')},
+                   u.full_name,
+                   u.department_id,
+                   d.department AS department,
+                   u.division_id,
+                   dv.division AS division
            FROM respond_document_tbl rd
            JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
            JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
            JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
+           LEFT JOIN user_tbl u ON u.user_id = rd.user_id
+           LEFT JOIN department_tbl d ON u.department_id = d.department_id
+           LEFT JOIN division_tbl dv ON u.division_id = dv.division_id
           WHERE sd.document_id = $1
           ORDER BY rd.respond_doc_id DESC`,
          [documentId]

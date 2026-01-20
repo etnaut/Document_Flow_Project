@@ -15,10 +15,10 @@ import { MessageSquare, CheckCircle2, Circle, Loader2, Clock, Package, Send, Fil
 interface TrackDocumentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  document: Document | null;
+  doc: Document | null;
 }
 
-const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenChange, document }) => {
+const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenChange, doc }) => {
   const [trackData, setTrackData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [showResponses, setShowResponses] = useState(false);
@@ -29,11 +29,11 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
       setLoading(true);
       setMounted(false);
       try {
-        if (!document) {
+        if (!doc) {
           setTrackData(null);
           return;
         }
-        const data = await getDocumentTrack(document.Document_Id);
+        const data = await getDocumentTrack(doc.Document_Id);
         setTrackData(data || null);
         // Small delay to trigger animation
         setTimeout(() => setMounted(true), 100);
@@ -51,7 +51,7 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
     } else {
       setMounted(false);
     }
-  }, [open, document]);
+  }, [open, doc]);
 
   const getStageIcon = (stageKey: string, done: boolean, isCurrent: boolean) => {
     if (done) return <CheckCircle2 className="h-5 w-5" />;
@@ -69,6 +69,30 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
       target: <Building2 className="h-4 w-4" />,
     };
     return icons[stageKey] || <Circle className="h-4 w-4" />;
+  };
+
+  const openBase64File = (base64: string, filename?: string, mime?: string) => {
+    try {
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mime || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      // If the browser can preview the MIME type, open in new tab; otherwise force download
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      if (filename) a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      console.error('Failed to open file', err);
+    }
   };
 
   return (
@@ -315,6 +339,7 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                           <div>
                             <div className="text-xs text-muted-foreground mb-0.5">Respond from</div>
                             <div className="text-sm font-medium">{response.full_name || '—'}</div>
+                            <div className="text-xs text-muted-foreground">User ID: {response.user_id ?? '—'}</div>
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
@@ -356,6 +381,21 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                           </div>
                         </div>
                       </div>
+                      {response.document && (
+                        <div className="pt-3 border-t border-muted/50">
+                          <div className="flex items-start gap-3">
+                            <FileCheck className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-2 font-medium">Attachment</div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-foreground">{response.document_name || 'Attached file'}</span>
+                                <Button size="sm" variant="ghost" onClick={() => openBase64File(response.document, response.document_name, response.mime)}>View</Button>
+                                <Button size="sm" variant="outline" onClick={() => openBase64File(response.document, response.document_name, response.mime)}>Download</Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
