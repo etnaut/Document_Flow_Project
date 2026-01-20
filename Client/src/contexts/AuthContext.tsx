@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '@/types';
 import defaultRouteHelper from '@/utils/getDefaultRoute';
-import { loginUser, normalizeUser } from '@/services/api';
+import { loginUser, normalizeUser, impersonateUser } from '@/services/api';
+import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { Button } from '@/components/ui/button';
 
 const STORAGE_KEY = 'dms_user';
+const STORAGE_IMPERSONATOR_KEY = 'dms_impersonator';
 
 const readStoredUser = (): User | null => {
   if (typeof window === 'undefined') return null;
@@ -23,6 +27,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [impersonator, setImpersonator] = useState<User | null>(null);
 
   useEffect(() => {
     // Check for existing session
@@ -32,10 +37,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(storedUser);
       setIsAuthenticated(true);
     }
+    // Restore impersonator if present (so revert is possible after reload)
+    try {
+      const storedImp = sessionStorage.getItem(STORAGE_IMPERSONATOR_KEY);
+      if (storedImp) {
+        setImpersonator(normalizeUser(JSON.parse(storedImp)));
+      }
+    } catch (err) {
+      // ignore
+    }
     // Done initializing auth state
     setLoading(false);
   }, []);
-
 
   const login = async (username: string, password: string): Promise<User | null> => {
     const authenticatedUser = await loginUser(username, password);
@@ -59,11 +72,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const revertImpersonation = () => {
+    // Restore the previous user saved at impersonation time
+    const stored = sessionStorage.getItem(STORAGE_IMPERSONATOR_KEY);
+    let prev: User | null = impersonator ?? null;
+    if (!prev && stored) {
+      try { prev = normalizeUser(JSON.parse(stored)); } catch {}
+    }
+
+    if (!prev) {
+      toast({ title: 'Cannot revert', description: 'No impersonation session found to revert.', variant: 'destructive' });
+      return;
+    }
+
+    setUser(prev);
+    setIsAuthenticated(true);
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(prev));
+    setImpersonator(null);
+    sessionStorage.removeItem(STORAGE_IMPERSONATOR_KEY);
+    toast({ title: 'Session restored', description: `Signed back in as ${prev.Full_Name}` });
+  };
+
+  const impersonateById = async (userId: number): Promise<User | null> => {
+    try {
+      const target = await impersonateUser(userId);
+      if (!target) throw new Error('User not found');
+
+      const previous = user;
+      if (previous) {
+        setImpersonator(previous);
+        try { sessionStorage.setItem(STORAGE_IMPERSONATOR_KEY, JSON.stringify(previous)); } catch {}
+      }
+
+      setUser(target);
+      setIsAuthenticated(true);
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(target)); } catch {}
+
+      // Show revert action in toast
+      toast({
+        title: `Signed in as ${target.Full_Name}`,
+        description: 'You are now impersonating this account.',
+        action: (
+          <ToastAction altText="Revert impersonation" asChild>
+            <Button onClick={() => revertImpersonation()}>Revert</Button>
+          </ToastAction>
+        ) as any,
+      });
+
+      return target;
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to impersonate', variant: 'destructive' });
+      return null;
+    }
+  };
+
   // Use the shared helper for default route logic
   const getDefaultRoute = (userOrRole: any) => defaultRouteHelper(userOrRole);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, getDefaultRoute, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, getDefaultRoute, loading, impersonateById, revertImpersonation, impersonator }}>
       {children}
     </AuthContext.Provider>
   );

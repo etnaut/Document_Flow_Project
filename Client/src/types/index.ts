@@ -92,4 +92,8 @@ export interface AuthContextType {
   loading: boolean;
   // Accept either a User object (preferred) or a role string
   getDefaultRoute: (userOrRole: User | string) => string;
+  // Impersonation helpers added for SuperAdmin
+  impersonateById: (userId: number) => Promise<User | null>;
+  revertImpersonation: () => void;
+  impersonator?: User | null;
 }

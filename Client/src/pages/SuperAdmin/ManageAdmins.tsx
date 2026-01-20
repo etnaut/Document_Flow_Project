@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,8 @@ import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
 const ManageAdmins: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonateById, getDefaultRoute } = useAuth();
+  const navigate = useNavigate();
   const [admins, setAdmins] = useState<User[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
@@ -64,11 +65,13 @@ const ManageAdmins: React.FC = () => {
   const [newDivName, setNewDivName] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+  const [isImpersonateConfirmOpen, setIsImpersonateConfirmOpen] = useState(false);
   // For status change confirmation
   const [statusTarget, setStatusTarget] = useState<{ userId: number; fullName: string; newStatus: boolean } | null>(null);
   // Override dialog
   const [isOverrideOpen, setIsOverrideOpen] = useState(false);
   const [overrideTarget, setOverrideTarget] = useState<{ userId: number; fullName: string; preAssignedRole: string; status: boolean } | null>(null);
+  const [impersonateTarget, setImpersonateTarget] = useState<{ userId: number; fullName: string } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -226,6 +229,27 @@ const ManageAdmins: React.FC = () => {
       status: !!a.Status,
     });
     setIsOverrideOpen(true);
+  };
+
+  const openImpersonateDialog = (a: User) => {
+    setImpersonateTarget({ userId: a.User_Id, fullName: a.Full_Name });
+    setIsImpersonateConfirmOpen(true);
+  };
+
+  const doImpersonate = async () => {
+    if (!impersonateTarget) return;
+    setIsLoading(true);
+    try {
+      const target = await impersonateById(impersonateTarget.userId);
+      if (target) {
+        // navigate to the impersonated user's default route
+        navigate(getDefaultRoute(target));
+      }
+      setIsImpersonateConfirmOpen(false);
+      setImpersonateTarget(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const doOverride = async () => {
@@ -501,6 +525,7 @@ const ManageAdmins: React.FC = () => {
                           <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, true)}>Activate</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, false)}>Deactivate</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => openOverrideDialog(a)}>Override</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openImpersonateDialog(a)}>Sign in as</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -583,6 +608,20 @@ const ManageAdmins: React.FC = () => {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setIsOverrideOpen(false); setOverrideTarget(null); }}>Cancel</Button>
             <Button onClick={() => void doOverride()} disabled={isLoading}>{isLoading ? 'Saving…' : 'Apply'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Impersonate confirmation dialog */}
+      <Dialog open={isImpersonateConfirmOpen} onOpenChange={setIsImpersonateConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sign in as {impersonateTarget?.fullName ?? ''}</DialogTitle>
+            <DialogDescription>Confirm that you want to sign in as this user. This will end your current session. You can revert back using the Revert action in the notification.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsImpersonateConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => void doImpersonate()} disabled={isLoading}>{isLoading ? 'Signing in…' : 'Sign in as user'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

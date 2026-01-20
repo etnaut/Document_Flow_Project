@@ -432,3 +432,13 @@ export const getDocumentTrack = async (documentId?: number): Promise<any> => {
   const q = `?documentId=${documentId}`;
   return apiRequest(`/documents/track${q}`, { method: 'GET' });
 };
+
+// Impersonate a user (SuperAdmin only) - returns the target user's normalized object
+export const impersonateUser = async (userId: number): Promise<User | null> => {
+  const data = await apiRequest('/users/impersonate', {
+    method: 'POST',
+    body: JSON.stringify({ User_Id: userId }),
+  });
+  if (!data) return null;
+  return normalizeUser(data as any);
+};
