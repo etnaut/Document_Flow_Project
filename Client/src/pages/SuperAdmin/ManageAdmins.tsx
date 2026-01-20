@@ -328,12 +328,8 @@ const ManageAdmins: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="Gender">Gender</Label>
-<<<<<<< HEAD
-                  <Select value={formData.Gender} onValueChange={(value) => setFormData({ ...formData, Gender: value })}>
-                    <SelectTrigger className="text-black">
->>>>>>> update-backend
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
+                  <Select value={formData.Gender} onValueChange={(v) => setFormData((p) => ({ ...p, Gender: v }))}>
+                    <SelectTrigger className="text-black"><SelectValue placeholder="Select gender" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="Female">Female</SelectItem>
@@ -447,27 +443,16 @@ const ManageAdmins: React.FC = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="Role">Role</Label>
-<<<<<<< HEAD
-                  <Select
-                    value={formData.Role}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, Role: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-=======
                   <Select value={formData.Role} onValueChange={(v) => setFormData((p) => ({ ...p, Role: v }))}>
-                    <SelectTrigger className="text-black"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="text-black"><SelectValue placeholder="Select role" /></SelectTrigger>
                     <SelectContent className="text-black">
->>>>>>> update-backend
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="DepartmentHead">Department Head</SelectItem>
-                      <SelectItem value="DivisionHead">Division Head</SelectItem>
-                      <SelectItem value="OfficerInCharge">Officer In Charge</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                       <SelectItem value="Admin">Admin</SelectItem>
+                       <SelectItem value="DepartmentHead">Department Head</SelectItem>
+                       <SelectItem value="DivisionHead">Division Head</SelectItem>
+                       <SelectItem value="OfficerInCharge">Officer In Charge</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={() => setIsOpen(false)}>Cancel</Button>
@@ -476,7 +461,6 @@ const ManageAdmins: React.FC = () => {
             </form>
           </DialogContent>
         </Dialog>
-<<<<<<< HEAD
           {/* Department creation dialog */}
           <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
             <DialogContent className="max-w-md backdrop-blur-md shadow-2xl">
@@ -590,9 +574,6 @@ const ManageAdmins: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
-=======
-
->>>>>>> update-backend
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
@@ -633,18 +614,8 @@ const ManageAdmins: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-<<<<<<< HEAD
-            {visibleAdmins.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
-                  No admin accounts found.
-                </TableCell>
-              </TableRow>
-=======
             {pageSlice.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="h-16 text-center text-black/80">No admins found</TableCell></TableRow>
->>>>>>> update-backend
             ) : (
               pageSlice.map((a) => (
                 <TableRow key={a.User_Id}>
@@ -655,24 +626,6 @@ const ManageAdmins: React.FC = () => {
                   <TableCell>{a.User_Role}</TableCell>
                   <TableCell>{a.Status ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell>
-<<<<<<< HEAD
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      title={admin.Status ? 'Click to deactivate this account' : 'Click to activate this account'}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status);
-                        }
-                      }}
-                      onClick={() => handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status)}
-                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs border ${
-                        admin.Status ? 'bg-green-500/20 text-foreground border-green-500/30' : 'bg-red-500/20 text-foreground border-red-500/30'
-                      }`}
-                    >
-                      {admin.Status ? 'Active' : 'Inactive'}
-                    </span>
-=======
                     <div className="flex gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -685,7 +638,6 @@ const ManageAdmins: React.FC = () => {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
->>>>>>> update-backend
                   </TableCell>
                 </TableRow>
               ))

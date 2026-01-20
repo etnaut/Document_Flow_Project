@@ -98,6 +98,9 @@ const AllDocuments: React.FC = () => {
         mark?: string | number;
         sender_department_id?: number;
         sender_division_id?: number;
+        priority?: string;
+        admin?: string;
+        forwarded_by_admin?: string;
       };
 
       const mappedReceived: Document[] = (received || []).map((r: ReceivedRaw, idx: number) => ({
@@ -105,19 +108,13 @@ const AllDocuments: React.FC = () => {
         record_doc_id: r.record_doc_id,
         Type: r.type || 'Document',
         User_Id: r.user_id ?? 0,
-<<<<<<< HEAD
-        Status: (r.status ?? 'Released') as any,
-        Priority: r.priority || 'Low',
-=======
         Status: (r.status ?? 'Released') as Document['Status'],
-        Priority: 'Low',
->>>>>>> update-backend
+        Priority: r.priority || 'Low',
         Document: r.document ?? null,
         sender_name: r.full_name || r.name || '',
         sender_department: r.department || '',
         target_department: r.department || '',
-        description: r.admin || r.forwarded_by_admin || '',
-        comments: r.admin || r.forwarded_by_admin || '',
+        comments: r.status || '',
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
         sender_department_id: r.sender_department_id ?? undefined,

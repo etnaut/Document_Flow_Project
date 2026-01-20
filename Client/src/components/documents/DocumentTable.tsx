@@ -311,14 +311,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                       return (
                         <>
                           <Badge variant={priorityVariant}>{priorityValue}</Badge>
-<<<<<<< HEAD
                           {(() => {
                             if (!prioritySuffix) return null;
                             const suffix = prioritySuffix(doc);
                             if (!suffix) return null;
                             return <span className="ml-2 text-xs text-muted-foreground">/{suffix}</span>;
                           })()}
->>>>>>> update-backend
                         </>
                       );
                     })()}
