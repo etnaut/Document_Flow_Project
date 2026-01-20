@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 
 const ReleaserPendingDocuments: React.FC = () => {
   const { user } = useAuth();
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [releaseDialogDoc, setReleaseDialogDoc] = useState<Document | null>(null);
@@ -21,14 +22,26 @@ const ReleaserPendingDocuments: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
+  const [sourceDepartments, setSourceDepartments] = useState<string[]>([]);
+  const [selectedSourceDept, setSelectedSourceDept] = useState<string>('');
 
-  const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
+  const isReleaser = user && (isSuperAdmin || user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
+    const effectiveDept = isSuperAdmin ? selectedSourceDept : user.Department;
+    if (!effectiveDept) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const data = await getRecordedDocuments(user.Department, 'recorded');
+      const data = await getRecordedDocuments(effectiveDept, 'recorded');
       type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
       const mapped = (data || []).map((d: RecordedRaw) => ({
         ...d,
@@ -42,7 +55,7 @@ const ReleaserPendingDocuments: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, selectedSourceDept]);
 
   useEffect(() => {
     void load();
@@ -53,12 +66,17 @@ const ReleaserPendingDocuments: React.FC = () => {
       try {
         const depts = await getDepartments();
         setDepartments(depts || []);
+        setSourceDepartments(depts || []);
+        if (isSuperAdmin) {
+          setSelectedSourceDept((prev) => prev || depts?.[0] || '');
+        }
       } catch {
         setDepartments([]);
+        setSourceDepartments([]);
       }
     };
     void loadDepts();
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     const loadDivs = async () => {
@@ -91,8 +109,9 @@ const ReleaserPendingDocuments: React.FC = () => {
   const openRelease = (doc: Document) => {
     setReleaseDialogDoc(doc);
     setReleaseStatus('low');
-    // Preselect own department for convenience
-    setReleaseDepts(user?.Department ? [user.Department] : []);
+    // Preselect own department for convenience (or current source dept for SuperAdmin)
+    const baseDept = isSuperAdmin ? selectedSourceDept : user?.Department;
+    setReleaseDepts(baseDept ? [baseDept] : []);
     setReleaseDivs([]);
   };
 

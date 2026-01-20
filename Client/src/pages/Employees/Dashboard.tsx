@@ -150,8 +150,8 @@ const Dashboard: React.FC = () => {
                 <Bar
                   dataKey="count"
                   radius={[8, 8, 0, 0]}
-                  shape={(props: any) => {
-                    const { x, y, width, height, payload } = props;
+                  shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { name?: string } }) => {
+                    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
                     const colors: { [key: string]: string } = {
                       'Pending': '#f59e0b',
                       'Approved': '#10b981',
@@ -163,7 +163,7 @@ const Dashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#3b82f6'}
+                        fill={colors[payload?.name || ''] || '#3b82f6'}
                         rx={8}
                         ry={8}
                       />

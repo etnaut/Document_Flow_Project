@@ -13,7 +13,7 @@ export const getDefaultRoute = (userOrRole: User | string) => {
 
   const roleString = typeof role === 'string' ? role : '';
   const normalizedRole = (roleString || '').toLowerCase();
-  if (normalizedRole === 'superadmin') return '/super-admin';
+  if (normalizedRole === 'superadmin') return '/dashboard';
   if (normalizedRole === 'releaser') return '/releaser';
   if (['departmenthead', 'divisionhead', 'officerincharge'].includes(normalizedRole)) return '/head';
   return '/dashboard';

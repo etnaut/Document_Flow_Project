@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
+import { getApprovedDocuments, updateDocumentStatus, getDepartments } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { toast } from '@/hooks/use-toast';
@@ -10,17 +10,30 @@ import { Button } from '@/components/ui/button';
 
 const HeadNotForwarded: React.FC = () => {
   const { user } = useAuth();
-  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
+  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge' || user.User_Role === 'SuperAdmin');
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<number | null>(null);
   const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
 
   const loadDocuments = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
+    const effectiveDept = isSuperAdmin ? selectedDept : user.Department;
+    if (!effectiveDept) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
+      const approvedDocs = await getApprovedDocuments(effectiveDept, undefined, user.User_Id);
       type Approved = Document & { admin?: string; forwarded_by_admin?: string };
       const mapped = (approvedDocs || [])
         .map((d: Approved) => ({
@@ -37,7 +50,21 @@ const HeadNotForwarded: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, selectedDept]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const init = async () => {
+      try {
+        const depts = await getDepartments();
+        setDepartments(depts || []);
+        setSelectedDept((prev) => prev || depts?.[0] || '');
+      } catch {
+        setDepartments([]);
+      }
+    };
+    void init();
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -79,6 +106,20 @@ const HeadNotForwarded: React.FC = () => {
           <h1 className="text-2xl font-bold text-foreground">Not Forwarded</h1>
           <p className="text-muted-foreground">Documents approved but not yet forwarded from your department.</p>
         </div>
+        {isSuperAdmin && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Department</span>
+            <select
+              className="rounded-md border bg-background p-2 text-sm"
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+            >
+              {departments.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <DocumentTable

@@ -9,6 +9,15 @@ export const normalizeUser = (u: any): User => {
     return Boolean(statusRaw);
   })();
 
+  // Normalize role casing/format (e.g., 'super admin', 'SUPERADMIN', 'super_admin' -> 'SuperAdmin')
+  const roleRaw = String(u.User_Role ?? u.user_role ?? 'Employee').toLowerCase().replace(/[^a-z]/g, '');
+  let normalizedRole = 'Employee';
+  if (roleRaw === 'superadmin') normalizedRole = 'SuperAdmin';
+  else if (roleRaw === 'admin') normalizedRole = 'Admin';
+  else if (roleRaw === 'departmenthead') normalizedRole = 'DepartmentHead';
+  else if (roleRaw === 'divisionhead') normalizedRole = 'DivisionHead';
+  else if (roleRaw === 'officerincharge' || roleRaw === 'oic') normalizedRole = 'OfficerInCharge';
+
   return {
     User_Id: u.User_Id ?? u.user_id ?? 0,
     ID_Number: u.ID_Number ?? u.id_number ?? u.idNumber ?? u.id_number ?? 0,
@@ -17,7 +26,7 @@ export const normalizeUser = (u: any): User => {
     Email: u.Email ?? u.email ?? '',
     Department: u.Department ?? u.department ?? '',
     Division: u.Division ?? u.division ?? '',
-    User_Role: (u.User_Role ?? u.user_role ?? 'Employee') as UserRole,
+    User_Role: normalizedRole as UserRole,
     User_Name: u.User_Name ?? u.user_name ?? '',
     Status: status,
     // optional pre-assigned role (e.g., Recorder / Releaser)

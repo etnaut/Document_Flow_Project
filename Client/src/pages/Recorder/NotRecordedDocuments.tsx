@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DocumentTable from '@/components/documents/DocumentTable';
-import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
+import { getApprovedDocuments, updateDocumentStatus, getDepartments } from '@/services/api';
 import { Document } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -11,19 +11,32 @@ import { Label } from '@/components/ui/label';
 
 const NotRecordedDocuments: React.FC = () => {
   const { user } = useAuth();
-  const isRecorder = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').toLowerCase() === 'recorder');
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
+  const isRecorder = user && (isSuperAdmin || user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').toLowerCase() === 'recorder');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [recordDialogDoc, setRecordDialogDoc] = useState<Document | null>(null);
   const [recordStatus, setRecordStatus] = useState<'recorded' | 'not_recorded'>('recorded');
   const [saving, setSaving] = useState(false);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
 
   const loadDocuments = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
+    const effectiveDept = isSuperAdmin ? selectedDept : user.Department;
+    if (!effectiveDept) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       // Include both forwarded and recorded approved rows so items that progressed to 'recorded' still show up as forwarded for the recorder
-      const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
+      const approved = await getApprovedDocuments(effectiveDept, 'forwarded,recorded', user.User_Id);
       type ApiRecord = Document & { approved_by?: string; approved_admin?: string; admin?: string; forwarded_by_admin?: string; type?: string };
       const mapped = (approved || [])
         .map((d: ApiRecord | null) => {
@@ -47,12 +60,27 @@ const NotRecordedDocuments: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, selectedDept]);
 
   useEffect(() => {
     if (!user) return;
     void loadDocuments();
   }, [loadDocuments, user]);
+
+  // For SuperAdmin, load list of departments to override scope
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const init = async () => {
+      try {
+        const depts = await getDepartments();
+        setDepartments(depts || []);
+        setSelectedDept((prev) => prev || depts?.[0] || '');
+      } catch {
+        setDepartments([]);
+      }
+    };
+    void init();
+  }, [isSuperAdmin]);
 
   const handleRecord = (doc: Document) => {
     setRecordDialogDoc(doc);
@@ -91,11 +119,29 @@ const NotRecordedDocuments: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Not Recorded Documents</h1>
-          <p className="text-muted-foreground">Forwarded documents pending recording for your department.</p>
+          <p className="text-muted-foreground">
+            Forwarded documents pending recording for {isSuperAdmin ? (selectedDept || 'all departments') : user.Department}.
+          </p>
         </div>
-        <Button onClick={() => void loadDocuments()} disabled={loading}>
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Department</span>
+              <select
+                className="rounded-md border bg-background p-2 text-sm"
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+              >
+                {departments.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <Button onClick={() => void loadDocuments()} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
-        </Button>
+          </Button>
+        </div>
       </div>
 
       {loading ? (

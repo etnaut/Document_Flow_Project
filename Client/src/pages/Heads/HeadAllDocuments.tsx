@@ -24,11 +24,6 @@ const HeadAllDocuments: React.FC = () => {
   const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
-  useEffect(() => {
-    if (!allowed) return;
-    fetchAllDocuments();
-  }, [allowed, fetchAllDocuments]);
-
   const fetchAllDocuments = useCallback(async () => {
     if (!user) return;
     try {
@@ -55,6 +50,11 @@ const HeadAllDocuments: React.FC = () => {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    void fetchAllDocuments();
+  }, [allowed, fetchAllDocuments]);
 
   const handleForward = (doc: Document, _includeNotes?: boolean) => {
     setForwardDialogDoc(doc);

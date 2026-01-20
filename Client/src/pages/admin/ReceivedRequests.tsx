@@ -5,6 +5,8 @@ import {
   createRespondDocument,
   archiveDocument,
   markRelease,
+  getDepartments,
+  getDivisions,
 } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
@@ -15,16 +17,27 @@ import { Inbox, Reply, CheckCircle2 } from 'lucide-react';
 
 const ReceivedRequests: React.FC = () => {
   const { user } = useAuth();
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [divisions, setDivisions] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
+  const [selectedDiv, setSelectedDiv] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [respondDialogOpen, setRespondDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
   const fetchDocuments = useCallback(async () => {
-    if (!user?.Department) return;
+    const effectiveDept = isSuperAdmin ? selectedDept : user?.Department;
+    const effectiveDiv = isSuperAdmin ? selectedDiv : user?.Division;
+    if (!effectiveDept) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await getReceivedRequests(user.Department, user?.Division, user.User_Id);
+      const data = await getReceivedRequests(effectiveDept, effectiveDiv, user?.User_Id);
       type ReceivedRaw = {
         document_id?: number;
         record_doc_id?: number;
@@ -66,7 +79,30 @@ const ReceivedRequests: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.Department, user?.Division, user?.User_Id]);
+  }, [user?.Department, user?.Division, user?.User_Id, isSuperAdmin, selectedDept, selectedDiv]);
+
+  useEffect(() => {
+    const init = async () => {
+      if (isSuperAdmin) {
+        try {
+          const depts = await getDepartments();
+          setDepartments(depts || []);
+          const firstDept = depts?.[0] ?? '';
+          setSelectedDept((prev) => prev || firstDept);
+          if (firstDept) {
+            const divs = await getDivisions(firstDept);
+            setDivisions(divs || []);
+            setSelectedDiv((prev) => prev || divs?.[0] || '');
+          }
+        } catch {
+          setDepartments([]);
+          setDivisions([]);
+        }
+      }
+      await fetchDocuments();
+    };
+    void init();
+  }, [isSuperAdmin, fetchDocuments]);
 
   useEffect(() => {
     void fetchDocuments();
@@ -181,6 +217,46 @@ const ReceivedRequests: React.FC = () => {
             </p>
           </div>
         </div>
+        {isSuperAdmin && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Department</span>
+              <select
+                className="rounded-md border bg-background p-2 text-sm"
+                value={selectedDept}
+                onChange={async (e) => {
+                  const next = e.target.value;
+                  setSelectedDept(next);
+                  try {
+                    const divs = await getDivisions(next);
+                    setDivisions(divs || []);
+                    setSelectedDiv(divs?.[0] || '');
+                  } catch {
+                    setDivisions([]);
+                    setSelectedDiv('');
+                  }
+                }}
+              >
+                {departments.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Division</span>
+              <select
+                className="rounded-md border bg-background p-2 text-sm"
+                value={selectedDiv}
+                onChange={(e) => setSelectedDiv(e.target.value)}
+                disabled={divisions.length === 0}
+              >
+                {divisions.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       <DocumentTable
