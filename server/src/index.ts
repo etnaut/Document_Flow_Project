@@ -10,6 +10,7 @@ import departmentsRoutes from './routes/departments.js';
 import divisionsRoutes from './routes/divisions.js';
 import forwardRoutes from './routes/forward.js';
 import statsRoutes from './routes/stats.js';
+import pool, { testConnection } from './config/database.js';
 
 dotenv.config();
 
@@ -138,9 +139,25 @@ app.use((err: any, req: Request, res: Response, next: any) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(Number(PORT), '0.0.0.0', () => {
+app.listen(Number(PORT), '0.0.0.0', async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
   console.log(`✅ CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:8080'}`);
+
+  // Test DB connection and provide guidance if it fails
+  try {
+    const ok = await testConnection();
+    if (!ok) {
+      console.error('\n❌ Database connection check failed. The API may return errors if the database is not available.');
+      console.error('  • Verify your database settings in server/.env (see server/env.example.txt)');
+      console.error('  • Ensure the Postgres server is running and credentials (DB_USER/DB_PASSWORD) are correct');
+      console.error('  • Example: DB_HOST=localhost DB_PORT=5432 DB_NAME=document_flow_db DB_USER=postgres DB_PASSWORD=your_password');
+    } else {
+      console.log('✅ Database connectivity verified');
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Error while testing DB connection:', msg);
+  }
 });
 
