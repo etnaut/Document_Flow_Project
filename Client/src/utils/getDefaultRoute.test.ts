@@ -13,8 +13,8 @@ describe('getDefaultRoute', () => {
     expect(getDefaultRoute('OfficerInCharge')).toBe('/head');
   });
 
-  it('routes SuperAdmin to /dashboard (SuperAdmin tools removed)', () => {
-    expect(getDefaultRoute('SuperAdmin')).toBe('/dashboard');
+  it('routes SuperAdmin to /super-admin', () => {
+    expect(getDefaultRoute('SuperAdmin')).toBe('/super-admin');
   });
 
   it('routes others to /dashboard', () => {

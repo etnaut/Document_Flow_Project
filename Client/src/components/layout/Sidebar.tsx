@@ -46,7 +46,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { to: '/all-documents', icon: FileText, label: 'All Documents' },
   ];
 
-  // Do not render SuperAdmin-only tools here. SuperAdmin users will see Admin links instead.
+  const superAdminLinks = [
+    { to: '/super-admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/manage-admins', icon: User, label: 'Manage Admins' },
+  ];
+
   const manageEmployeesPath = user?.User_Role === 'DivisionHead' ? '/division-head' : '/head/manage-employees';
   const headLinks = [
     { to: '/head', icon: LayoutDashboard, label: 'Head Dashboard' },
@@ -68,9 +72,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const isRecorder = user && String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'recorder';
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
   const displayRole = isRecorder ? 'Employee/Recorder' : isReleaser ? 'Employee/Releaser' : user?.User_Role;
-  // Treat SuperAdmin like Admin in the sidebar (no SuperAdmin tools)
   const links = isSuperAdmin
-    ? adminLinks
+    ? superAdminLinks
     : isHead
     ? headLinks
     : isRecorder
@@ -167,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         <nav className={cn('flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 pb-3', collapsed && 'px-2')}>
           {links.map((link) => {
             const isActiveRoute = location.pathname === link.to || 
-              (link.to !== '/dashboard' && link.to !== '/head' && 
+              (link.to !== '/dashboard' && link.to !== '/super-admin' && link.to !== '/head' && 
                link.to !== '/records' && link.to !== '/releaser' && location.pathname.startsWith(link.to));
             
             return (

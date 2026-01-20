@@ -19,6 +19,8 @@ import PendingDocuments from "./pages/admin/PendingDocuments";
 import ApprovedDocuments from "./pages/admin/ApprovedDocuments";
 import RevisionDocuments from "./pages/admin/RevisionDocuments";
 import ReceivedRequests from "./pages/admin/ReceivedRequests";
+import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
+import ManageAdmins from "./pages/SuperAdmin/ManageAdmins";
 import HeadDashboard from "./pages/Heads/HeadDashboard";
 import HeadAllDocuments from "./pages/Heads/HeadAllDocuments";
 import HeadNotForwarded from "./pages/Heads/HeadNotForwarded";
@@ -69,18 +71,8 @@ const App = () => (
               <Route path="/received" element={<ReceivedRequests />} />
               <Route path="/documents/view/:id" element={<DocumentViewer />} />
               {/* Super Admin Routes */}
--              <Route path="/super-admin" element={<SuperAdminDashboard />} />
--              <Route path="/manage-admins" element={<ManageAdmins />} />
--              <Route path="/super-admin/tools" element={<SuperAdminTools />} />
--              <Route path="/super-admin/pending" element={<SuperAdminPendingDocuments />} />
--              <Route path="/super-admin/received" element={<SuperAdminReceivedRequests />} />
--              <Route path="/super-admin/head/not-forwarded" element={<SuperAdminHeadNotForwarded />} />
--              <Route path="/super-admin/head/manage-employees" element={<SuperAdminManageEmployees />} />
--              <Route path="/super-admin/recorder/not-recorded" element={<SuperAdminNotRecordedDocuments />} />
--              <Route path="/super-admin/recorder/recorded" element={<SuperAdminRecordedDocuments />} />
--              <Route path="/super-admin/releaser/pending" element={<SuperAdminReleaserPendingDocuments />} />
--              <Route path="/super-admin/releaser/released" element={<SuperAdminReleaserReleasedDocuments />} />
-+              {/* SuperAdmin routes removed */}
+              <Route path="/super-admin" element={<SuperAdminDashboard />} />
+              <Route path="/manage-admins" element={<ManageAdmins />} />
               {/* Head roles (DepartmentHead / DivisionHead / OfficerInCharge) */}
               <Route path="/head" element={<HeadDashboard />} />
               <Route path="/head/all-documents" element={<HeadAllDocuments />} />
