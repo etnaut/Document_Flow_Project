@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments, updateDocumentStatus } from '@/services/api';
@@ -6,8 +6,6 @@ import { Document } from '@/types';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
@@ -24,21 +22,17 @@ const HeadAllDocuments: React.FC = () => {
   const [submittingId, setSubmittingId] = useState<number | null>(null);
   const [forwardDialogDoc, setForwardDialogDoc] = useState<Document | null>(null);
   const [forwardCommentLocal, setForwardCommentLocal] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'accordion'>('table');
 
-  useEffect(() => {
-    if (!allowed) return;
-    fetchAllDocuments();
-  }, [allowed, user?.Department]);
-
-  const fetchAllDocuments = async () => {
+  const fetchAllDocuments = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const approvedDocs = await getApprovedDocuments(user.Department, undefined, user.User_Id);
-      const mapped = (approvedDocs || []).map((d: any) => ({
+      const mapped = (approvedDocs || []).map((d: Document) => ({
         ...d,
         // Prefer forwarded comment when present
-        description: d.comments || d.forwarded_by_admin || d.admin || '',
+        description: d.comments || d.forwarded_by_admin || d.approved_admin || '',
       }));
 
       setAllDocuments(mapped);
@@ -48,31 +42,37 @@ const HeadAllDocuments: React.FC = () => {
       
       setNotForwardedDocuments(notForwarded);
       setForwardedDocuments(forwarded);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Head All Documents load error', error);
-      toast({ title: 'Failed to load documents', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load documents', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const handleForward = (doc: Document) => {
+  useEffect(() => {
+    if (!allowed) return;
+    void fetchAllDocuments();
+  }, [allowed, fetchAllDocuments]);
+
+  const handleForward = (doc: Document, _includeNotes?: boolean) => {
     setForwardDialogDoc(doc);
-    setForwardCommentLocal('');
   };
 
   const submitForwardLocal = async () => {
     if (!forwardDialogDoc || !user) return;
     try {
       setSubmittingId(forwardDialogDoc.Document_Id);
-      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', forwardCommentLocal.trim() || undefined, user.Full_Name);
+      // Do not send a comment when forwarding
+      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name);
       toast({ title: 'Document forwarded' });
       setForwardDialogDoc(null);
-      setForwardCommentLocal('');
       await fetchAllDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Forward failed', error);
-      toast({ title: 'Failed to forward document', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to forward document', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setSubmittingId(null);
     }
@@ -152,7 +152,7 @@ const HeadAllDocuments: React.FC = () => {
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}
           />
-          <Dialog open={!!forwardDialogDoc} onOpenChange={(open) => { if (!open) { setForwardDialogDoc(null); setForwardCommentLocal(''); } }}>
+          <Dialog open={!!forwardDialogDoc} onOpenChange={(open) => { if (!open) { setForwardDialogDoc(null); } }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Forward Document</DialogTitle>
@@ -163,21 +163,10 @@ const HeadAllDocuments: React.FC = () => {
                   <p className="text-sm font-medium">Document</p>
                   <p className="text-sm text-muted-foreground">ID #{forwardDialogDoc?.Document_Id} — {forwardDialogDoc?.Type}</p>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="forwardCommentLocal">Comment</Label>
-                  <Textarea
-                    id="forwardCommentLocal"
-                    rows={3}
-                    value={forwardCommentLocal}
-                    onChange={(e) => setForwardCommentLocal(e.target.value)}
-                    placeholder="Add a note for this forwarding (optional)"
-                  />
-                </div>
               </div>
 
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => { setForwardDialogDoc(null); setForwardCommentLocal(''); }}>Cancel</Button>
+                <Button variant="outline" onClick={() => { setForwardDialogDoc(null); }}>Cancel</Button>
                 <Button onClick={() => void submitForwardLocal()} disabled={submittingId !== null}>{submittingId ? 'Forwarding…' : 'Forward'}</Button>
               </DialogFooter>
             </DialogContent>

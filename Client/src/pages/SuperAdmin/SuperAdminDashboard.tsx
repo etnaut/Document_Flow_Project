@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import StatCard from '@/components/dashboard/StatCard';
 
 const SuperAdminDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [stats, setStats] = useState({ admins: 0, employees: 0 });
   const yearOptions = [2023, 2024, 2025, 2026];
   const [year, setYear] = useState<number>(new Date().getFullYear());
@@ -75,6 +75,8 @@ const SuperAdminDashboard: React.FC = () => {
       employees: employees.length,
     });
   };
+
+  if (loading) return <div className="p-4">Checking authentication…</div>;
 
   if (user?.User_Role !== 'SuperAdmin') {
     return <Navigate to="/dashboard" replace />;

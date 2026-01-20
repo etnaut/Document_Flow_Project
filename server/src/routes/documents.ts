@@ -237,7 +237,7 @@ router.get('/approved', async (req: Request, res: Response) => {
       sd.document AS "Document",
       INITCAP(REPLACE(COALESCE(a.status, 'not_forwarded'), '_', ' ')) AS "Status",
       u.full_name AS sender_name,
-      a.admin AS approved_by,
+      CASE WHEN a.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(a.admin AS INTEGER) LIMIT 1) ELSE a.admin END AS approved_by,
       a.status AS approved_status,
       u.department_id AS sender_department_id,
       u.division_id AS sender_division_id
@@ -740,12 +740,25 @@ router.get('/records', async (req: Request, res: Response) => {
       console.error('Failed to check for approved_document_tbl.comments column', err);
     }
 
+    // Check if the approved_document_tbl has a nullable admin column and include it if present
+    let approvedAdminSelect = 'NULL AS approved_admin,';
+    try {
+      const adminColRes = await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'admin' LIMIT 1");
+      if (adminColRes && adminColRes.rowCount && adminColRes.rowCount > 0) {
+        // If ad.admin stores a user_id (numeric), resolve to the user's full_name. Otherwise return the stored value.
+        approvedAdminSelect = `CASE WHEN ad.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(ad.admin AS INTEGER) LIMIT 1) ELSE ad.admin END AS approved_admin,`;
+      }
+    } catch (err) {
+      console.error('Failed to check for approved_document_tbl.admin column', err);
+    }
+
     const result = await pool.query(
       `
       SELECT
         rd.record_doc_id,
         rd.approved_doc_id,
         ${approvedCommentsSelect}
+        ${approvedAdminSelect}
         rd.status AS record_status,
         ad.status AS approved_status,
         ad.document_id,
@@ -792,6 +805,7 @@ router.get('/records', async (req: Request, res: Response) => {
         Status: statusLabel,
         description: row.description ?? null,
         approved_comments: row.approved_comments ?? null,
+        approved_admin: row.approved_admin ?? null,
         created_at: row.created_at,
         sender_name: row.sender_name || '',
         target_department: row.target_department || '',
@@ -846,12 +860,22 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
 
 // POST /releases - create a release entry and mark record as released
 router.post('/releases', async (req: Request, res: Response) => {
-  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string; division?: string };
+  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string | string[]; division?: string | string[] };
 
   const recordDocId = Number(record_doc_id);
   const statusVal = String(status || '').trim().toLowerCase();
-  const departmentVal = String(department || '').trim();
-  const divisionVal = String(division || '').trim();
+
+  // Normalize departments and divisions into arrays
+  const departmentsArr: string[] = Array.isArray(department)
+    ? department.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(department || '').trim() ? [String(department || '').trim()] : []);
+
+  const divisionsArrRaw: string[] = Array.isArray(division)
+    ? division.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(division || '').trim() ? [String(division || '').trim()] : []);
+
+  // divisionsArr may be empty meaning department-level release (no specific division)
+  const divisionsArr = divisionsArrRaw.length > 0 ? divisionsArrRaw : [null as any];
 
   if (!Number.isFinite(recordDocId)) {
     return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
@@ -859,12 +883,8 @@ router.post('/releases', async (req: Request, res: Response) => {
   if (!statusVal) {
     return sendResponse(res, { error: 'Status is required' }, 400);
   }
-  if (!departmentVal) {
-    return sendResponse(res, { error: 'Department is required' }, 400);
-  }
-
-  if (!divisionVal) {
-    return sendResponse(res, { error: 'Division is required' }, 400);
+  if (departmentsArr.length === 0) {
+    return sendResponse(res, { error: 'At least one Department is required' }, 400);
   }
 
   const client = await pool.connect();
@@ -902,8 +922,8 @@ router.post('/releases', async (req: Request, res: Response) => {
       ['type', rec.type],
       ['document', rec.document],
       ['status', statusVal],
-      ['department', departmentVal],
-      ['division', divisionVal],
+      ['department', null], // placeholder
+      ['division', null], // placeholder
       ['mark', 'not_done'],
     ];
 
@@ -915,12 +935,28 @@ router.post('/releases', async (req: Request, res: Response) => {
 
     const columnNames = columnsToInsert.map(([col]) => col).join(', ');
     const placeholders = columnsToInsert.map((_, idx) => `$${idx + 1}`).join(', ');
-    const values = columnsToInsert.map(([, val]) => val);
 
-    await client.query(
-      `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
-      values
-    );
+    // Insert a row for each department/division pair
+    const inserted: Array<{ department: string | null; division: string | null }> = [];
+
+    for (const dept of departmentsArr) {
+      for (const div of divisionsArr) {
+        const values = columnsToInsert.map(([col]) => {
+          if (col === 'department') return dept;
+          if (col === 'division') return div;
+          // find value from candidateColumns
+          const found = candidateColumns.find(([c]) => c === col);
+          return found ? found[1] : null;
+        });
+
+        await client.query(
+          `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
+          values
+        );
+
+        inserted.push({ department: dept || null, division: div || null });
+      }
+    }
 
     await client.query('UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2', ['released', rec.record_doc_id]);
 
@@ -932,8 +968,7 @@ router.post('/releases', async (req: Request, res: Response) => {
       document_id: rec.document_id,
       type: rec.type,
       status: statusVal,
-      department: departmentVal,
-      division: divisionVal,
+      inserted,
     });
   } catch (error: any) {
     try {
@@ -1164,17 +1199,23 @@ router.get('/releases/track', async (req: Request, res: Response) => {
 // POST /documents/respond - Create a respond document entry in respond_document_tbl
 router.post('/respond', async (req: Request, res: Response) => {
   try {
-    const { release_doc_id, user_id, status, comment } = req.body as {
+    const { release_doc_id, user_id, status, comment, document, document_name, document_type } = req.body as {
       release_doc_id?: number;
       user_id?: number;
       status?: string;
       comment?: string;
+      document?: string; // base64
+      document_name?: string;
+      document_type?: string;
     };
 
     const releaseDocId = Number(release_doc_id);
     const userId = Number(user_id);
     const statusVal = String(status || '').trim().toLowerCase();
     const commentVal = String(comment || '').trim();
+    const documentBase64 = document ? String(document) : '';
+    const docName = document_name ? String(document_name) : '';
+    const docType = document_type ? String(document_type) : '';
 
     if (!Number.isFinite(releaseDocId)) {
       return sendResponse(res, { error: 'Invalid release_doc_id' }, 400);
@@ -1185,8 +1226,10 @@ router.post('/respond', async (req: Request, res: Response) => {
     if (!statusVal || (statusVal !== 'actioned' && statusVal !== 'not actioned')) {
       return sendResponse(res, { error: 'Status must be "actioned" or "not actioned"' }, 400);
     }
-    if (!commentVal) {
-      return sendResponse(res, { error: 'Comment is required' }, 400);
+
+    // Require either a comment or a file attachment
+    if (!commentVal && !documentBase64) {
+      return sendResponse(res, { error: 'Comment or file is required' }, 400);
     }
 
     // Find the foreign key constraint to determine what column it references
@@ -1307,12 +1350,40 @@ router.post('/respond', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'respond_document_tbl does not have status column' }, 500);
     }
 
-    // comment is required
+    // comment is required unless a document is attached
     if (columns.has('comment')) {
-      insertCols.push('comment');
-      insertValues.push(commentVal);
-    } else {
-      return sendResponse(res, { error: 'respond_document_tbl does not have comment column' }, 500);
+      if (commentVal) {
+        insertCols.push('comment');
+        insertValues.push(commentVal);
+      } else if (!(columns.has('document') && documentBase64)) {
+        return sendResponse(res, { error: 'Comment is required when no file is attached' }, 400);
+      }
+    } else if (!columns.has('document') || !documentBase64) {
+      return sendResponse(res, { error: 'respond_document_tbl does not have comment column and no document provided' }, 500);
+    }
+
+    // If respond_document_tbl has a document column and a file was provided, include it
+    if (columns.has('document') && documentBase64) {
+      insertCols.push('document');
+      try {
+        insertValues.push(Buffer.from(documentBase64, 'base64'));
+      } catch (err) {
+        return sendResponse(res, { error: 'Invalid base64 document data' }, 400);
+      }
+    }
+
+    // Optional document name / filename
+    if (docName && (columns.has('document_name') || columns.has('filename') || columns.has('file_name'))) {
+      const nameCol = columns.has('document_name') ? 'document_name' : (columns.has('filename') ? 'filename' : 'file_name');
+      insertCols.push(nameCol);
+      insertValues.push(docName);
+    }
+
+    // Optional document mime/type
+    if (docType && (columns.has('document_type') || columns.has('mime') || columns.has('content_type'))) {
+      const typeCol = columns.has('document_type') ? 'document_type' : (columns.has('mime') ? 'mime' : 'content_type');
+      insertCols.push(typeCol);
+      insertValues.push(docType);
     }
 
     // Build the INSERT statement
@@ -1324,7 +1395,16 @@ router.post('/respond', async (req: Request, res: Response) => {
       insertValues
     );
 
-    return sendResponse(res, result.rows[0], 201);
+    const row = result.rows[0] || {};
+    // Convert any Buffer fields to base64 strings for JSON transport
+    for (const key of Object.keys(row)) {
+      const val = row[key];
+      if (val && Buffer.isBuffer(val)) {
+        row[key] = val.toString('base64');
+      }
+    }
+
+    return sendResponse(res, row, 201);
   } catch (error: any) {
     console.error('Create respond document error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
@@ -1445,9 +1525,6 @@ router.get('/track', async (req: Request, res: Response) => {
       }
 
       if (respondCols.has(fkColumnName)) {
-        // Fetch responses by following the chain backwards from document_id:
-        // approved_document_tbl.document_id -> record_document_tbl.approved_doc_id 
-        // -> release_document_tbl.record_doc_id -> respond_document_tbl.release_doc_id
         // First, check what column in release_document_tbl the foreign key references
         const fkInfoRes = await pool.query(`
           SELECT 
@@ -1472,22 +1549,71 @@ router.get('/track', async (req: Request, res: Response) => {
         }
 
         // Fetch responses with user, department, and division information
-        // Join chain: approved_document_tbl -> record_document_tbl -> release_document_tbl -> respond_document_tbl
+        // Build the join chain depending on how respond_document_tbl references releases/records
+        // If respond_document_tbl uses release_doc_id, join release -> record -> approved -> sender
+        // If it uses record_doc_id, join record -> approved -> sender directly
+        let respondJoin = '';
+        if (fkColumnName === 'release_doc_id') {
+          respondJoin = `JOIN release_document_tbl r ON r.release_doc_id = rd.${fkColumnName}
+                         JOIN record_document_tbl rec ON rec.record_doc_id = r.record_doc_id
+                         JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+                         JOIN sender_document_tbl sd ON sd.document_id = ad.document_id`;
+        } else {
+          respondJoin = `JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
+                         JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+                         JOIN sender_document_tbl sd ON sd.document_id = ad.document_id`;
+        }
+         const respondSelectCols: string[] = [
+          'rd.respond_doc_id',
+          'rd.user_id',
+          "u.full_name AS full_name",
+          'u.department_id',
+          'u.division_id',
+          "d.department AS department",
+          "dv.division AS division",
+          'rd.status',
+        ];
+
+        if (respondCols.has('comment')) respondSelectCols.push('rd.comment');
+        if (respondCols.has('document')) respondSelectCols.push('rd.document');
+        if (respondCols.has('document_name')) respondSelectCols.push('rd.document_name');
+        else if (respondCols.has('filename')) respondSelectCols.push('rd.filename');
+        else if (respondCols.has('file_name')) respondSelectCols.push('rd.file_name');
+        if (respondCols.has('document_type')) respondSelectCols.push('rd.document_type');
+        else if (respondCols.has('mime')) respondSelectCols.push('rd.mime');
+        else if (respondCols.has('content_type')) respondSelectCols.push('rd.content_type');
+
+        // Always include sender document info (alias the sender's document to avoid clashing with rd.document)
+        respondSelectCols.push('sd.document_id', 'sd.type', 'sd.document AS sender_document');
+
         const respondRes = await pool.query(
-          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.${fkColumnName},
-             sd.document_id, sd.type, sd.document
-            FROM respond_document_tbl rd
-            JOIN record_document_tbl rec ON rec.record_doc_id = rd.${fkColumnName}
-            JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
-            JOIN sender_document_tbl sd ON sd.document_id = ad.document_id
-           WHERE sd.document_id = $1
-           ORDER BY rd.respond_doc_id DESC`,
+          `SELECT ${respondSelectCols.join(',\n         ')}
+           FROM respond_document_tbl rd
+           ${respondJoin}
+           LEFT JOIN user_tbl u ON u.user_id = rd.user_id
+           LEFT JOIN department_tbl d ON u.department_id = d.department_id
+           LEFT JOIN division_tbl dv ON u.division_id = dv.division_id
+          WHERE sd.document_id = $1
+          ORDER BY rd.respond_doc_id DESC`,
          [documentId]
        );
         
-        if (respondRes.rows && respondRes.rows.length > 0) {
-          responses.push(...respondRes.rows);
+        if (!respondRes.rows || respondRes.rows.length === 0) {
+          console.debug(`No responses found for document ${documentId} using fk column ${fkColumnName}`);
         }
+         
+         if (respondRes.rows && respondRes.rows.length > 0) {
+           // Convert any Buffer fields to base64 for JSON
+           const converted = respondRes.rows.map((r: any) => {
+             for (const k of Object.keys(r)) {
+               if (r[k] && Buffer.isBuffer(r[k])) {
+                 r[k] = r[k].toString('base64');
+               }
+             }
+             return r;
+           });
+           responses.push(...converted);
+         }
       }
     }
 

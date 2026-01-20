@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus } from '@/services/api';
+import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus, getDepartments, getDivisions } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,9 @@ import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const ManageEmployees: React.FC = () => {
-  const { user } = useAuth();
-  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
+  const { user, loading: authLoading } = useAuth();
+  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge' || user.User_Role === 'SuperAdmin');
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
 
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,11 @@ const ManageEmployees: React.FC = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
+  const [divisions, setDivisions] = useState<string[]>([]);
+  const [selectedDiv, setSelectedDiv] = useState<string>('');
+
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
     if (value && typeof value === 'object') {
@@ -37,10 +43,13 @@ const ManageEmployees: React.FC = () => {
 
   const loadEmployees = useCallback(async () => {
     if (!user) return;
+    const effectiveDept = isSuperAdmin ? selectedDept : (user.Department || '');
+    const effectiveDiv = isSuperAdmin ? selectedDiv : (user.Division || '');
+    if (!effectiveDept) return;
     try {
       setLoading(true);
-      const dept = user.Department || '';
-      const div = user.Division || '';
+      const dept = effectiveDept;
+      const div = effectiveDiv;
 
       let list: User[] = [];
       try {
@@ -58,7 +67,9 @@ const ManageEmployees: React.FC = () => {
         list = allEmployees.filter((u) => u.Department === dept);
       }
 
-      const scoped = user.User_Role === 'DivisionHead' ? list.filter((e) => e.Division === div) : list;
+      const scoped = user.User_Role === 'DivisionHead' || (isSuperAdmin && selectedDiv)
+        ? list.filter((e) => e.Division === div)
+        : list;
       setEmployees(scoped);
     } catch (error) {
       console.error('Load employees error', error);
@@ -67,7 +78,28 @@ const ManageEmployees: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, selectedDept, selectedDiv]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const init = async () => {
+      try {
+        const depts = await getDepartments();
+        setDepartments(depts || []);
+        const initialDept = depts?.[0] || '';
+        setSelectedDept((prev) => prev || initialDept);
+        if (initialDept) {
+          const divs = await getDivisions(initialDept);
+          setDivisions(divs || []);
+          setSelectedDiv((prev) => prev || '');
+        }
+      } catch {
+        setDepartments([]);
+        setDivisions([]);
+      }
+    };
+    void init();
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -108,6 +140,8 @@ const ManageEmployees: React.FC = () => {
 
   useEffect(() => { setPage(1); }, [statusFilter, query, pageSize, employees]);
 
+  if (authLoading) return <div className="p-4">Checking authentication…</div>;
+
   if (!allowed) return <Navigate to="/dashboard" replace />;
 
   return (
@@ -118,6 +152,42 @@ const ManageEmployees: React.FC = () => {
           <p className="text-muted-foreground">Set employees as Active or Inactive using the dropdown.</p>
         </div>
         <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <>
+              <Select value={selectedDept} onValueChange={async (v) => {
+                setSelectedDept(v);
+                try {
+                  const divs = await getDivisions(v);
+                  setDivisions(divs || []);
+                  setSelectedDiv('');
+                } catch {
+                  setDivisions([]);
+                  setSelectedDiv('');
+                }
+              }}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select dept" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedDiv || '__all'}
+                onValueChange={(v) => setSelectedDiv(v === '__all' ? '' : v)}
+                disabled={divisions.length === 0}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All divisions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">All divisions</SelectItem>
+                  {divisions.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          <AddEmployeeDialog onAdded={() => void loadEmployees()} />
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filter status" />
@@ -206,18 +276,26 @@ const ManageEmployees: React.FC = () => {
             )}
           </TableBody>
         </Table>
-        <div className="p-3 border-t flex items-center justify-between text-sm">
-          <span className="text-xs text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+          <div className="justify-self-start">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          <div className="justify-self-center text-xs text-muted-foreground">Page {currentPage} of {totalPages}</div>
+          <div className="justify-self-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         </div>
       </div>
     </div>

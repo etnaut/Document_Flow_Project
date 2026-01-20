@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { getDocumentTrack } from '@/services/api';
-import { MessageSquare, CheckCircle2, Circle, Loader2, Clock, Package, Send, FileCheck, Building2 } from 'lucide-react';
+import { MessageSquare, CheckCircle2, Circle, Loader2, Clock, Package, Send, FileCheck, Building2, DownloadCloud, Eye } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface TrackDocumentDialogProps {
   open: boolean;
@@ -69,6 +70,124 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
       target: <Building2 className="h-4 w-4" />,
     };
     return icons[stageKey] || <Circle className="h-4 w-4" />;
+  };
+
+  const openDocumentInNewTab = (base64: string, mimetype?: string) => {
+    try {
+      if (!base64) throw new Error('No file data');
+      // Sanitize and decode base64
+      const sanitize = (b: string) => {
+        let s = String(b || '');
+        // Remove data:*;base64, prefix
+        const idx = s.indexOf(',');
+        if (s.startsWith('data:') && idx !== -1) s = s.slice(idx + 1);
+        // Remove whitespace
+        s = s.replace(/\s+/g, '');
+        // URL-safe to standard
+        s = s.replace(/-/g, '+').replace(/_/g, '/');
+        // Pad
+        const pad = s.length % 4;
+        if (pad > 0) s += '='.repeat(4 - pad);
+        return s;
+      };
+
+      const b64 = sanitize(base64);
+      const binary = atob(b64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+
+      const detectMime = (arr: Uint8Array) => {
+        if (arr.length >= 4) {
+          if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) return 'application/pdf';
+          if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
+          if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
+          if (arr[0] === 0x50 && arr[1] === 0x4B && arr[2] === 0x03 && arr[3] === 0x04) return 'application/zip';
+        }
+        return 'application/octet-stream';
+      };
+
+      const inferredMime = detectMime(bytes);
+      const finalMime = mimetype || inferredMime || 'application/octet-stream';
+      const blob = new Blob([bytes], { type: finalMime });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url);
+      if (!w) {
+        URL.revokeObjectURL(url);
+        toast({ title: 'Unable to open document in new tab' });
+      }
+      // Revoke the object URL when the tab is unloaded
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      console.error('Open document failed', err);
+      toast({ title: 'Failed to open document', variant: 'destructive' });
+    }
+  };
+
+  const downloadBase64File = (base64: string, filename?: string, mimetype?: string) => {
+    try {
+      if (!base64) throw new Error('No file data');
+      // sanitize base64
+      const sanitize = (s: string) => {
+        let v = String(s || '');
+        if (v.startsWith('data:')) {
+          const idx = v.indexOf(',');
+          if (idx !== -1) v = v.slice(idx + 1);
+        }
+        v = v.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        const pad = v.length % 4;
+        if (pad > 0) v += '='.repeat(4 - pad);
+        return v;
+      };
+
+      const clean = sanitize(base64);
+      const binary = atob(clean);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+
+      const detectMime = (arr: Uint8Array) => {
+        if (arr.length >= 4) {
+          if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) return 'application/pdf';
+          if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
+          if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
+          if (arr[0] === 0x50 && arr[1] === 0x4B && arr[2] === 0x03 && arr[3] === 0x04) return 'application/zip';
+        }
+        return 'application/octet-stream';
+      };
+
+      const inferredMime = detectMime(bytes);
+      const finalMime = mimetype || inferredMime || 'application/octet-stream';
+
+      const extMap: Record<string, string> = {
+        'application/pdf': '.pdf',
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'application/zip': '.zip',
+        'application/msword': '.doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'text/plain': '.txt',
+      };
+
+      let outName = filename || 'document';
+      if (!/\.[a-z0-9]+$/i.test(outName)) {
+        const ext = extMap[finalMime] || '';
+        outName = outName + ext;
+      }
+
+      const blob = new Blob([bytes], { type: finalMime });
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = outName;
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed', err);
+      toast({ title: 'Failed to download document', variant: 'destructive' });
+    }
   };
 
   return (
@@ -315,6 +434,9 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                           <div>
                             <div className="text-xs text-muted-foreground mb-0.5">Respond from</div>
                             <div className="text-sm font-medium">{response.full_name || '—'}</div>
+                            {response.user_id && (
+                              <div className="text-xs text-muted-foreground mt-0.5">User ID: {response.user_id}</div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
@@ -322,6 +444,9 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                           <div>
                             <div className="text-xs text-muted-foreground mb-0.5">Department</div>
                             <div className="text-sm font-medium">{response.department || '—'}</div>
+                            {response.department_id && (
+                              <div className="text-xs text-muted-foreground mt-0.5">Dept ID: {response.department_id}</div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
@@ -329,7 +454,29 @@ const TrackDocumentDialog: React.FC<TrackDocumentDialogProps> = ({ open, onOpenC
                           <div>
                             <div className="text-xs text-muted-foreground mb-0.5">Division</div>
                             <div className="text-sm font-medium">{response.division || '—'}</div>
+                            {response.division_id && (
+                              <div className="text-xs text-muted-foreground mt-0.5">Div ID: {response.division_id}</div>
+                            )}
                           </div>
+                        </div>
+                        {/* Document box */}
+                        <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                          <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <div className="text-xs text-muted-foreground mb-0.5">Document</div>
+                            <div className="text-sm font-medium">{response.document_name || response.filename || response.file_name ? (response.document_name || response.filename || response.file_name) : (response.document ? 'Attached file' : '—')}</div>
+                          </div>
+                          {response.document && (
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => openDocumentInNewTab(response.document, response.document_type || response.mime || response.content_type)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" onClick={() => downloadBase64File(response.document, response.document_name || response.filename || response.file_name, response.document_type || response.mime || response.content_type)}>
+                                <DownloadCloud className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
                           <CheckCircle2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />

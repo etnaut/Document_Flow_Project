@@ -11,7 +11,7 @@ interface DocumentViewToggleProps {
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
-  onForward?: (doc: Document) => void;
+  onForward?: (doc: Document, includeNotes?: boolean) => void;
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onDelete?: (id: number) => void;
@@ -24,6 +24,10 @@ interface DocumentViewToggleProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
+  // Optional passthrough for priority suffix behavior
+  prioritySuffix?: (doc: Document) => string | undefined;
+  // Optional handler to mark a release as done
+  onMarkRelease?: (recordDocId: number, mark?: 'done' | 'not_done') => Promise<void> | void;
 }
 
 const DocumentViewToggle: React.FC<DocumentViewToggleProps> = ({

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments } from '@/services/api';
@@ -17,23 +17,24 @@ const ReleaserDashboard: React.FC = () => {
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const docs = await getRecordedDocuments(user.Department);
-      setDocuments(docs || []);
-    } catch (err: any) {
+      setDocuments((docs || []).map((d: Document) => ({ ...d, description: d.approved_admin || d.approved_comments || d.description || '' })));
+    } catch (err: unknown) {
       console.error('Releaser dashboard load error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load documents', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     void load();
-  }, [user]);
+  }, [load]);
 
   const stats = useMemo(() => {
     const total = documents.length;
@@ -151,8 +152,8 @@ const ReleaserDashboard: React.FC = () => {
                 <Bar
                   dataKey="count"
                   radius={[8, 8, 0, 0]}
-                  shape={(props: any) => {
-                    const { x, y, width, height, payload } = props;
+                  shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { name?: string } }) => {
+                    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
                     const colors: { [key: string]: string } = {
                       'Recorded': '#10b981',
                       'Not Recorded': '#f59e0b',
@@ -164,7 +165,7 @@ const ReleaserDashboard: React.FC = () => {
                         y={y}
                         width={width}
                         height={height}
-                        fill={colors[payload.name] || '#982B1C'}
+                        fill={colors[payload?.name || ''] || '#982B1C' }
                         rx={8}
                         ry={8}
                       />
@@ -184,7 +185,9 @@ const ReleaserDashboard: React.FC = () => {
           renderActions={() => null}
           enablePagination
           pageSizeOptions={[8, 16, 24]}
-          prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
+          prioritySuffix={(d) => d.approved_comments ? d.approved_comments : undefined}
+          showDescription
+          descriptionLabel="Admin"
         />
       </div>
     </div>

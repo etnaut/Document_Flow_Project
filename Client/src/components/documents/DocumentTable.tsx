@@ -47,7 +47,7 @@ interface DocumentTableProps {
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
-  onForward?: (doc: Document) => void;
+  onForward?: (doc: Document, includeNotes?: boolean) => void; // second arg indicates whether to show comment field
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onTrack?: (doc: Document) => void;
@@ -59,7 +59,10 @@ interface DocumentTableProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
+  // Optional function to render a suffix for the Priority column
   prioritySuffix?: (doc: Document) => string | undefined;
+  // Optional handler to mark a release record as done (used by ReceivedRequests)
+  onMarkRelease?: (recordDocId: number, mark?: 'done' | 'not_done') => Promise<void> | void;
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
@@ -103,6 +106,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   pageSizeOptions = [5, 10, 20],
   showStatusFilter = true,
   prioritySuffix,
+  onMarkRelease,
 }) => {
   const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
   // Show comment/description column if showDescription is true OR if any document has comments
@@ -113,6 +117,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const navigate = useNavigate();
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
   const [revisionComment, setRevisionComment] = React.useState('');
+  // Dialog state for marking a release as done
+  const [markDialogDoc, setMarkDialogDoc] = React.useState<Document | null>(null);
+  const [markLoading, setMarkLoading] = React.useState(false);
 
   const [query, setQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
@@ -304,11 +311,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                       return (
                         <>
                           <Badge variant={priorityVariant}>{priorityValue}</Badge>
-                          {prioritySuffix && (() => {
+<<<<<<< HEAD
+                          {(() => {
+                            if (!prioritySuffix) return null;
                             const suffix = prioritySuffix(doc);
                             if (!suffix) return null;
                             return <span className="ml-2 text-xs text-muted-foreground">/{suffix}</span>;
                           })()}
+>>>>>>> update-backend
                         </>
                       );
                     })()}
@@ -341,9 +351,29 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     // For received requests, show Done/undone based on mark field
                     const mark = String((doc as any).mark || '').toLowerCase();
                     if (mark === 'done' || mark === 'not_done' || mark === 'not done') {
-                      const statusLabel = mark === 'done' ? 'Done' : 'undone';
+                      const isDone = mark === 'done';
+                      const statusLabel = isDone ? 'Done' : 'Not Done';
+
+                      // When not done, render a button that opens a confirmation dialog if a handler is provided
+                      if (!isDone && onMarkRelease) {
+                        return (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="px-0"
+                              onClick={() => setMarkDialogDoc(doc)}
+                            >
+                              <Badge variant={'default'} className="cursor-pointer">
+                                {statusLabel}
+                              </Badge>
+                            </Button>
+                          </>
+                        );
+                      }
+
                       return (
-                        <Badge variant={mark === 'done' ? 'success' : 'default'}>
+                        <Badge variant={isDone ? 'success' : 'default'}>
                           {statusLabel}
                         </Badge>
                       );
@@ -391,7 +421,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           variant="ghost"
                           size="sm"
                           className="px-0"
-                          onClick={() => onForward(doc)}
+                          onClick={() => onForward(doc, false)}
                         >
                           <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
                             {statusLabel}
@@ -423,7 +453,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 </DropdownMenuItem>
                               )}
                               {onForward && (
-                                <DropdownMenuItem onSelect={() => onForward(doc)}>
+                                <DropdownMenuItem onSelect={() => onForward(doc, true)}>
                                   Forward
                                 </DropdownMenuItem>
                               )}
@@ -501,7 +531,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                               </DropdownMenuItem>
                             )}
                             {onForward && (
-                              <DropdownMenuItem onSelect={() => onForward(doc)}>
+                              <DropdownMenuItem onSelect={() => onForward(doc, true)}>
                                 Forward
                               </DropdownMenuItem>
                             )}
@@ -611,6 +641,65 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               }}
             >
               Send for Revision
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as done confirmation dialog */}
+      <Dialog
+        open={!!markDialogDoc}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMarkDialogDoc(null);
+            setMarkLoading(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-primary">Mark request as done</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this request as done? This will set the release as completed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <p className="text-sm font-medium text-primary">Document</p>
+              <p className="text-sm text-muted-foreground">{markDialogDoc?.Type} — {markDialogDoc?.sender_name}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="text-primary border-primary hover:text-primary hover:bg-primary/10" onClick={() => setMarkDialogDoc(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!markDialogDoc || !onMarkRelease) {
+                  setMarkDialogDoc(null);
+                  return;
+                }
+                if (!markDialogDoc.record_doc_id) {
+                  toast({ title: 'Cannot mark: missing record id', variant: 'destructive' });
+                  setMarkDialogDoc(null);
+                  return;
+                }
+                try {
+                  setMarkLoading(true);
+                  await onMarkRelease(markDialogDoc.record_doc_id, 'done');
+                  setMarkDialogDoc(null);
+                } catch (err) {
+                  console.error('Mark release error', err);
+                  toast({ title: 'Failed to mark request', variant: 'destructive' });
+                } finally {
+                  setMarkLoading(false);
+                }
+              }}
+              disabled={markLoading}
+            >
+              Mark as done
             </Button>
           </DialogFooter>
         </DialogContent>

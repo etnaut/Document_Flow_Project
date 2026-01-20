@@ -9,6 +9,15 @@ export const normalizeUser = (u: any): User => {
     return Boolean(statusRaw);
   })();
 
+  // Normalize role casing/format (e.g., 'super admin', 'SUPERADMIN', 'super_admin' -> 'SuperAdmin')
+  const roleRaw = String(u.User_Role ?? u.user_role ?? 'Employee').toLowerCase().replace(/[^a-z]/g, '');
+  let normalizedRole = 'Employee';
+  if (roleRaw === 'superadmin') normalizedRole = 'SuperAdmin';
+  else if (roleRaw === 'admin') normalizedRole = 'Admin';
+  else if (roleRaw === 'departmenthead') normalizedRole = 'DepartmentHead';
+  else if (roleRaw === 'divisionhead') normalizedRole = 'DivisionHead';
+  else if (roleRaw === 'officerincharge' || roleRaw === 'oic') normalizedRole = 'OfficerInCharge';
+
   return {
     User_Id: u.User_Id ?? u.user_id ?? 0,
     ID_Number: u.ID_Number ?? u.id_number ?? u.idNumber ?? u.id_number ?? 0,
@@ -17,7 +26,7 @@ export const normalizeUser = (u: any): User => {
     Email: u.Email ?? u.email ?? '',
     Department: u.Department ?? u.department ?? '',
     Division: u.Division ?? u.division ?? '',
-    User_Role: (u.User_Role ?? u.user_role ?? 'Employee') as UserRole,
+    User_Role: normalizedRole as UserRole,
     User_Name: u.User_Name ?? u.user_name ?? '',
     Status: status,
     // optional pre-assigned role (e.g., Recorder / Releaser)
@@ -123,8 +132,8 @@ export const releaseRecordedDocument = async (recordDocId: number): Promise<any>
 export const createReleaseDocument = async (
   recordDocId: number,
   status: 'low' | 'medium' | 'high',
-  department: string,
-  division: string
+  department: string | string[],
+  division?: string | string[]
 ): Promise<any> => {
   // documents router is mounted under /api/documents
   return apiRequest('/documents/releases', {
@@ -241,16 +250,24 @@ export const createRespondDocument = async (
   releaseDocId: number,
   userId: number,
   status: 'actioned' | 'not actioned',
-  comment: string
+  comment: string,
+  documentBase64?: string,
+  filename?: string,
+  mimetype?: string
 ): Promise<any> => {
+  const body: any = {
+    release_doc_id: releaseDocId,
+    user_id: userId,
+    status: status,
+    comment: comment,
+  };
+  if (documentBase64 !== undefined) body.document = documentBase64;
+  if (filename !== undefined) body.document_name = filename;
+  if (mimetype !== undefined) body.document_type = mimetype;
+
   return apiRequest('/documents/respond', {
     method: 'POST',
-    body: JSON.stringify({
-      release_doc_id: releaseDocId,
-      user_id: userId,
-      status: status,
-      comment: comment,
-    }),
+    body: JSON.stringify(body),
   });
 };
 
@@ -432,4 +449,14 @@ export const updateDepartmentTheme = async (
     method: 'PUT',
     body: JSON.stringify({ theme, userRole, userDepartment }),
   });
+};
+
+// Impersonate a user (SuperAdmin only) - returns the target user's normalized object
+export const impersonateUser = async (userId: number): Promise<User | null> => {
+  const data = await apiRequest('/users/impersonate', {
+    method: 'POST',
+    body: JSON.stringify({ User_Id: userId }),
+  });
+  if (!data) return null;
+  return normalizeUser(data as any);
 };

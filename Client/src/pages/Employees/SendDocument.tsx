@@ -157,9 +157,9 @@ const SendDocument: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // Convert selected files to a single base64 payload. If multiple files are selected we zip them.
       let documentFile: string | undefined = undefined;
-      
-      // If multiple files, combine them into a ZIP
+
       if (selectedFiles.length > 0) {
         if (selectedFiles.length === 1) {
           // Single file - convert directly to base64

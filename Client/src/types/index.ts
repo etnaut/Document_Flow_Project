@@ -38,6 +38,7 @@ export interface Document {
   created_at?: string;
   comments?: string;
   approved_comments?: string;
+  approved_admin?: string;
   description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
@@ -91,4 +92,8 @@ export interface AuthContextType {
   loading: boolean;
   // Accept either a User object (preferred) or a role string
   getDefaultRoute: (userOrRole: User | string) => string;
+  // Impersonation helpers added for SuperAdmin
+  impersonateById: (userId: number) => Promise<User | null>;
+  revertImpersonation: () => void;
+  impersonator?: User | null;
 }

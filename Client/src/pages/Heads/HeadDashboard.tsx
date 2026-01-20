@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import StatCard from '@/components/dashboard/StatCard';
+
+const MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const HeadDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -26,23 +28,63 @@ const HeadDashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const monthsArr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const [monthlyData, setMonthlyData] = useState<{ month: string; total: number }[]>([]);
   const [chartYear, setChartYear] = useState<number>(new Date().getFullYear());
   const [departments, setDepartments] = useState<string[]>([]);
   const [zoomScale, setZoomScale] = useState<number>(1); // horizontal zoom scale (1x to 3x)
   const [yMax, setYMax] = useState<number>(100); // vertical zoom upper bound (50 to 200)
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [approvedDocs, pending] = await Promise.all([
+        getApprovedDocuments(user?.Department, undefined, user?.User_Id),
+        getDocumentsByStatus('Pending', user?.Department, user?.User_Role, user?.User_Id),
+      ]);
+
+      // Map admin/status into description to surface in Comment column
+      type Approved = Document & { approved_admin?: string; admin?: string; forwarded_by_admin?: string };
+      const mappedApproved = (approvedDocs || []).map((d: Approved) => ({
+        ...d,
+        description: d.forwarded_by_admin || d.approved_admin || '',
+      }));
+
+      setAllDocs(mappedApproved);
+      setPendingDocs(pending || []);
+
+      // forwarded: derive by status from approved feed
+      const forwarded = (mappedApproved || []).filter((d) => (d.Status || '').toLowerCase() === 'forwarded');
+      setForwardedDocs(forwarded);
+
+      setCounts({
+        total: mappedApproved.length,
+        approved: mappedApproved.length,
+        forwarded: forwarded.length,
+        pending: pending?.length || 0,
+      });
+
+      const depts = await getDepartments();
+      setDepartments(depts);
+    } catch (err: unknown) {
+      console.error('HeadDashboard load error', err);
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load data', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!allowed) return;
-    loadData();
-  }, [user]);
+    void loadData();
+  }, [allowed, loadData]);
 
   // Recompute monthly data when documents or selected year change
   useEffect(() => {
-    const months = monthsArr.map((m) => ({ month: m, total: 0 }));
-    (allDocs || []).forEach((d: any) => {
-      const dateStr = d.created_at || d.createdAt || d.created || d.Approved_Date || d.approved_date;
+    const months = MONTHS_ARR.map((m) => ({ month: m, total: 0 }));
+    (allDocs || []).forEach((d) => {
+      const raw = d as Record<string, unknown>;
+      const dateStr = (raw.created_at ?? raw.createdAt ?? raw.created ?? raw.Approved_Date ?? raw.approved_date) as string | undefined;
       if (!dateStr) return;
       const dt = new Date(dateStr);
       if (isNaN(dt.getTime())) return;
@@ -83,46 +125,6 @@ const HeadDashboard: React.FC = () => {
   };
 
   const xTicks = React.useMemo(() => displayLineData.map((d) => d.month), [displayLineData]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [approvedDocs, pending] = await Promise.all([
-        getApprovedDocuments(user?.Department, undefined, user?.User_Id),
-        getDocumentsByStatus('Pending', user?.Department, user?.User_Role, user?.User_Id),
-      ]);
-
-      // Map admin/status into description to surface in Comment column
-      const mappedApproved = (approvedDocs || []).map((d: any) => ({
-        ...d,
-        description: d.forwarded_by_admin || d.admin || '',
-      }));
-
-      setAllDocs(mappedApproved);
-      setPendingDocs(pending || []);
-
-      // forwarded: derive by status from approved feed
-      const forwarded = (mappedApproved || []).filter((d) => (d.Status || '').toLowerCase() === 'forwarded');
-      setForwardedDocs(forwarded);
-
-      setCounts({
-        total: mappedApproved.length,
-        approved: mappedApproved.length,
-        forwarded: forwarded.length,
-        pending: pending?.length || 0,
-      });
-
-      // We'll compute monthly data in an effect so it can react to year changes
-      setMonthlyData((prev) => prev);
-      const depts = await getDepartments();
-      setDepartments(depts);
-    } catch (err: any) {
-      console.error('HeadDashboard load error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to load data', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!allowed) return <Navigate to="/dashboard" replace />;
 

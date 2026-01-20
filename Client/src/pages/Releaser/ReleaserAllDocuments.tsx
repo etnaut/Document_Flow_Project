@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRecordedDocuments, createReleaseDocument, getDepartments, getDivisions } from '@/services/api';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 type TabValue = 'all' | 'pending' | 'released';
@@ -22,57 +21,67 @@ const ReleaserAllDocuments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [releaseDialogDoc, setReleaseDialogDoc] = useState<Document | null>(null);
   const [releaseStatus, setReleaseStatus] = useState<'low' | 'medium' | 'high'>('low');
-  const [releaseDept, setReleaseDept] = useState<string>('');
-  const [releaseDiv, setReleaseDiv] = useState<string>('');
+  const [releaseDepts, setReleaseDepts] = useState<string[]>([]);
+  const [releaseDivs, setReleaseDivs] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
 
   const isReleaser = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').trim().toLowerCase() === 'releaser');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
       const allDocs = await getRecordedDocuments(user.Department);
-      setAllDocuments(allDocs || []);
-
+      type RecordedRaw = Document & { approved_admin?: string; approved_comments?: string };
+      setAllDocuments((allDocs || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+      
       const pending = await getRecordedDocuments(user.Department, 'recorded');
-      setPendingDocuments(pending || []);
-
+      setPendingDocuments((pending || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+      
       const released = await getRecordedDocuments(user.Department, 'released');
-      setReleasedDocuments(released || []);
-    } catch (err: any) {
+      setReleasedDocuments((released || []).map((d: RecordedRaw) => ({ ...d, description: d.approved_admin ?? d.approved_comments ?? d.description ?? '' })));
+    } catch (err: unknown) {
       console.error('Releaser all documents load error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to load documents', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load documents', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const openRelease = (doc: Document) => {
     setReleaseDialogDoc(doc);
     setReleaseStatus('low');
-    setReleaseDept('');
-    setReleaseDiv('');
+    // preselect own department
+    setReleaseDepts(user?.Department ? [user.Department] : []);
+    setReleaseDivs([]);
   };
 
   const submitRelease = async () => {
     if (!releaseDialogDoc || !releaseDialogDoc.record_doc_id) return;
+    if (!releaseDepts || releaseDepts.length === 0) {
+      toast({ title: 'Select department', description: 'Please select at least one department to send to', variant: 'destructive' });
+      return;
+    }
     try {
       setSaving(true);
       await createReleaseDocument(
         releaseDialogDoc.record_doc_id,
         releaseStatus,
-        releaseDept || user?.Department || '',
-        releaseDiv || user?.Division || ''
+        releaseDepts.length > 0 ? releaseDepts : (user?.Department ? [user.Department] : []),
+        releaseDivs.length > 0 ? releaseDivs : (user?.Division ? [user.Division] : [])
       );
       toast({ title: 'Document released' });
       setReleaseDialogDoc(null);
+      setReleaseDepts([]);
+      setReleaseDivs([]);
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Release record error', err);
-      toast({ title: 'Error', description: err?.message || 'Failed to release document', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to release document', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -80,7 +89,7 @@ const ReleaserAllDocuments: React.FC = () => {
 
   useEffect(() => {
     void load();
-  }, [user]);
+  }, [load]);
 
   useEffect(() => {
     const loadDepts = async () => {
@@ -96,23 +105,30 @@ const ReleaserAllDocuments: React.FC = () => {
 
   useEffect(() => {
     const loadDivs = async () => {
-      if (!releaseDept) {
+      if (!releaseDepts || releaseDepts.length === 0) {
         setDivisions([]);
-        setReleaseDiv('');
+        setReleaseDivs([]);
         return;
       }
       try {
-        const divs = await getDivisions(releaseDept);
-        setDivisions(divs || []);
-        if (divs && divs.length > 0 && !divs.includes(releaseDiv)) {
-          setReleaseDiv(divs[0]);
+        const lists = await Promise.all(releaseDepts.map((d) => getDivisions(d)));
+        const merged = Array.from(new Set(lists.flat().filter(Boolean)));
+        setDivisions(merged);
+        if (merged.length > 0) {
+          if (releaseDivs.length === 0) {
+            const defaultDiv = user?.Division && merged.includes(user.Division) ? user.Division : merged[0];
+            setReleaseDivs([defaultDiv]);
+          } else {
+            setReleaseDivs((prev) => prev.filter((d) => merged.includes(d)));
+          }
         }
       } catch {
         setDivisions([]);
+        setReleaseDivs([]);
       }
     };
     void loadDivs();
-  }, [releaseDept]);
+  }, [releaseDepts, releaseDivs.length, user?.Division]);
 
   const counts = useMemo(() => ({
     all: allDocuments.length,
@@ -180,20 +196,23 @@ const ReleaserAllDocuments: React.FC = () => {
 
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
-           <DocumentViewToggle
-             documents={currentDocuments}
-             showDescription
-             descriptionLabel="Comment"
-             showDate={false}
-             enablePagination
-             pageSizeOptions={[10, 20, 50]}
-             onRelease={activeTab === 'pending' ? (id) => {
-               const doc = currentDocuments.find((d) => d.Document_Id === id);
-               if (doc) openRelease(doc);
-             } : undefined}
-             showStatusFilter={false}
-             prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
-           />
+          <DocumentViewToggle
+            documents={currentDocuments}
+            view={viewMode}
+            onViewChange={setViewMode}
+            renderToggleInHeader={true}
+            showDescription
+            descriptionLabel="Comment"
+            showDate={false}
+            enablePagination
+            pageSizeOptions={[10, 20, 50]}
+            onRelease={activeTab === 'pending' ? (id) => {
+              const doc = currentDocuments.find((d) => d.Document_Id === id);
+              if (doc) openRelease(doc);
+            } : undefined}
+            showStatusFilter={false}
+            prioritySuffix={(d) => (d as any).approved_comments ? (d as any).approved_comments : undefined}
+          />
         </TabsContent>
       </Tabs>
 
@@ -229,10 +248,10 @@ const ReleaserAllDocuments: React.FC = () => {
               <select
                 id="releaseDept"
                 className="w-full rounded-md border bg-background p-2 text-sm"
-                value={releaseDept}
-                onChange={(e) => setReleaseDept(e.target.value)}
+                value={releaseDepts}
+                onChange={(e) => setReleaseDepts(Array.from(e.target.selectedOptions, option => option.value))}
+                multiple
               >
-                <option value="">Select department</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
@@ -244,10 +263,10 @@ const ReleaserAllDocuments: React.FC = () => {
               <select
                 id="releaseDiv"
                 className="w-full rounded-md border bg-background p-2 text-sm"
-                value={releaseDiv}
-                onChange={(e) => setReleaseDiv(e.target.value)}
+                value={releaseDivs}
+                onChange={(e) => setReleaseDivs(Array.from(e.target.selectedOptions, option => option.value))}
+                multiple
               >
-                <option value="">Select division</option>
                 {divisions.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
