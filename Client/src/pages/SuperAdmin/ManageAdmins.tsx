@@ -17,7 +17,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -28,9 +36,7 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { getUsers, createUser, getDepartments, getDivisions } from '@/services/api';
-import { createDepartment, createDivision } from '@/services/api';
-import { updateUserStatus, updateUserAssignment } from '@/services/api';
+import { getUsers, createUser, getDepartments, getDivisions, createDepartment, createDivision, updateUserStatus, updateUserAssignment } from '@/services/api';
 import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
@@ -60,13 +66,9 @@ const ManageAdmins: React.FC = () => {
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
   // For status change confirmation
   const [statusTarget, setStatusTarget] = useState<{ userId: number; fullName: string; newStatus: boolean } | null>(null);
-
-  // Override dialog state
+  // Override dialog
   const [isOverrideOpen, setIsOverrideOpen] = useState(false);
-  const [overrideTarget, setOverrideTarget] = useState<User | null>(null);
-  const [overrideRole, setOverrideRole] = useState<string>('__none');
-  const [overrideStatus, setOverrideStatus] = useState<'active' | 'inactive'>('active');
-  const [isOverrideSaving, setIsOverrideSaving] = useState(false);
+  const [overrideTarget, setOverrideTarget] = useState<{ userId: number; fullName: string; preAssignedRole: string; status: boolean } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -210,9 +212,43 @@ const ManageAdmins: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = (userId: number, fullName: string, currentStatus: boolean) => {
-    setStatusTarget({ userId, fullName, newStatus: !currentStatus });
+  const handleToggleStatus = (userId: number, fullName: string, currentStatus: boolean, force?: boolean) => {
+    const next = typeof force === 'boolean' ? force : !currentStatus;
+    setStatusTarget({ userId, fullName, newStatus: next });
     setIsStatusConfirmOpen(true);
+  };
+
+  const openOverrideDialog = (a: User) => {
+    setOverrideTarget({
+      userId: a.User_Id,
+      fullName: a.Full_Name,
+      preAssignedRole: a.pre_assigned_role ? String(a.pre_assigned_role) : '__none', // sentinel for "none"
+      status: !!a.Status,
+    });
+    setIsOverrideOpen(true);
+  };
+
+  const doOverride = async () => {
+    if (!overrideTarget) return;
+    setIsLoading(true);
+    try {
+      const role = overrideTarget.preAssignedRole === '__none' ? '' : overrideTarget.preAssignedRole;
+      await updateUserAssignment(overrideTarget.userId, role);
+      // Update account status if changed
+      const current = admins.find((x) => x.User_Id === overrideTarget.userId);
+      if (!current || current.Status !== overrideTarget.status) {
+        await updateUserStatus(overrideTarget.userId, overrideTarget.status);
+      }
+      toast({ title: 'Success', description: 'Override applied successfully.' });
+      setIsOverrideOpen(false);
+      setOverrideTarget(null);
+      await loadData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to apply override', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const doToggleStatus = async () => {
@@ -229,33 +265,6 @@ const ManageAdmins: React.FC = () => {
       toast({ title: 'Error', description: message || 'Failed to update user status', variant: 'destructive' });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const openOverrideDialog = (u: User) => {
-    setOverrideTarget(u);
-    setOverrideRole(u.pre_assigned_role ? u.pre_assigned_role : '__none');
-    setOverrideStatus(u.Status ? 'active' : 'inactive');
-    setIsOverrideOpen(true);
-  };
-
-  const doOverride = async () => {
-    if (!overrideTarget) return;
-    setIsOverrideSaving(true);
-    try {
-      const roleToSend = overrideRole === '__none' ? '' : overrideRole;
-      // Update pre-assigned role (e.g., Recorder/Releaser) and status
-      await updateUserAssignment(overrideTarget.User_Id, roleToSend);
-      await updateUserStatus(overrideTarget.User_Id, overrideStatus === 'active');
-      toast({ title: 'Success', description: 'Override applied.' });
-      setIsOverrideOpen(false);
-      setOverrideTarget(null);
-      await loadData();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      toast({ title: 'Error', description: message || 'Failed to apply override', variant: 'destructive' });
-    } finally {
-      setIsOverrideSaving(false);
     }
   };
 
@@ -466,14 +475,13 @@ const ManageAdmins: React.FC = () => {
               <TableHead>Department</TableHead>
               <TableHead>Division</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Action</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pageSlice.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="h-16 text-center text-black/80">No admins found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="h-16 text-center text-black/80">No admins found</TableCell></TableRow>
             ) : (
               pageSlice.map((a) => (
                 <TableRow key={a.User_Id}>
@@ -482,13 +490,19 @@ const ManageAdmins: React.FC = () => {
                   <TableCell>{a.Department}</TableCell>
                   <TableCell>{a.Division || '—'}</TableCell>
                   <TableCell>{a.User_Role}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => openOverrideDialog(a)}>Override</Button>
-                  </TableCell>
                   <TableCell>{a.Status ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status)}>{a.Status ? 'Deactivate' : 'Activate'}</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">Actions</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, true)}>Activate</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, false)}>Deactivate</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openOverrideDialog(a)}>Override</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -519,23 +533,34 @@ const ManageAdmins: React.FC = () => {
         </div>
       </div>
 
-      {departments.length === 0 && (
-        <div className="rounded-md p-4 border border-yellow-200 bg-yellow-50 text-yellow-800 text-sm">No departments found. Create departments under Manage Admins.</div>
-      )}
+      {/* Status change confirmation dialog */}
+      <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{statusTarget?.newStatus ? 'Confirm Activation' : 'Confirm Deactivation'}</DialogTitle>
+            <DialogDescription>Are you sure you want to {statusTarget?.newStatus ? 'activate' : 'deactivate'} the account for <strong>{statusTarget?.fullName}</strong>?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsStatusConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => void doToggleStatus()} disabled={isLoading}>{isLoading ? 'Processing…' : 'Confirm'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Override dialog */}
-      <Dialog open={isOverrideOpen} onOpenChange={setIsOverrideOpen}>
-        <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+      <Dialog open={isOverrideOpen} onOpenChange={(open) => { if (!open) { setOverrideTarget(null); } setIsOverrideOpen(open); }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Override Admin{overrideTarget ? `: ${overrideTarget.Full_Name}` : ''}</DialogTitle>
-            <p className="text-sm text-black mt-1">Change pre-assigned role and status for this admin.</p>
+            <DialogTitle>Override: {overrideTarget?.fullName ?? ''}</DialogTitle>
+            <DialogDescription>Set a pre-assigned role and activation status for this account.</DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Pre-assigned Role</Label>
-              <Select value={overrideRole} onValueChange={(v) => setOverrideRole(v)}>
+              <Select value={overrideTarget?.preAssignedRole ?? '__none'} onValueChange={(v) => setOverrideTarget((p) => p ? { ...p, preAssignedRole: v } : p)}>
                 <SelectTrigger className="text-black"><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent className="text-black">
+                <SelectContent>
                   <SelectItem value="__none">None</SelectItem>
                   <SelectItem value="Recorder">Recorder</SelectItem>
                   <SelectItem value="Releaser">Releaser</SelectItem>
@@ -545,22 +570,23 @@ const ManageAdmins: React.FC = () => {
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={overrideStatus} onValueChange={(v) => setOverrideStatus(v as 'active' | 'inactive')}>
+              <Select value={overrideTarget?.status ? 'active' : 'inactive'} onValueChange={(v) => setOverrideTarget((p) => p ? { ...p, status: v === 'active' } : p)}>
                 <SelectTrigger className="text-black"><SelectValue /></SelectTrigger>
-                <SelectContent className="text-black">
+                <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={() => setIsOverrideOpen(false)}>Cancel</Button>
-              <Button type="button" onClick={() => void doOverride()} disabled={isOverrideSaving}>{isOverrideSaving ? 'Saving…' : 'Apply'}</Button>
-            </div>
           </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setIsOverrideOpen(false); setOverrideTarget(null); }}>Cancel</Button>
+            <Button onClick={() => void doOverride()} disabled={isLoading}>{isLoading ? 'Saving…' : 'Apply'}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };
