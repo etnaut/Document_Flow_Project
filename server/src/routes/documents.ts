@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureApprovedDateColumn, ensureApprovedForwardedDateColumn, ensureRecordDateColumn } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -158,7 +158,8 @@ router.get('/revisions', async (_req: Request, res: Response) => {
     const result = await pool.query(
       `SELECT r.document_id, r.user_id, r.comment, r.admin,
               sd.type AS document_type,
-              u.full_name AS sender_name
+              u.full_name AS sender_name,
+              sd.date AS created_at
          FROM revision_document_tbl r
          LEFT JOIN sender_document_tbl sd ON r.document_id = sd.document_id
          LEFT JOIN user_tbl u ON r.user_id = u.user_id
@@ -172,6 +173,7 @@ router.get('/revisions', async (_req: Request, res: Response) => {
       admin: row.admin ?? null,
       document_type: row.document_type ?? null,
       sender_name: row.sender_name ?? null,
+      created_at: row.created_at ?? null,
     }));
 
     sendResponse(res, revisions);
@@ -190,6 +192,18 @@ router.get('/approved', async (req: Request, res: Response) => {
 
     const params: any[] = [];
     const conditions: string[] = [];
+
+    // Detect whether approved_document_tbl has forwarded_date column
+    const approvedColsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'approved_document_tbl'`
+    );
+    const approvedCols = new Set<string>(approvedColsRes.rows.map((r) => r.column_name));
+    const includeForwardedDate = approvedCols.has('forwarded_date');
+
+    // Detect whether record_document_tbl has record_date column
+    const recordColsRes = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'record_document_tbl'`);
+    const recordCols = new Set<string>(recordColsRes.rows.map((r) => r.column_name));
+    const includeRecordDate = recordCols.has('record_date');
 
     if (statusParam) {
       const statuses = statusParam
@@ -229,6 +243,9 @@ router.get('/approved', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const forwardDateSelect = includeForwardedDate ? ', a.forwarded_date AS forwarded_date' : '';
+    const recordDateSelect = includeRecordDate ? ', rd.record_date AS record_date' : '';
+
     const result = await pool.query(
     `SELECT 
       a.document_id AS "Document_Id",
@@ -240,11 +257,13 @@ router.get('/approved', async (req: Request, res: Response) => {
       CASE WHEN a.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(a.admin AS INTEGER) LIMIT 1) ELSE a.admin END AS approved_by,
       a.status AS approved_status,
       u.department_id AS sender_department_id,
-      u.division_id AS sender_division_id
+      u.division_id AS sender_division_id,
+      a.date AS "created_at"${forwardDateSelect}${recordDateSelect}
        FROM approved_document_tbl a
        LEFT JOIN sender_document_tbl sd ON sd.document_id = a.document_id
        LEFT JOIN user_tbl u ON u.user_id = a.user_id
        LEFT JOIN department_tbl d ON u.department_id = d.department_id
+       LEFT JOIN record_document_tbl rd ON rd.approved_doc_id = a.approved_doc_id
        ${where}
        ORDER BY a.document_id DESC`,
       params
@@ -259,7 +278,9 @@ router.get('/approved', async (req: Request, res: Response) => {
       forwarded_from: null,
       forwarded_by_admin: row.approved_by || null,
       is_forwarded_request: null,
-      created_at: null,
+      created_at: row.created_at || null,
+      forwarded_date: row.forwarded_date || null,
+      record_date: row.record_date || null,
     }));
 
     sendResponse(res, docs);
@@ -442,6 +463,18 @@ router.put('/', async (req: Request, res: Response) => {
 
     if (statusValue === 'forwarded' || statusValue === 'recorded' || statusValue === 'approved') {
       await ensureApprovedStatusAllowed();
+      // Ensure the approved table has a 'date' column to record approval timestamps
+      try {
+        await ensureApprovedDateColumn();
+      } catch (err) {
+        // Non-fatal; continue - schema helper will log any errors
+      }
+      // Ensure forwarded_date exists so we can set it when forwarding
+      try {
+        await ensureApprovedForwardedDateColumn();
+      } catch (err) {
+        // Non-fatal
+      }
     }
 
     if (statusValue === 'revision' && hasStatus) {
@@ -498,16 +531,35 @@ router.put('/', async (req: Request, res: Response) => {
         [approvedDocId]
       );
 
+      // If the status being set is 'recorded', ensure the record_date column exists and persist the current timestamp
+      if (statusVal === 'recorded') {
+        await ensureRecordDateColumn();
+      }
+
       if (existingRecord.rows.length === 0) {
-        await client.query(
-          'INSERT INTO record_document_tbl (approved_doc_id, status) VALUES ($1, $2)',
-          [approvedDocId, statusVal]
-        );
+        if (statusVal === 'recorded') {
+          await client.query(
+            'INSERT INTO record_document_tbl (approved_doc_id, status, record_date) VALUES ($1, $2, NOW())',
+            [approvedDocId, statusVal]
+          );
+        } else {
+          await client.query(
+            'INSERT INTO record_document_tbl (approved_doc_id, status) VALUES ($1, $2)',
+            [approvedDocId, statusVal]
+          );
+        }
       } else {
-        await client.query(
-          'UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2',
-          [statusVal, existingRecord.rows[0].record_doc_id]
-        );
+        if (statusVal === 'recorded') {
+          await client.query(
+            'UPDATE record_document_tbl SET status = $1, record_date = NOW() WHERE record_doc_id = $2',
+            [statusVal, existingRecord.rows[0].record_doc_id]
+          );
+        } else {
+          await client.query(
+            'UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2',
+            [statusVal, existingRecord.rows[0].record_doc_id]
+          );
+        }
       }
     };
 
@@ -540,11 +592,12 @@ router.put('/', async (req: Request, res: Response) => {
 
         if (approvedCheck.rows.length === 0) {
           await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date) VALUES ($1, $2, $3, $4, NOW())',
             [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
           );
         } else if (input.admin) {
-          await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+          // Update admin and refresh approval date to current time
+          await client.query('UPDATE approved_document_tbl SET admin = $1, date = NOW() WHERE document_id = $2', [input.admin, input.Document_Id]);
         }
       }
 
@@ -557,12 +610,12 @@ router.put('/', async (req: Request, res: Response) => {
 
         if (approvedCheck.rows.length === 0) {
           await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date, forwarded_date) VALUES ($1, $2, $3, $4, NOW(), NOW())',
             [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
           );
         } else {
           await client.query(
-            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), forwarded_date = NOW() WHERE document_id = $3',
             ['forwarded', input.admin ?? null, input.Document_Id]
           );
         }
@@ -580,7 +633,7 @@ router.put('/', async (req: Request, res: Response) => {
 
         if (approvedCheck.rows.length === 0) {
           const inserted = await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4) RETURNING approved_doc_id',
+            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date) VALUES ($1, $2, $3, $4, NOW()) RETURNING approved_doc_id',
             [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
           );
           approvedDocId = inserted.rows[0].approved_doc_id;
@@ -723,31 +776,45 @@ router.get('/records', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const result = await pool.query(
-      `
-      SELECT
-        rd.record_doc_id,
-        rd.approved_doc_id,
-        rd.status AS record_status,
-        ad.status AS approved_status,
-        ad.document_id,
-  sd.type,
-        sd.document,
-        sd.priority,
-        sd.description,
-  sd.date AS created_at,
-  u.full_name AS sender_name,
-        dept.department AS target_department
-      FROM record_document_tbl rd
-      JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
-      JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
-      JOIN user_tbl u ON ad.user_id = u.user_id
-      LEFT JOIN department_tbl dept ON u.department_id = dept.department_id
-      ${where}
-      ORDER BY rd.record_doc_id DESC
-      `,
-      params
+    // Detect whether record_document_tbl has a 'record_date' column
+    const recordColsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'record_document_tbl'`
     );
+    const recordCols = new Set<string>(recordColsRes.rows.map((r) => r.column_name));
+    const includeRecordDate = recordCols.has('record_date');
+
+    const recordDateSelect = includeRecordDate ? ', rd.record_date AS record_date' : '';
+    const createdAtSelect = includeRecordDate ? 'COALESCE(rd.record_date, ad.date, sd.date) AS created_at' : 'COALESCE(ad.date, sd.date) AS created_at';
+
+    // Build ORDER BY expression: prefer record_date when available, then priority (high > medium > low), then record id
+      const dateExpr = includeRecordDate ? 'COALESCE(rd.record_date, ad.date, sd.date)' : 'COALESCE(ad.date, sd.date)';
+      const priorityOrder = "(CASE LOWER(COALESCE(sd.priority, '')) WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'moderate' THEN 2 WHEN 'low' THEN 1 ELSE 0 END)";
+      const orderByExpr = `${dateExpr} DESC, ${priorityOrder} DESC, rd.record_doc_id DESC`;
+
+    const result = await pool.query(
+         `
+         SELECT
+           rd.record_doc_id,
+           rd.approved_doc_id,
+           rd.status AS record_status,
+           ad.status AS approved_status,
+           ad.document_id,
+           sd.type,
+           sd.document,
+           sd.priority,
+           sd.description,${createdAtSelect}${recordDateSelect},
+           u.full_name AS sender_name,
+           dept.department AS target_department
+         FROM record_document_tbl rd
+         JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
+         JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
+         JOIN user_tbl u ON ad.user_id = u.user_id
+         LEFT JOIN department_tbl dept ON u.department_id = dept.department_id
+        ${where}
+        ORDER BY ${orderByExpr}
+         `,
+         params
+       );
 
     const data = result.rows.map((row) => {
       const statusLower = (row.record_status || '').toLowerCase();
@@ -766,8 +833,8 @@ router.get('/records', async (req: Request, res: Response) => {
       }
 
       return {
-  Document_Id: row.document_id,
-  record_doc_id: row.record_doc_id,
+        Document_Id: row.document_id,
+        record_doc_id: row.record_doc_id,
         Type: row.type,
         Document: row.document,
         Priority: row.priority || 'Normal',
@@ -776,6 +843,7 @@ router.get('/records', async (req: Request, res: Response) => {
         created_at: row.created_at,
         sender_name: row.sender_name || '',
         target_department: row.target_department || '',
+        record_date: row.record_date || null,
       };
     });
 
@@ -801,13 +869,26 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE record_document_tbl
-       SET status = $1
-       WHERE record_doc_id = $2
-       RETURNING record_doc_id, approved_doc_id, status, comment`,
-      [statusVal, recordDocId]
-    );
+    let result;
+    if (statusVal === 'recorded') {
+      // Ensure the column exists before attempting to write to it
+      await ensureRecordDateColumn();
+      result = await pool.query(
+        `UPDATE record_document_tbl
+         SET status = $1, record_date = NOW()
+         WHERE record_doc_id = $2
+         RETURNING record_doc_id, approved_doc_id, status, comment`,
+        [statusVal, recordDocId]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE record_document_tbl
+         SET status = $1
+         WHERE record_doc_id = $2
+         RETURNING record_doc_id, approved_doc_id, status, comment`,
+        [statusVal, recordDocId]
+      );
+    }
 
     if (result.rowCount === 0) {
       return sendResponse(res, { error: 'Record not found' }, 404);
@@ -1045,6 +1126,7 @@ router.get('/releases', async (req: Request, res: Response) => {
       'u.department_id AS sender_department_id',
       'u.division_id AS sender_division_id',
       'ad.admin AS admin',
+      'COALESCE(ad.date, sd.date) AS created_at'
     ];
 
     if (cols.has('mark')) {

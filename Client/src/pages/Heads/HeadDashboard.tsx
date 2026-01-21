@@ -83,8 +83,8 @@ const HeadDashboard: React.FC = () => {
   useEffect(() => {
     const months = MONTHS_ARR.map((m) => ({ month: m, total: 0 }));
     (allDocs || []).forEach((d) => {
-      const raw = d as Record<string, unknown>;
-      const dateStr = (raw.created_at ?? raw.createdAt ?? raw.created ?? raw.Approved_Date ?? raw.approved_date) as string | undefined;
+      const raw = d as unknown as Record<string, unknown>;
+      const dateStr = (raw.forwarded_date ?? raw.created_at ?? raw.createdAt ?? raw.created ?? raw.Approved_Date ?? raw.approved_date) as string | undefined;
       if (!dateStr) return;
       const dt = new Date(dateStr);
       if (isNaN(dt.getTime())) return;

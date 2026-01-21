@@ -36,6 +36,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
       const mapped = (data || []).map((d: Document) => ({
         ...d,
         description: d.description ?? '',
+        created_at: d.record_date ?? d.created_at ?? null,
       }));
       setDocuments(mapped);
     } catch (err: unknown) {
@@ -111,7 +112,7 @@ const ReleaserReleasedDocuments: React.FC = () => {
 
       <DocumentTable
         documents={documents}
-        showDate={false}
+        showDate={true}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}

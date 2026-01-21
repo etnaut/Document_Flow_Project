@@ -44,6 +44,8 @@ const RecordedDocuments: React.FC = () => {
             sender_name: d.sender_name || '',
             description: d.approved_by || d.approved_admin || d.admin || d.forwarded_by_admin || '',
             Status: 'Recorded' as const,
+            // Prefer record_date if available
+            created_at: d.record_date ?? d.forwarded_date ?? d.created_at ?? null,
           } as Document;
         })
         .filter(Boolean) as Document[];
@@ -116,7 +118,7 @@ const RecordedDocuments: React.FC = () => {
           documents={documents}
           showDescription
           descriptionLabel="Admin"
-          showDate={false}
+          showDate={true}
           showStatusFilter={false}
           enablePagination
           pageSizeOptions={[10,20,50]}

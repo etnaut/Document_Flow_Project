@@ -42,6 +42,8 @@ const AllRecorderDocuments: React.FC = () => {
             sender_name: d.sender_name || '',
             description: d.approved_by || d.approved_admin || d.admin || d.forwarded_by_admin || '',
             Status: statusRaw === 'forwarded' ? 'Not Recorded' : 'Recorded',
+            // Use record_date for recorded items when available, otherwise fall back to forwarded_date or created_at
+            created_at: statusRaw === 'recorded' ? (d.record_date ?? d.forwarded_date ?? d.created_at ?? null) : (d.forwarded_date ?? d.created_at ?? null),
           } as Document;
         })
         .filter(Boolean) as Document[];
@@ -165,7 +167,7 @@ const AllRecorderDocuments: React.FC = () => {
             documents={currentDocuments}
             showDescription
             descriptionLabel="Admin"
-            showDate={false}
+            showDate={true}
             onRecord={activeTab === 'not_recorded' ? handleRecord : undefined}
             enablePagination
             pageSizeOptions={[10,20,50]}

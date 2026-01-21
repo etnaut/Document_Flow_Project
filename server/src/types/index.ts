@@ -28,6 +28,8 @@ export interface Document {
   forwarded_by_admin: string | null;
   is_forwarded_request: boolean | null;
   created_at: string | null;
+  forwarded_date?: string | null;
+  record_date?: string | null;
   description: string | null;
 }
 

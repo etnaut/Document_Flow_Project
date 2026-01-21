@@ -4,6 +4,9 @@ let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
 let approvedStatusConstraintPromise: Promise<void> | null = null;
 let approvedCommentsColumnPromise: Promise<void> | null = null;
+let approvedDateColumnPromise: Promise<void> | null = null;
+let approvedForwardedDateColumnPromise: Promise<void> | null = null;
+let recordDateColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -122,4 +125,76 @@ export const ensureApprovedCommentsColumn = async (): Promise<void> => {
   })();
 
   return approvedCommentsColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'date' column to record approval timestamp.
+ */
+export const ensureApprovedDateColumn = async (): Promise<void> => {
+  if (approvedDateColumnPromise) return approvedDateColumnPromise;
+
+  approvedDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      // Add a timestamp with timezone column with default current timestamp
+      await pool.query("ALTER TABLE approved_document_tbl ADD COLUMN date timestamptz DEFAULT CURRENT_TIMESTAMP");
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.date column', err);
+    }
+  })();
+
+  return approvedDateColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'forwarded_date' column to record when a document was forwarded.
+ * Do not set a default here; forwarded_date is explicitly set when the document is forwarded.
+ */
+export const ensureApprovedForwardedDateColumn = async (): Promise<void> => {
+  if (approvedForwardedDateColumnPromise) return approvedForwardedDateColumnPromise;
+
+  approvedForwardedDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'forwarded_date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE approved_document_tbl ADD COLUMN forwarded_date timestamptz');
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.forwarded_date column', err);
+    }
+  })();
+
+  return approvedForwardedDateColumnPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable 'record_date' column to record when a document was recorded by the recorder.
+ * Do not set a default here; record_date is explicitly set when the document is recorded.
+ */
+export const ensureRecordDateColumn = async (): Promise<void> => {
+  if (recordDateColumnPromise) return recordDateColumnPromise;
+
+  recordDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'record_date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN record_date timestamptz');
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.record_date column', err);
+    }
+  })();
+
+  return recordDateColumnPromise;
 };

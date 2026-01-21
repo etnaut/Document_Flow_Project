@@ -36,6 +36,8 @@ export interface Document {
   sender_division_id?: number;
   target_department: string; // The department this document is sent TO
   created_at?: string;
+  forwarded_date?: string | null;
+  record_date?: string | null;
   comments?: string;
   approved_comments?: string;
   approved_admin?: string;
@@ -75,6 +77,7 @@ export interface RevisionEntry {
   admin: string | null;
   document_type: string | null;
   sender_name: string | null;
+  created_at?: string | null;
 }
 
 export interface ResponseDocument {

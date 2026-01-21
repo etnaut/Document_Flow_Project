@@ -36,13 +36,13 @@ const ReleaserAllDocuments: React.FC = () => {
     try {
       setLoading(true);
       const allDocs = await getRecordedDocuments(user.Department);
-      setAllDocuments((allDocs || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
+      setAllDocuments((allDocs || []).map((d: Document) => ({ ...d, description: d.description ?? '', created_at: (d.record_date ?? d.created_at ?? null) })));
       
       const pending = await getRecordedDocuments(user.Department, 'recorded');
-      setPendingDocuments((pending || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
+      setPendingDocuments((pending || []).map((d: Document) => ({ ...d, description: d.description ?? '', created_at: (d.record_date ?? d.created_at ?? null) })));
       
       const released = await getRecordedDocuments(user.Department, 'released');
-      setReleasedDocuments((released || []).map((d: Document) => ({ ...d, description: d.description ?? '' })));
+      setReleasedDocuments((released || []).map((d: Document) => ({ ...d, description: d.description ?? '', created_at: (d.record_date ?? d.created_at ?? null) })));
     } catch (err: unknown) {
       console.error('Releaser all documents load error', err);
       const message = err instanceof Error ? err.message : String(err);
@@ -198,17 +198,17 @@ const ReleaserAllDocuments: React.FC = () => {
         {/* Content */}
         <TabsContent value={activeTab} className="mt-4">
           <DocumentViewToggle
-            documents={currentDocuments}
-            renderToggleInHeader={true}
-            showDate={false}
-            enablePagination
-            pageSizeOptions={[10, 20, 50]}
-            onRelease={activeTab === 'pending' ? (id) => {
-              const doc = currentDocuments.find((d) => d.Document_Id === id);
-              if (doc) openRelease(doc);
-            } : undefined}
-            showStatusFilter={false}
-          />
+             documents={currentDocuments}
+             renderToggleInHeader={true}
+             showDate={true}
+             enablePagination
+             pageSizeOptions={[10, 20, 50]}
+             onRelease={activeTab === 'pending' ? (id) => {
+               const doc = currentDocuments.find((d) => d.Document_Id === id);
+               if (doc) openRelease(doc);
+             } : undefined}
+             showStatusFilter={false}
+           />
         </TabsContent>
       </Tabs>
 

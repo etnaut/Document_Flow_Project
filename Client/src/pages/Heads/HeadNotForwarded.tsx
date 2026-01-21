@@ -40,6 +40,7 @@ const HeadNotForwarded: React.FC = () => {
           ...d,
           // prefer forwarded admin name when available
           description: d.forwarded_by_admin || d.admin || '',
+          created_at: d.created_at ?? null,
         }))
         .filter((d) => (d.Status || '').toLowerCase() === 'not forwarded');
       setDocuments(mapped);
@@ -127,7 +128,7 @@ const HeadNotForwarded: React.FC = () => {
         onForward={(doc) => setForwardDialogDoc(doc)}
         showDescription
         descriptionLabel="Admin"
-        showDate={false}
+        showDate={true}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}

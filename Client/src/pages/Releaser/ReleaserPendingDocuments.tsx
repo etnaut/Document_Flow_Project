@@ -45,6 +45,7 @@ const ReleaserPendingDocuments: React.FC = () => {
       const mapped = (data || []).map((d: Document) => ({
         ...d,
         description: d.description ?? '',
+        created_at: d.record_date ?? d.created_at ?? null,
       }));
       setDocuments(mapped);
     } catch (err: unknown) {
@@ -174,7 +175,7 @@ const ReleaserPendingDocuments: React.FC = () => {
           const doc = documents.find((d) => d.Document_Id === id);
           if (doc) openRelease(doc);
         }}
-        showDate={false}
+        showDate={true}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10, 20, 50]}

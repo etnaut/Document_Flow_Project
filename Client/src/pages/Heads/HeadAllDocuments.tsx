@@ -33,6 +33,8 @@ const HeadAllDocuments: React.FC = () => {
         ...d,
         // Prefer forwarded comment when present
         description: d.comments || d.forwarded_by_admin || d.approved_admin || '',
+        // Use forwarded_date for forwarded entries, otherwise approval date
+        created_at: (d?.Status || '').toLowerCase() === 'forwarded' ? (d.forwarded_date ?? d.created_at ?? null) : (d.created_at ?? null),
       }));
 
       setAllDocuments(mapped);
@@ -147,7 +149,7 @@ const HeadAllDocuments: React.FC = () => {
             onForward={activeTab === 'not_forwarded' ? handleForward : undefined}
             showDescription
             descriptionLabel="Admin"
-            showDate={false}
+            showDate={true}
             enablePagination
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}

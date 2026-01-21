@@ -119,6 +119,7 @@ const AllDocuments: React.FC = () => {
         mark: String(r.mark ?? '').toLowerCase(),
         sender_department_id: r.sender_department_id ?? undefined,
         sender_division_id: r.sender_division_id ?? undefined,
+        created_at: (r as any).created_at ?? (r as any).date ?? null,
       }));
       setReceivedDocuments(mappedReceived);
 
@@ -410,7 +411,7 @@ const AllDocuments: React.FC = () => {
             showPriority
             showDescription
             descriptionLabel="Admin"
-            showDate={false}
+            showDate={true}
             enablePagination
             pageSizeOptions={[10, 20, 50]}
             showStatusFilter={false}

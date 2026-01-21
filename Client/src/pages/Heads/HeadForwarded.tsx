@@ -21,6 +21,8 @@ const HeadForwarded: React.FC = () => {
       const mapped = (approvedDocs || [])
         .map((d: Approved) => ({
           ...d,
+          // set created_at to forwarded_date for forwarded list
+          created_at: d.forwarded_date ?? d.created_at ?? null,
           description: d.forwarded_by_admin || d.admin || '',
         }))
         .filter((d) => (d.Status || '').toLowerCase() === 'forwarded');
@@ -62,7 +64,7 @@ const HeadForwarded: React.FC = () => {
         documents={documents}
         showDescription
         descriptionLabel="Admin"
-        showDate={false}
+        showDate={true}
         showStatusFilter={false}
         enablePagination
         pageSizeOptions={[10,20,50]}

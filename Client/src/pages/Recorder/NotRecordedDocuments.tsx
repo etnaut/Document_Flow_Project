@@ -49,6 +49,7 @@ const NotRecordedDocuments: React.FC = () => {
             sender_name: d.sender_name || '',
             description: d.approved_by || d.approved_admin || d.admin || d.forwarded_by_admin || '',
             Status: 'Not Recorded' as const,
+            created_at: d.forwarded_date ?? d.created_at ?? null,
           } as Document;
         })
         .filter(Boolean) as Document[];
@@ -151,7 +152,7 @@ const NotRecordedDocuments: React.FC = () => {
           documents={documents}
           showDescription
           descriptionLabel="Admin"
-          showDate={false}
+          showDate={true}
           onRecord={handleRecord}
           showStatusFilter={false}
           enablePagination

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus, forwardDocument } from '@/services/api';
+import { getApprovedDocuments, forwardDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentTable from '@/components/documents/DocumentTable';
 import ForwardDocumentDialog from '@/components/documents/ForwardDocumentDialog';
@@ -16,15 +16,11 @@ const ApprovedDocuments: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [forwardIncludeNotes, setForwardIncludeNotes] = useState(true);
 
-  useEffect(() => {
-    void fetchDocuments();
-  }, [fetchDocuments]);
-
   const fetchDocuments = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const data = await getDocumentsByStatus('Approved', undefined, user.User_Role, user.User_Id);
+      const data = await getApprovedDocuments(user?.Department, undefined, user.User_Id);
       setDocuments(data);
     } catch (error: unknown) {
       console.error('Error fetching documents:', error);
@@ -34,6 +30,10 @@ const ApprovedDocuments: React.FC = () => {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    void fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleForwardClick = (doc: Document, includeNotes: boolean = true) => {
     setSelectedDocument(doc);
