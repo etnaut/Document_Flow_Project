@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
 
 const DivisionHead: React.FC = () => {
 	const { user } = useAuth();
@@ -87,6 +88,7 @@ const DivisionHead: React.FC = () => {
 						const q = e.target.value.toLowerCase();
 						setEmployees(divisionEmployees.filter((emp) => [emp.Full_Name, emp.Email, emp.Department, emp.Division || ''].join(' ').toLowerCase().includes(q)));
 					}} />
+					<AddEmployeeDialog onAdded={() => void loadEmployees()} />
 					<Button
 						variant="outline"
 						className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
@@ -123,9 +125,9 @@ const DivisionHead: React.FC = () => {
 					</TableHeader>
 					<TableBody>
 						{loading ? (
-							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading...</TableCell></TableRow>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Loading...</TableCell></TableRow>
 						) : employees.length === 0 ? (
-							<TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
+							<TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">No employees found</TableCell></TableRow>
 						) : (
 							pageSlice.map((emp) => (
 								<TableRow key={emp.User_Id} className="animate-fade-in">

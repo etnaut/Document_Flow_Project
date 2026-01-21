@@ -17,6 +17,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Send, FileText, Upload, Calendar, ArrowDown, ArrowUp, Building2, X, Cloud } from 'lucide-react';
+<<<<<<< HEAD
+=======
+import JSZip from 'jszip';
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
 
 const documentTypes = [
   'Leave Request',
@@ -41,11 +45,14 @@ const SendDocument: React.FC = () => {
     otherType: '',
     priority: 'Medium',
     description: '',
+<<<<<<< HEAD
     subject: '',
+=======
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
     date: '',
   });
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const fileAcceptTypes = [
     '.pdf',
@@ -75,10 +82,37 @@ const SendDocument: React.FC = () => {
       reader.onerror = (error) => reject(error);
     });
 
+<<<<<<< HEAD
   const handleFileSelect = (file: File | null) => {
     if (file) {
       setSelectedFile(file);
     }
+=======
+  const filesToZip = async (files: File[]): Promise<File> => {
+    const zip = new JSZip();
+    
+    // Add all files to the zip
+    for (const file of files) {
+      zip.file(file.name, file);
+    }
+    
+    // Generate the zip file
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    
+    // Convert blob to File
+    return new File([zipBlob], `attachments_${Date.now()}.zip`, { type: 'application/zip' });
+  };
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -94,9 +128,15 @@ const SendDocument: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+<<<<<<< HEAD
     const file = e.dataTransfer.files[0];
     if (file) {
       handleFileSelect(file);
+=======
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files);
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
     }
   };
 
@@ -137,7 +177,19 @@ const SendDocument: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const documentFile = selectedFile ? await fileToBase64(selectedFile) : undefined;
+      // Convert selected files to a single base64 payload. If multiple files are selected we zip them.
+      let documentFile: string | undefined = undefined;
+
+      if (selectedFiles.length > 0) {
+        if (selectedFiles.length === 1) {
+          // Single file - convert directly to base64
+          documentFile = await fileToBase64(selectedFiles[0]);
+        } else {
+          // Multiple files - create ZIP and convert to base64
+          const zipFile = await filesToZip(selectedFiles);
+          documentFile = await fileToBase64(zipFile);
+        }
+      }
 
       // Combine subject and description if subject exists
       const fullDescription = formData.subject
@@ -173,7 +225,11 @@ const SendDocument: React.FC = () => {
   };
 
   return (
+<<<<<<< HEAD
     <div className="bg-gray-50 min-h-screen p-6">
+=======
+    <div className="min-h-screen p-6 bg-background">
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
       {/* Header - Outside cards */}
       <div className="mb-6 animate-slide-up">
         <h1 className="text-3xl font-bold text-foreground">Send Document</h1>
@@ -253,6 +309,7 @@ const SendDocument: React.FC = () => {
                   </div>
                 </div>
 
+<<<<<<< HEAD
                 {/* Subject of Communications */}
                 <div className="space-y-2">
                   <Label htmlFor="subject" className="text-sm font-medium">
@@ -267,6 +324,8 @@ const SendDocument: React.FC = () => {
                   />
                 </div>
 
+=======
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
                 {/* Communication Details */}
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
@@ -376,6 +435,7 @@ const SendDocument: React.FC = () => {
                 ref={fileInputRef}
                 type="file"
                 accept={fileAcceptTypes}
+<<<<<<< HEAD
                 onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
                 className="hidden"
               />
@@ -396,11 +456,57 @@ const SendDocument: React.FC = () => {
                       className="h-8 w-8"
                       onClick={() => {
                         setSelectedFile(null);
+=======
+                multiple
+                onChange={(e) => handleFileSelect(e.target.files)}
+                className="hidden"
+              />
+              {selectedFiles.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div className="text-left flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 flex-shrink-0"
+                          onClick={() => handleRemoveFile(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Add More Files
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedFiles([]);
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
                         if (fileInputRef.current) {
                           fileInputRef.current.value = '';
                         }
                       }}
                     >
+<<<<<<< HEAD
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -411,6 +517,11 @@ const SendDocument: React.FC = () => {
                   >
                     Change File
                   </Button>
+=======
+                      Clear All
+                    </Button>
+                  </div>
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -427,7 +538,11 @@ const SendDocument: React.FC = () => {
                       </button>
                     </p>
                     <p className="text-xs text-muted-foreground">
+<<<<<<< HEAD
                       Supports: PDF, Word, Excel, Images, etc.
+=======
+                      Supports: PDF, Word, Excel, Images, etc. You can select multiple files.
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
                     </p>
                   </div>
                 </div>

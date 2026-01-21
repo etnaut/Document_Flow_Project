@@ -10,7 +10,7 @@ const pool = new Pool({
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'document_flow_db',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'eduardjames',
+  password: process.env.DB_PASSWORD || 'postgre',
 });
 
 // Test database connection

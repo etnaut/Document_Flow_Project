@@ -6,24 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Download, ArrowLeft } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils';
+import PdfViewer from '@/components/documents/PdfViewer';
 
 const DocumentViewer: React.FC = () => {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
   const params = useParams();
-  const doc = (state as any)?.doc as Document | undefined;
+  const doc = (location.state as { doc?: Document } | null)?.doc as Document | undefined;
   const docId = doc?.Document_Id ?? Number(params.id);
 
   const [mimeChoice, setMimeChoice] = React.useState<'pdf' | 'word' | 'excel' | 'auto'>('pdf');
   const [fileBytes, setFileBytes] = React.useState<Uint8Array | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = React.useState<Blob | null>(null);
   const [previewLoading, setPreviewLoading] = React.useState<boolean>(false);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
   const [revisionEntry, setRevisionEntry] = React.useState<RevisionEntry | null>(null);
 
   const revokePreviewUrl = (url?: string | null) => { if (url) URL.revokeObjectURL(url); };
 
-  const decodePayload = (payload: any): Uint8Array | null => {
+  const decodePayload = (payload: unknown): Uint8Array | null => {
     if (!payload) return null;
     try {
       if (typeof payload === 'string') {
@@ -33,11 +36,18 @@ const DocumentViewer: React.FC = () => {
         for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i);
         return arr;
       }
-      if (payload?.data) {
-        return new Uint8Array(payload.data);
+      if (typeof payload === 'object' && payload !== null) {
+        const p = payload as Record<string, unknown>;
+        if (Array.isArray(p.data)) {
+          return new Uint8Array(p.data.map((n) => Number(n) || 0));
+        }
+        if (p.data instanceof ArrayBuffer) {
+          return new Uint8Array(p.data as ArrayBuffer);
+        }
       }
       return null;
-    } catch {
+    } catch (error: unknown) {
+      console.warn('Failed decoding payload', error);
       return null;
     }
   };
@@ -59,6 +69,7 @@ const DocumentViewer: React.FC = () => {
     const blob = new Blob([buffer], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
+    setPreviewBlob(blob);
     setPreviewError(null);
   };
 
@@ -71,10 +82,12 @@ const DocumentViewer: React.FC = () => {
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
+      setPreviewBlob(blob);
       setPreviewError(null);
-    } catch (error) {
-      console.error('Preview fetch error', error);
+    } catch (err: unknown) {
+      console.error('Preview fetch error', err);
       setPreviewUrl(null);
+      setPreviewBlob(null);
       setPreviewError('Unable to generate a PDF preview for this file. You can still open/download it.');
     } finally {
       setPreviewLoading(false);
@@ -82,24 +95,39 @@ const DocumentViewer: React.FC = () => {
   };
 
   const openDocument = () => {
-    if (!fileBytes) return;
     try {
-      if (mimeChoice === 'pdf' && previewUrl) {
-        window.open(previewUrl, '_blank');
+      // Prefer preview URL or blob for PDFs
+      if (mimeChoice === 'pdf' && (previewUrl || previewBlob)) {
+        const url = previewUrl ?? URL.createObjectURL(previewBlob!);
+        window.open(url, '_blank');
+        // If we created the object URL, clean it up later
+        if (!previewUrl) setTimeout(() => URL.revokeObjectURL(url), 30000);
         return;
       }
-      const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
-      const mime = mimeChoice === 'pdf'
-        ? 'application/pdf'
-        : mimeChoice === 'word'
-        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        : mimeChoice === 'excel'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'application/octet-stream';
-      const blob = new Blob([buffer], { type: mime });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+      // If we have raw file bytes (original payload), open them
+      if (fileBytes) {
+        const buffer = fileBytes.buffer instanceof ArrayBuffer ? fileBytes.buffer : new Uint8Array(fileBytes).buffer;
+        const mime = mimeChoice === 'pdf'
+          ? 'application/pdf'
+          : mimeChoice === 'word'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : mimeChoice === 'excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/octet-stream';
+        const blob = new Blob([buffer], { type: mime });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        return;
+      }
+
+      // As a final fallback, if we have a generated preview blob, open that
+      if (previewBlob) {
+        const url = URL.createObjectURL(previewBlob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
     } catch (error) {
       console.error('Open document error', error);
     }
@@ -112,7 +140,7 @@ const DocumentViewer: React.FC = () => {
   React.useEffect(() => {
     const run = async () => {
       if (!docId) return;
-      let bytes = doc ? decodePayload((doc as any).Document) : null;
+      const bytes = doc ? decodePayload(doc.Document) : null;
       if (bytes) {
         const detected = detectMimeChoice(bytes);
         setFileBytes(bytes);
@@ -136,7 +164,7 @@ const DocumentViewer: React.FC = () => {
           const byDoc = revs.filter((r) => r.document_id === docId);
           const latest = byDoc.length ? byDoc[byDoc.length - 1] : null;
           setRevisionEntry(latest);
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('Failed to load revision entry', err);
           setRevisionEntry(null);
         }
@@ -160,7 +188,7 @@ const DocumentViewer: React.FC = () => {
           {doc?.Priority && <Badge className="ml-2 shrink-0">{doc.Priority}</Badge>}
         </div>
         <div className="flex items-center gap-2">
-          <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as any)}>
+          <Select value={mimeChoice} onValueChange={(v) => setMimeChoice(v as 'pdf' | 'word' | 'excel' | 'auto')}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="View as" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="pdf">PDF</SelectItem>
@@ -191,6 +219,11 @@ const DocumentViewer: React.FC = () => {
             <div className="flex h-[75vh] items-center justify-center">
               <div className="animate-pulse rounded-md border bg-muted/30 w-[92%] h-[65vh]" />
             </div>
+          ) : ((mimeChoice === 'pdf' || (fileBytes && detectMimeChoice(fileBytes) === 'pdf')) && (previewBlob || fileBytes || previewUrl)) ? (
+            <div className="w-full p-4 bg-background">
+              {/* PdfViewer renders PDF pages into the DOM so content scrolls naturally with the page */}
+              <PdfViewer file={previewBlob || fileBytes || previewUrl} />
+            </div>
           ) : previewUrl ? (
             <iframe title="Attachment preview" src={previewUrl} className="h-[75vh] w-full" />
           ) : (
@@ -207,8 +240,17 @@ const DocumentViewer: React.FC = () => {
             <div><span className="font-medium text-foreground">Type:</span> {doc?.Type || '—'}</div>
             <div><span className="font-medium text-foreground">Sender:</span> {doc?.sender_name || '—'}</div>
             <div><span className="font-medium text-foreground">Priority:</span> {doc?.Priority || '—'}</div>
-            <div><span className="font-medium text-foreground">Status:</span> {doc?.Status || '—'}</div>
-            <div><span className="font-medium text-foreground">Date:</span> {doc?.created_at || '—'}</div>
+            <div>
+              <span className="font-medium text-foreground">Status:</span>{' '}
+              {(() => {
+                if (!doc?.Status) return '—';
+                const base = doc.Status;
+                const finalRaw = (doc as any).final_status ?? (doc as any).finalStatus ?? '';
+                if (String(finalRaw).toLowerCase() === 'override') return `${base}/override`;
+                return base;
+              })()}
+            </div>
+            <div><span className="font-medium text-foreground">Date:</span> {formatDateTime(doc?.created_at)}</div>
             {doc?.description && (
               <div className="mt-2">
                 <span className="font-medium text-foreground">Notes:</span>

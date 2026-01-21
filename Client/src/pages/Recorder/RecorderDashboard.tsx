@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApprovedDocuments } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { FileText, Clock, CheckCircle } from 'lucide-react';
+import StatCard from '@/components/dashboard/StatCard';
 
 const RecorderDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -14,33 +17,34 @@ const RecorderDashboard: React.FC = () => {
     notRecorded: 0,
   });
 
-  useEffect(() => {
-    if (!user) return;
-    void loadCounts();
-  }, [user]);
-
-  const loadCounts = async () => {
+  const loadCounts = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
-  const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
-  const forwarded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'forwarded').length;
-  const recorded = (approved || []).filter((d: any) => (d.Status || '').toLowerCase() === 'recorded').length;
-  const total = forwarded + recorded;
-  const notRecorded = forwarded;
+      const approved = await getApprovedDocuments(user.Department, 'forwarded,recorded', user.User_Id);
+      const forwarded = (approved || []).filter((d) => (d.Status || '').toLowerCase() === 'forwarded').length;
+      const recorded = (approved || []).filter((d) => (d.Status || '').toLowerCase() === 'recorded').length;
+      const total = forwarded + recorded;
+      const notRecorded = forwarded;
 
       setCounts({
         total,
         recorded,
         notRecorded,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RecorderDashboard load error', error);
-      toast({ title: 'Failed to load counts', description: error?.message || 'Please try again', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: 'Failed to load counts', description: message || 'Please try again', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadCounts();
+  }, [loadCounts, user]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!isRecorder) return <Navigate to="/dashboard" replace />;
@@ -49,7 +53,7 @@ const RecorderDashboard: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Recorder Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Quick counts for your department's documents.</p>
         </div>
         <button
@@ -61,20 +65,115 @@ const RecorderDashboard: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Documents" value={counts.total} loading={loading} />
-        <StatCard title="Not Recorded" value={counts.notRecorded} loading={loading} />
-        <StatCard title="Recorded" value={counts.recorded} loading={loading} />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Total Documents" value={counts.total} icon={FileText} loading={loading} variant="default" />
+        <StatCard title="Not Recorded" value={counts.notRecorded} icon={Clock} loading={loading} variant="warning" />
+        <StatCard title="Recorded" value={counts.recorded} icon={CheckCircle} loading={loading} variant="success" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recording Status Pie Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Recording Status Overview</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Recorded', value: counts.recorded },
+                    { name: 'Not Recorded', value: counts.notRecorded },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  <Cell fill="#10b981" />
+                  <Cell fill="#f59e0b" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value) => value}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status Comparison Bar Chart */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Status Comparison</h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={[
+                  { name: 'Recorded', count: counts.recorded, color: '#10b981' },
+                  { name: 'Not Recorded', count: counts.notRecorded, color: '#f59e0b' },
+                ]}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[8, 8, 0, 0]}
+                  shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { name?: string } }) => {
+                    const { x = 0, y = 0, width = 0, height = 0, payload } = props;
+                    const colors: { [key: string]: string } = {
+                      'Recorded': '#10b981',
+                      'Not Recorded': '#f59e0b',
+                    };
+                    return (
+                      <rect
+                        x={x}
+                        y={y}
+                        width={width}
+                        height={height}
+                        fill={colors[payload?.name || ''] || '#982B1C' }
+                        rx={8}
+                        ry={8}
+                      />
+                    );
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
-const StatCard: React.FC<{ title: string; value: number; loading?: boolean }> = ({ title, value, loading }) => (
-  <div className="rounded-lg border bg-card p-4 shadow-sm">
-    <p className="text-sm text-muted-foreground">{title}</p>
-    <p className="text-2xl font-bold text-foreground">{loading ? '…' : value}</p>
-  </div>
-);
 
 export default RecorderDashboard;

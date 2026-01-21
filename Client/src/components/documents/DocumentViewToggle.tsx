@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { Document } from '@/types';
+<<<<<<< HEAD
+import React from 'react';
 import DocumentTable from './DocumentTable';
-import DocumentAccordion from './DocumentAccordion';
-import { Button } from '@/components/ui/button';
-import { LayoutGrid, Table2 } from 'lucide-react';
+import { Document } from '@/types';
 
 interface DocumentViewToggleProps {
   documents: Document[];
+  renderToggleInHeader?: boolean;
+  // Pass through all DocumentTable props
   onApprove?: (id: number) => void;
   onReject?: (id: number) => void;
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
-  onForward?: (doc: Document) => void;
+  onForward?: (doc: Document, includeNotes?: boolean) => void;
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onDelete?: (id: number) => void;
@@ -25,43 +25,32 @@ interface DocumentViewToggleProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
-  defaultView?: 'table' | 'accordion';
+  // Optional passthrough for priority suffix behavior
+  prioritySuffix?: (doc: Document) => string | undefined;
+  // Optional handler to mark a release as done
+  onMarkRelease?: (recordDocId: number, mark?: 'done' | 'not_done') => Promise<void> | void;
 }
 
 const DocumentViewToggle: React.FC<DocumentViewToggleProps> = ({
-  defaultView = 'accordion',
+  documents,
   ...props
 }) => {
-  const [viewMode, setViewMode] = useState<'table' | 'accordion'>(defaultView);
-
   const commonProps = {
-    documents: props.documents,
-    onApprove: props.onApprove,
-    onReject: props.onReject,
-    onRevision: props.onRevision,
-    onRelease: props.onRelease,
-    onRecord: props.onRecord,
-    onForward: props.onForward,
-    onView: props.onView,
-    onEdit: props.onEdit,
-    onDelete: props.onDelete,
-    onTrack: props.onTrack,
-    renderActions: props.renderActions,
-    showPriority: props.showPriority,
-    showDescription: props.showDescription,
-    showDate: props.showDate,
-    descriptionLabel: props.descriptionLabel,
-    enablePagination: props.enablePagination,
-    pageSizeOptions: props.pageSizeOptions,
-    showStatusFilter: props.showStatusFilter,
+    documents,
+    ...props,
   };
 
+  // Accordion view removed: always render table
   return (
-    <div className="space-y-4">
-      {/* View Toggle */}
-      <div className="flex items-center justify-end gap-2">
-        <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/30">
-          <Button
+    <div className="relative overflow-hidden">
+      <div className="animate-fade-in">
+        <DocumentTable {...commonProps} />
+      </div>
+    </div>
+  );
+};
+
+export default DocumentViewToggle;
             variant={viewMode === 'accordion' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('accordion')}
@@ -88,8 +77,21 @@ const DocumentViewToggle: React.FC<DocumentViewToggleProps> = ({
       ) : (
         <DocumentTable {...commonProps} />
       )}
+=======
+      {/* Accordion view removed: always render table */}
+      <div className="relative overflow-hidden">
+        <div className="animate-fade-in">
+          <DocumentTable {...commonProps} />
+        </div>
+      </div>
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
     </div>
   );
 };
 
+<<<<<<< HEAD
+=======
+// Export the toggle element for use in headers
+export { DocumentViewToggle };
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
 export default DocumentViewToggle;

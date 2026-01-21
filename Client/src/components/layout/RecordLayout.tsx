@@ -19,9 +19,9 @@ const RecordLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />
-      <main className={`min-h-screen p-6 transition-[margin-left] duration-200 ${collapsed ? 'ml-16' : 'ml-64'}`}>
+      <main className={`min-h-screen h-screen p-6 transition-[margin-left] duration-200 bg-background ${collapsed ? 'ml-16' : 'ml-64'} overflow-y-auto`}>
         <Outlet />
       </main>
     </div>

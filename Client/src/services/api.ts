@@ -9,6 +9,15 @@ export const normalizeUser = (u: any): User => {
     return Boolean(statusRaw);
   })();
 
+  // Normalize role casing/format (e.g., 'super admin', 'SUPERADMIN', 'super_admin' -> 'SuperAdmin')
+  const roleRaw = String(u.User_Role ?? u.user_role ?? 'Employee').toLowerCase().replace(/[^a-z]/g, '');
+  let normalizedRole = 'Employee';
+  if (roleRaw === 'superadmin') normalizedRole = 'SuperAdmin';
+  else if (roleRaw === 'admin') normalizedRole = 'Admin';
+  else if (roleRaw === 'departmenthead') normalizedRole = 'DepartmentHead';
+  else if (roleRaw === 'divisionhead') normalizedRole = 'DivisionHead';
+  else if (roleRaw === 'officerincharge' || roleRaw === 'oic') normalizedRole = 'OfficerInCharge';
+
   return {
     User_Id: u.User_Id ?? u.user_id ?? 0,
     ID_Number: u.ID_Number ?? u.id_number ?? u.idNumber ?? u.id_number ?? 0,
@@ -17,7 +26,7 @@ export const normalizeUser = (u: any): User => {
     Email: u.Email ?? u.email ?? '',
     Department: u.Department ?? u.department ?? '',
     Division: u.Division ?? u.division ?? '',
-    User_Role: (u.User_Role ?? u.user_role ?? 'Employee') as UserRole,
+    User_Role: normalizedRole as UserRole,
     User_Name: u.User_Name ?? u.user_name ?? '',
     Status: status,
     // optional pre-assigned role (e.g., Recorder / Releaser)
@@ -47,9 +56,16 @@ const apiRequest = async (endpoint: string, options?: RequestInit) => {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const message =
+      let message =
         (data && (data.error || data.message)) ||
         `Request failed with status ${response.status}`;
+
+      // If server included a database error message, replace it with a generic message
+      // so we don't leak sensitive details (e.g., DB auth errors) to the client.
+      if (/database error/i.test(message) || /password authentication failed/i.test(message)) {
+        message = 'Internal server error';
+      }
+
       throw new Error(message);
     }
 
@@ -123,8 +139,8 @@ export const releaseRecordedDocument = async (recordDocId: number): Promise<any>
 export const createReleaseDocument = async (
   recordDocId: number,
   status: 'low' | 'medium' | 'high',
-  department: string,
-  division: string
+  department: string | string[],
+  division?: string | string[]
 ): Promise<any> => {
   // documents router is mounted under /api/documents
   return apiRequest('/documents/releases', {
@@ -148,18 +164,16 @@ export const updateDocumentStatus = async (
   comments?: string,
   admin?: string,
   recordStatus?: 'recorded' | 'not_recorded',
-  recordComment?: string
+  applyFinalStatus?: boolean,
 ): Promise<Document | null> => {
+  const body: any = { Document_Id: documentId, Status: status };
+  if (comments !== undefined) body.comments = comments;
+  if (admin !== undefined) body.admin = admin;
+  if (recordStatus !== undefined) body.record_status = recordStatus;
+  if (applyFinalStatus) body.apply_final_status = true;
   return apiRequest('/documents', {
     method: 'PUT',
-    body: JSON.stringify({
-      Document_Id: documentId,
-      Status: status,
-      comments,
-      admin,
-      record_status: recordStatus,
-      record_comment: recordComment,
-    }),
+    body: JSON.stringify(body),
   });
 };
 
@@ -245,16 +259,26 @@ export const createRespondDocument = async (
   releaseDocId: number,
   userId: number,
   status: 'actioned' | 'not actioned',
-  comment: string
+  comment: string,
+  documentBase64?: string,
+  filename?: string,
+  mimetype?: string,
+  applyFinalStatus?: boolean
 ): Promise<any> => {
+  const body: any = {
+    release_doc_id: releaseDocId,
+    user_id: userId,
+    status: status,
+    comment: comment,
+  };
+  if (documentBase64 !== undefined) body.document = documentBase64;
+  if (filename !== undefined) body.document_name = filename;
+  if (mimetype !== undefined) body.document_type = mimetype;
+  if (applyFinalStatus) body.apply_final_status = true;
+
   return apiRequest('/documents/respond', {
     method: 'POST',
-    body: JSON.stringify({
-      release_doc_id: releaseDocId,
-      user_id: userId,
-      status: status,
-      comment: comment,
-    }),
+    body: JSON.stringify(body),
   });
 };
 
@@ -380,11 +404,13 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
 };
 
 // Update user status (activate / deactivate)
-export const updateUserStatus = async (userId: number, status: boolean): Promise<User | null> => {
+export const updateUserStatus = async (userId: number, status: boolean, applyFinalStatus?: boolean): Promise<User | null> => {
   // Use a dedicated endpoint to avoid colliding with other user updates
+  const body: any = { User_Id: userId, Status: status };
+  if (applyFinalStatus) body.apply_final_status = true;
   return apiRequest('/users/status', {
     method: 'PUT',
-    body: JSON.stringify({ User_Id: userId, Status: status }),
+    body: JSON.stringify(body),
   });
 };
 
@@ -418,4 +444,43 @@ export const getDocumentTrack = async (documentId?: number): Promise<any> => {
   if (!documentId) return [];
   const q = `?documentId=${documentId}`;
   return apiRequest(`/documents/track${q}`, { method: 'GET' });
+};
+
+// Get department theme
+export const getDepartmentTheme = async (department: string): Promise<{ theme: string }> => {
+  return apiRequest(`/departments/theme/${encodeURIComponent(department)}`, { method: 'GET' });
+};
+
+// Update department theme (Admin only)
+export const updateDepartmentTheme = async (
+  department: string,
+  theme: 'light' | 'dark',
+  userRole: string,
+  userDepartment: string
+): Promise<{ department: string; theme: string }> => {
+  return apiRequest(`/departments/theme/${encodeURIComponent(department)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ theme, userRole, userDepartment }),
+  });
+};
+
+// Impersonate a user (SuperAdmin only) - returns the target user's normalized object
+export const impersonateUser = async (userId: number): Promise<User | null> => {
+  const data = await apiRequest('/users/impersonate', {
+    method: 'POST',
+    body: JSON.stringify({ User_Id: userId }),
+  });
+  if (!data) return null;
+  return normalizeUser(data as any);
+};
+
+// Apply an override to a user (SuperAdmin). This updates assignment/status and marks related document rows as overridden.
+export const overrideUser = async (userId: number, pre_assigned_role: string | null, status?: boolean): Promise<User | null> => {
+  const body: any = { User_Id: userId };
+  if (typeof pre_assigned_role !== 'undefined') body.pre_assigned_role = pre_assigned_role;
+  if (typeof status !== 'undefined') body.Status = status;
+  return apiRequest('/users/override', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 };

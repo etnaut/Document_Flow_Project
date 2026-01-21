@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Document } from '@/types';
@@ -48,6 +49,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+=======
+﻿import React from 'react';
+import DocumentTable from './DocumentTable';
+import { Document } from '@/types';
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
 
 interface DocumentAccordionProps {
   documents: Document[];
@@ -56,7 +62,11 @@ interface DocumentAccordionProps {
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
+<<<<<<< HEAD
   onForward?: (doc: Document) => void;
+=======
+  onForward?: (doc: Document, includeNotes?: boolean) => void;
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onDelete?: (id: number) => void;
@@ -71,6 +81,7 @@ interface DocumentAccordionProps {
   showStatusFilter?: boolean;
 }
 
+<<<<<<< HEAD
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
   pending: 'pending',
   approved: 'approved',
@@ -767,6 +778,11 @@ const DocumentAccordion: React.FC<DocumentAccordionProps> = ({
       </Dialog>
     </div>
   );
+=======
+// Accordion feature removed  render the table view as a fallback
+const DocumentAccordion: React.FC<DocumentAccordionProps> = ({ documents, ...props }) => {
+  return <DocumentTable documents={documents} {...props} />;
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
 };
 
 export default DocumentAccordion;

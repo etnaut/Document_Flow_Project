@@ -1,25 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDocumentsByStatus, updateDocumentStatus } from '@/services/api';
+import { getDocumentsByStatus, updateDocumentStatus, getDepartments } from '@/services/api';
 import { Document } from '@/types';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { toast } from '@/hooks/use-toast';
 import { Clock } from 'lucide-react';
 
 const PendingDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [user]);
+    const init = async () => {
+      if (isSuperAdmin) {
+        try {
+          const depts = await getDepartments();
+          setDepartments(depts || []);
+          if (depts && depts.length > 0) {
+            setSelectedDept((prev) => prev || depts[0]);
+          }
+        } catch {
+          setDepartments([]);
+        }
+      }
+      await fetchDocuments();
+    };
+    void init();
+  }, [user, isSuperAdmin, selectedDept]);
 
   const fetchDocuments = async () => {
-    if (!user) return;
+    if (!user) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
+    const effectiveDept = isSuperAdmin ? selectedDept : user.Department;
+    if (!effectiveDept) {
+      setDocuments([]);
+      setLoading(false);
+      return;
+    }
     try {
       // Filter by user's department - Admin sees pending docs sent TO their department
-      const data = await getDocumentsByStatus('Pending', user.Department, user.User_Role, user.User_Id);
+      setLoading(true);
+      const data = await getDocumentsByStatus('Pending', effectiveDept, isSuperAdmin ? 'Admin' : user.User_Role, user.User_Id);
       setDocuments(data);
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -31,7 +59,7 @@ const PendingDocuments: React.FC = () => {
   const handleApprove = async (id: number) => {
     if (!user) return;
     try {
-      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
+      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document approved successfully.' });
       fetchDocuments();
     } catch (error) {
@@ -53,7 +81,7 @@ const PendingDocuments: React.FC = () => {
 
   const handleRevision = async (id: number, comment?: string) => {
     try {
-      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name);
+      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document sent for revision.' });
       fetchDocuments();
     } catch (error) {
@@ -72,7 +100,7 @@ const PendingDocuments: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="animate-slide-up">
+      <div className="animate-slide-up space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10">
             <Clock className="h-6 w-6 text-warning" />
@@ -84,6 +112,22 @@ const PendingDocuments: React.FC = () => {
             </p>
           </div>
         </div>
+        {isSuperAdmin && (
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-muted-foreground">Department</label>
+            <select
+              className="rounded-md border bg-background p-2 text-sm"
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+            >
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <DocumentViewToggle

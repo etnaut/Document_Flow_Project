@@ -42,9 +42,10 @@ const Login: React.FC = () => {
       } else {
         toast({ title: 'Authentication Failed', description: 'Invalid username or password.', variant: 'destructive' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      const errorMessage = err?.message || 'An unexpected error occurred. Please check if the backend server is running.';
+      const message = err instanceof Error ? err.message : String(err);
+      const errorMessage = message || 'An unexpected error occurred. Please check if the backend server is running.';
       toast({ 
         title: 'Error', 
         description: errorMessage, 

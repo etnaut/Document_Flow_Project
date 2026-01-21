@@ -36,12 +36,17 @@ export interface Document {
   sender_division_id?: number;
   target_department: string; // The department this document is sent TO
   created_at?: string;
+  forwarded_date?: string | null;
+  record_date?: string | null;
   comments?: string;
+  approved_comments?: string;
+  approved_admin?: string;
   description?: string;
   forwarded_from?: string; // Department that forwarded this document
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin
   mark?: string; // optional release mark (e.g., 'not_done')
+  final_status?: string | null; // 'override' when SuperAdmin has overridden
 }
 
 export interface DocumentResponse {
@@ -73,6 +78,8 @@ export interface RevisionEntry {
   admin: string | null;
   document_type: string | null;
   sender_name: string | null;
+  created_at?: string | null;
+  final_status?: string | null;
 }
 
 export interface ResponseDocument {
@@ -90,4 +97,8 @@ export interface AuthContextType {
   loading: boolean;
   // Accept either a User object (preferred) or a role string
   getDefaultRoute: (userOrRole: User | string) => string;
-} 
+  // Impersonation helpers added for SuperAdmin
+  impersonateById: (userId: number) => Promise<User | null>;
+  revertImpersonation: () => void;
+  impersonator?: User | null;
+}

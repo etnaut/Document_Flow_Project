@@ -24,7 +24,7 @@ interface RespondDocumentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   document: Document | null;
-  onRespond: (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string) => Promise<void>;
+  onRespond: (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string, documentBase64?: string, filename?: string, mimetype?: string) => Promise<void>;
 }
 
 const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
@@ -35,12 +35,24 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
 }) => {
   const [status, setStatus] = useState<'actioned' | 'not actioned'>('not actioned');
   const [comment, setComment] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const parts = result.split(',');
+      resolve(parts[1] ?? '');
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!document || !comment.trim()) return;
-    
+    if (!document || (!comment.trim() && !file)) return;
+
     const releaseDocId = (document as any).record_doc_id;
     if (!releaseDocId) {
       console.error('No release_doc_id found in document');
@@ -49,8 +61,19 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onRespond(releaseDocId, status, comment);
+      let fileBase64: string | undefined;
+      let filename: string | undefined;
+      let mimetype: string | undefined;
+
+      if (file) {
+        fileBase64 = await toBase64(file);
+        filename = file.name;
+        mimetype = file.type || 'application/octet-stream';
+      }
+
+      await onRespond(releaseDocId, status, comment.trim(), fileBase64, filename, mimetype);
       setComment('');
+      setFile(null);
       setStatus('not actioned');
       onOpenChange(false);
     } catch (error: any) {
@@ -114,8 +137,19 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
-                required
+                required={!file}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="responseFile">Attach file (optional)</Label>
+              <input
+                id="responseFile"
+                type="file"
+                onChange={(e) => setFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+                className="text-sm"
+              />
+              {file && <div className="text-sm text-muted-foreground">Selected: {file.name}</div>}
             </div>
           </div>
           <DialogFooter>
@@ -126,7 +160,7 @@ const RespondDocumentDialog: React.FC<RespondDocumentDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !comment.trim()}>
+            <Button type="submit" disabled={isSubmitting || (!comment.trim() && !file)}>
               {isSubmitting ? 'Saving...' : 'Save Response'}
             </Button>
           </DialogFooter>

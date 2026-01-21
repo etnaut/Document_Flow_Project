@@ -6,103 +6,105 @@
 
 @layer base {
   :root {
-    /* Palette based on provided image */
-    /* Primary deep blue: #1B3C53 → hsl(205, 51%, 22%) */
-    /* Secondary steel blue: #456882 → hsl(206, 31%, 39%) */
-    /* Accent warm beige: #D2C1B6 → hsl(24, 24%, 77%) */
-    /* Background soft off-white: #F9F3EF → hsl(25, 45%, 96%) */
+    /* Professional Premium Color Palette - Optimized for Older Users */
+    /* Primary (Dark Maroon): #800000 → hsl(0, 100%, 25%) - Main brand color */
+    /* Secondary (Muted Red): #982B1C → hsl(9, 69%, 35%) - Accent buttons, links */
+    /* Accent (Light Beige): #DAD4B5 → hsl(49, 38%, 78%) - Subtle backgrounds, borders */
+    /* Background (Creamy Beige): #F2E8C6 → hsl(45, 62%, 86%) - Main background */
 
-    --background: 25 45% 96%;
-    --foreground: 205 40% 20%;
+    --background: 45 62% 86%;
+    --foreground: 0 30% 15%; /* Dark text for high contrast readability */
 
-    --card: 0 0% 100% / 1; /* solid card for clarity */
-    --card-foreground: 205 40% 20%;
+    --card: 45 50% 95% / 1; /* Slightly lighter than background for card distinction */
+    --card-foreground: 0 30% 15%;
 
-    --popover: 0 0% 100% / 1;
-    --popover-foreground: 205 40% 20%;
+    --popover: 45 50% 97% / 1;
+    --popover-foreground: 0 30% 15%;
 
-    --primary: 205 51% 22%;
+    --primary: 0 100% 25%; /* Dark maroon #800000 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 206 31% 39%;
+    --secondary: 9 69% 35%; /* Muted red #982B1C */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 24 24% 90%;
-    --muted-foreground: 206 15% 35%;
+    --muted: 49 38% 78%; /* Light beige #DAD4B5 */
+    --muted-foreground: 0 25% 25%; /* Dark text for readability on beige */
 
-    --accent: 24 24% 77%;
-    --accent-foreground: 205 40% 20%;
+    --accent: 49 38% 78%; /* Light beige #DAD4B5 */
+    --accent-foreground: 0 30% 15%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 51%; /* Keep red for errors, but adjust if needed */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 142 76% 36%; /* Keep green for success */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 50%; /* Keep amber for warnings */
     --warning-foreground: 0 0% 100%;
 
-    --info: 206 31% 39%;
+    --info: 9 69% 35%; /* Use muted red for info */
     --info-foreground: 0 0% 100%;
 
-    --border: 206 31% 39% / 0.2;
-    --input: 206 31% 39% / 0.08;
-    --ring: 205 51% 22%;
+    --border: 9 40% 45% / 0.25; /* Subtle borders using muted red */
+    --input: 9 40% 45% / 0.12; /* Very subtle input backgrounds */
+    --ring: 0 100% 25%; /* Focus rings use primary maroon */
 
     --radius: 0.75rem;
 
-    --sidebar-background: 205 51% 18%;
+    /* Sidebar uses darker maroon for professional premium look */
+    --sidebar-background: 0 100% 18%; /* Darker maroon for sidebar */
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 205 51% 22%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 24% 77% / 0.2;
-    --sidebar-accent-foreground: 205 40% 20%;
-    --sidebar-border: 206 31% 39% / 0.25;
-    --sidebar-ring: 205 51% 22%;
+    --sidebar-primary: 0 100% 18%;
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: hsl(9 69% 35% / 0.15); /* Subtle muted red highlight */
+    --sidebar-accent-foreground: var(--primary-foreground);
+    --sidebar-border: 0 100% 15% / 0.5;
+    --sidebar-ring: 0 100% 25%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(205 51% 22%), hsl(206 31% 39%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(24 24% 95%));
-    --shadow-card: 0 4px 20px -4px hsl(205 51% 22% / 0.15);
-    --shadow-elevated: 0 12px 40px -8px hsl(205 51% 22% / 0.25);
+    --gradient-primary: linear-gradient(135deg, hsl(0 100% 18%), hsl(9 69% 35%));
+    --gradient-card: linear-gradient(180deg, hsl(45 50% 97%), hsl(49 38% 78%));
+    --shadow-card: 0 6px 28px -6px hsl(0 100% 18% / 0.15);
+    --shadow-elevated: 0 18px 60px -12px hsl(0 100% 18% / 0.2);
   }
 
   .dark {
-    --background: 205 51% 12%;
-    --foreground: 0 0% 100%;
+    /* Dark theme adapted to maroon/beige palette - still professional and readable */
+    --background: 0 30% 12%; /* Very dark maroon-tinted background */
+    --foreground: 0 0% 95%;
 
-    --card: 205 51% 16% / 1;
-    --card-foreground: 0 0% 100%;
+    --card: 0 25% 16% / 1;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 205 51% 16% / 1;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 25% 16% / 1;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 206 31% 39%;
+    --primary: 9 69% 40%; /* Lighter muted red for dark theme */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 205 51% 22%;
+    --secondary: 0 100% 30%; /* Lighter maroon for secondary in dark mode */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 205 51% 18%;
-    --muted-foreground: 0 0% 92%;
+    --muted: 0 20% 20%;
+    --muted-foreground: 0 0% 85%;
 
-    --accent: 24 24% 68%;
-    --accent-foreground: 205 40% 20%;
+    --accent: 49 25% 55%; /* Darker beige for dark theme accents */
+    --accent-foreground: 0 0% 95%;
 
-    --destructive: 0 62% 45%;
+    --destructive: 0 72% 55%; /* Slightly brighter for dark theme */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 206 31% 39% / 0.35;
-    --input: 206 31% 39% / 0.25;
-    --ring: 206 31% 39%;
+    --border: 9 50% 35% / 0.4;
+    --input: 9 40% 25% / 0.3;
+    --ring: 9 69% 40%;
 
-    --sidebar-background: 205 51% 10%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 206 31% 39%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 24% 68% / 0.25;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 206 31% 39% / 0.3;
-    --sidebar-ring: 206 31% 39%;
+    --sidebar-background: 0 100% 12%; /* Very dark maroon for sidebar */
+    --sidebar-foreground: var(--primary-foreground);
+    --sidebar-primary: 0 100% 12%;
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: hsl(9 69% 40% / 0.2);
+    --sidebar-accent-foreground: var(--primary-foreground);
+    --sidebar-border: 0 100% 10% / 0.5;
+    --sidebar-ring: 9 69% 40%;
   }
 }
 
@@ -121,6 +123,8 @@
   body {
     @apply font-sans antialiased;
     font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    font-size: 16px; /* Base font size for better readability */
+    line-height: 1.6; /* Improved line height for older users */
     background-color: hsl(var(--background));
     min-height: 100vh;
     width: 100%;
@@ -133,28 +137,70 @@
     width: 100%;
   }
 
-  /* Typography Hierarchy */
+  /* Typography Hierarchy - Optimized for older users */
   h1 {
     font-family: 'Poppins', sans-serif;
     font-weight: 700;
+    font-size: 2.25rem; /* 36px - Clear and readable */
+    line-height: 1.3;
     letter-spacing: -0.025em;
+    color: hsl(var(--foreground));
   }
 
   h2, h3 {
     font-family: 'Inter', sans-serif;
     font-weight: 600;
+    line-height: 1.4;
     letter-spacing: -0.015em;
+    color: hsl(var(--foreground));
+  }
+
+  h2 {
+    font-size: 1.875rem; /* 30px */
+  }
+
+  h3 {
+    font-size: 1.5rem; /* 24px */
   }
 
   h4, h5, h6 {
     font-family: 'Inter', sans-serif;
     font-weight: 600;
+    line-height: 1.5;
+    color: hsl(var(--foreground));
   }
 
-  /* Labels and form elements */
+  /* Labels and form elements - enhanced readability */
   label {
     font-family: 'Inter', sans-serif;
     font-weight: 500;
+    font-size: 0.9375rem; /* 15px - slightly larger for clarity */
+    color: hsl(var(--foreground));
+  }
+
+  /* Links - better visibility with maroon */
+  a {
+    color: hsl(var(--primary));
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  a:hover {
+    color: hsl(var(--secondary));
+    text-decoration: underline;
+  }
+
+  /* Input fields - better contrast */
+  input, textarea, select {
+    font-size: 16px; /* Prevent zoom on iOS */
+    line-height: 1.5;
+  }
+
+  /* Button text - ensure good readability */
+  button {
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 500;
+    letter-spacing: 0.01em;
   }
 
   /* Apply strong backdrop blur to all glass elements */
@@ -180,6 +226,22 @@
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out;
   }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSubtle 2s ease-in-out infinite;
+  }
+
+  .animate-progress-bar {
+    animation: progressBar 2s ease-in-out infinite;
+  }
 }
 
 @keyframes fadeIn {
@@ -195,4 +257,47 @@
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounceSubtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes progressBar {
+  0% {
+    width: 0%;
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0.6;
+  }
 }

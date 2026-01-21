@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -28,14 +36,13 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { getUsers, createUser, getDepartments, getDivisions } from '@/services/api';
-import { createDepartment, createDivision } from '@/services/api';
-import { updateUserStatus } from '@/services/api';
+import { getUsers, createUser, getDepartments, getDivisions, createDepartment, createDivision, updateUserStatus, updateUserAssignment, overrideUser } from '@/services/api';
 import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
 const ManageAdmins: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonateById, getDefaultRoute } = useAuth();
+  const navigate = useNavigate();
   const [admins, setAdmins] = useState<User[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
@@ -58,17 +65,38 @@ const ManageAdmins: React.FC = () => {
   const [newDivName, setNewDivName] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+  const [isImpersonateConfirmOpen, setIsImpersonateConfirmOpen] = useState(false);
   // For status change confirmation
   const [statusTarget, setStatusTarget] = useState<{ userId: number; fullName: string; newStatus: boolean } | null>(null);
+  // Override dialog
+  const [isOverrideOpen, setIsOverrideOpen] = useState(false);
+  const [overrideTarget, setOverrideTarget] = useState<{ userId: number; fullName: string; preAssignedRole: string; status: boolean } | null>(null);
+  const [impersonateTarget, setImpersonateTarget] = useState<{ userId: number; fullName: string } | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Debug: log when department changes to help diagnose select issues
-  useEffect(() => {
-    console.debug('ManageAdmins: formData.Department changed ->', formData.Department);
-  }, [formData.Department]);
+  // Filters and pagination (moved up so hooks are declared before any early returns)
+  const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
+  const [query, setQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const filteredAdmins = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return visibleAdmins.filter((a) => {
+      const matchesDept = deptFilter === 'all' || a.Department === deptFilter;
+      if (!q) return matchesDept;
+      const hay = [a.Full_Name || '', a.Email || '', a.Department || '', a.Division || '', a.User_Role || '', a.Status ? 'active' : 'inactive']
+        .join(' ').toLowerCase();
+      return matchesDept && hay.includes(q);
+    });
+  }, [visibleAdmins, query, deptFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredAdmins.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageSlice = filteredAdmins.slice((currentPage - 1) * pageSize, (currentPage) * pageSize);
+  React.useEffect(() => { setPage(1); }, [query, deptFilter, pageSize, admins]);
 
   const loadData = async () => {
     try {
@@ -76,6 +104,7 @@ const ManageAdmins: React.FC = () => {
         getUsers(),
         getDepartments(),
       ]);
+<<<<<<< HEAD
       // Also ensure SuperAdmin accounts are included in the list (some setups may exclude them)
       let merged = usersData || [];
       try {
@@ -92,12 +121,16 @@ const ManageAdmins: React.FC = () => {
   const allowedRoles = ['Admin', 'DivisionHead', 'DepartmentHead'];
   const filtered = merged.filter((u) => allowedRoles.includes(String(u.User_Role)));
   setAdmins(filtered);
+=======
+      setAdmins(usersData);
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
       setDepartments(deptData);
       // Start with empty divisions until a department is selected
       setDivisions([]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('ManageAdmins: loadData error', err);
-      toast({ title: 'Error', description: err.message || 'Failed to load data', variant: 'destructive' });
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to load data', variant: 'destructive' });
     }
   };
 
@@ -119,7 +152,7 @@ const ManageAdmins: React.FC = () => {
         }
         return prev;
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load divisions for department', err);
       setDivisions([]);
     }
@@ -172,21 +205,19 @@ const ManageAdmins: React.FC = () => {
         Email: formData.Email,
         Department: formData.Department,
         Division: formData.Division,
-        User_Role: (formData.Role as any) || 'Admin',
+        User_Role: (formData.Role as User['User_Role']) || 'Admin',
         User_Name: formData.User_Name,
         Password: formData.Password,
         Status: true,
       });
 
       toast({ title: 'Success', description: 'Admin account created successfully.' });
-  setIsOpen(false);
-  setFormData({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: '', Division: '', User_Name: '', Password: '', Role: 'Admin' });
+      setIsOpen(false);
+      setFormData({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: '', Division: '', User_Name: '', Password: '', Role: 'Admin' });
       await loadData();
-    } catch (error: any) {
-      // Detect common duplicate-key database error messages and display a friendlier toast
-      const msg = error?.message || '';
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
       if (typeof msg === 'string' && /duplicate key value/i.test(msg)) {
-        // Try to extract the key name and value from Postgres-style message
         const m = msg.match(/Key \(([^)]+)\)=\(([^)]+)\)/i);
         if (m) {
           const key = m[1];
@@ -203,48 +234,79 @@ const ManageAdmins: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = (userId: number, fullName: string, currentStatus: boolean) => {
-    // We ask the superadmin to confirm the inverse action (if active -> confirm deactivate)
-    setStatusTarget({ userId, fullName, newStatus: !currentStatus });
+  const handleToggleStatus = (userId: number, fullName: string, currentStatus: boolean, force?: boolean) => {
+    const next = typeof force === 'boolean' ? force : !currentStatus;
+    setStatusTarget({ userId, fullName, newStatus: next });
     setIsStatusConfirmOpen(true);
+  };
+
+  const openOverrideDialog = (a: User) => {
+    setOverrideTarget({
+      userId: a.User_Id,
+      fullName: a.Full_Name,
+      preAssignedRole: a.pre_assigned_role ? String(a.pre_assigned_role) : '__none', // sentinel for "none"
+      status: !!a.Status,
+    });
+    setIsOverrideOpen(true);
+  };
+
+  const openImpersonateDialog = (a: User) => {
+    setImpersonateTarget({ userId: a.User_Id, fullName: a.Full_Name });
+    setIsImpersonateConfirmOpen(true);
+  };
+
+  const doImpersonate = async () => {
+    if (!impersonateTarget) return;
+    setIsLoading(true);
+    try {
+      const target = await impersonateById(impersonateTarget.userId);
+      if (target) {
+        // navigate to the impersonated user's default route
+        navigate(getDefaultRoute(target));
+      }
+      setIsImpersonateConfirmOpen(false);
+      setImpersonateTarget(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const doOverride = async () => {
+    if (!overrideTarget) return;
+    setIsLoading(true);
+    try {
+      const role = overrideTarget.preAssignedRole === '__none' ? '' : overrideTarget.preAssignedRole;
+      // Use the consolidated override endpoint which also marks related document entries as overridden
+      await overrideUser(overrideTarget.userId, role, overrideTarget.status);
+      toast({ title: 'Success', description: 'Override applied successfully.' });
+      setIsOverrideOpen(false);
+      setOverrideTarget(null);
+      await loadData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to apply override', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const doToggleStatus = async () => {
     if (!statusTarget) return;
     setIsLoading(true);
     try {
-      await updateUserStatus(statusTarget.userId, statusTarget.newStatus);
+      // Mark related document rows as overridden when SuperAdmin toggles status
+      await updateUserStatus(statusTarget.userId, statusTarget.newStatus, true);
       toast({ title: 'Success', description: `Account ${statusTarget.newStatus ? 'activated' : 'deactivated'} successfully.` });
       setStatusTarget(null);
-      // Close the status confirmation dialog
       setIsStatusConfirmOpen(false);
       await loadData();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err?.message || 'Failed to update user status', variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Error', description: message || 'Failed to update user status', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
-
-  const visibleAdmins = admins.filter((admin) => ['Admin', 'DepartmentHead', 'DivisionHead'].includes(admin.User_Role));
-  const [query, setQuery] = useState('');
-  const [deptFilter, setDeptFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const filteredAdmins = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return visibleAdmins.filter((a) => {
-      const matchesDept = deptFilter === 'all' || a.Department === deptFilter;
-      if (!q) return matchesDept;
-      const hay = [a.Full_Name || '', a.Email || '', a.Department || '', a.Division || '', a.User_Role || '', a.Status ? 'active' : 'inactive']
-        .join(' ').toLowerCase();
-      return matchesDept && hay.includes(q);
-    });
-  }, [visibleAdmins, query, deptFilter]);
-  const totalPages = Math.max(1, Math.ceil(filteredAdmins.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const pageSlice = filteredAdmins.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  React.useEffect(() => { setPage(1); }, [query, deptFilter, pageSize, admins]);
 
   return (
     <div className="space-y-6">
@@ -261,13 +323,13 @@ const ManageAdmins: React.FC = () => {
               Add Admin
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+          <DialogContent className="max-w-lg backdrop-blur-md shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
                 Create Admin Account
               </DialogTitle>
-              <p className="text-sm text-black mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
+              <p className="text-sm text-muted-foreground mt-1">Note: Choose the role for the account (Admin, Department Head, Division Head, or Officer In Charge).</p>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -278,21 +340,15 @@ const ManageAdmins: React.FC = () => {
                     type="number"
                     value={formData.ID_Number}
                     onChange={(e) => setFormData({ ...formData, ID_Number: e.target.value })}
-                    
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="Gender">Gender</Label>
-                  <Select
-                    value={formData.Gender}
-                    onValueChange={(value) => setFormData({ ...formData, Gender: value })}
-                  >
-                    <SelectTrigger className="text-black">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent className="text-black">
-                      <SelectItem value="Male" className="text-black">Male</SelectItem>
-                      <SelectItem value="Female" className="text-black">Female</SelectItem>
+                  <Select value={formData.Gender} onValueChange={(v) => setFormData((p) => ({ ...p, Gender: v }))}>
+                    <SelectTrigger className="text-black"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -304,7 +360,6 @@ const ManageAdmins: React.FC = () => {
                   id="Full_Name"
                   value={formData.Full_Name}
                   onChange={(e) => setFormData({ ...formData, Full_Name: e.target.value })}
-                  
                 />
               </div>
               
@@ -315,7 +370,6 @@ const ManageAdmins: React.FC = () => {
                   type="email"
                   value={formData.Email}
                   onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
-                  
                 />
               </div>
               
@@ -327,16 +381,15 @@ const ManageAdmins: React.FC = () => {
                     value={formData.Division}
                     onValueChange={(value) => setFormData({ ...formData, Division: value })}
                   >
-                    <SelectTrigger className="text-black">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select division" />
                     </SelectTrigger>
-                    <SelectContent className="text-black">
+                    <SelectContent>
                       {divisions.length === 0 ? (
-                        // empty list when no department selected
                         <div className="p-2 text-sm text-muted-foreground">No divisions available</div>
                       ) : (
                         divisions.map((div) => (
-                          <SelectItem key={div} value={div} className="text-black">{div}</SelectItem>
+                          <SelectItem key={div} value={div}>{div}</SelectItem>
                         ))
                       )}
                     </SelectContent>
@@ -359,18 +412,16 @@ const ManageAdmins: React.FC = () => {
                     <Select
                       value={formData.Department}
                       onValueChange={(value) => {
-                        // Use functional update to avoid stale state
                         setFormData((prev) => ({ ...prev, Department: value }));
-                        console.debug('ManageAdmins: department selected ->', value);
                         loadDivisionsForDepartment(value);
                       }}
                     >
-                    <SelectTrigger className="text-black">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
-                    <SelectContent className="text-black">
+                    <SelectContent>
                       {departments.map((dept) => (
-                        <SelectItem key={dept} value={dept} className="text-black">{dept}</SelectItem>
+                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                       ))}
                     </SelectContent>
                     </Select>
@@ -393,7 +444,6 @@ const ManageAdmins: React.FC = () => {
                     id="User_Name"
                     value={formData.User_Name}
                     onChange={(e) => setFormData({ ...formData, User_Name: e.target.value })}
-                   
                   />
                 </div>
                 <div className="space-y-2">
@@ -403,45 +453,33 @@ const ManageAdmins: React.FC = () => {
                     type="password"
                     value={formData.Password}
                     onChange={(e) => setFormData({ ...formData, Password: e.target.value })}
-                    
                   />
                 </div>
               </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="Role">Role</Label>
-                  <Select
-                    value={formData.Role}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, Role: value }))}
-                  >
-                    <SelectTrigger className="text-black">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
+                  <Select value={formData.Role} onValueChange={(v) => setFormData((p) => ({ ...p, Role: v }))}>
+                    <SelectTrigger className="text-black"><SelectValue placeholder="Select role" /></SelectTrigger>
                     <SelectContent className="text-black">
-                      <SelectItem value="Admin" className="text-black">Admin</SelectItem>
-                      <SelectItem value="DepartmentHead" className="text-black">Department Head</SelectItem>
-                      <SelectItem value="DivisionHead" className="text-black">Division Head</SelectItem>
-                      <SelectItem value="OfficerInCharge" className="text-black">Officer In Charge</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                       <SelectItem value="Admin">Admin</SelectItem>
+                       <SelectItem value="DepartmentHead">Department Head</SelectItem>
+                       <SelectItem value="DivisionHead">Division Head</SelectItem>
+                       <SelectItem value="OfficerInCharge">Officer In Charge</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
 
-              {/* Role is implicit: only Admin accounts are created by this flow. UI hides the role input. */}
-              
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Creating...' : 'Create Admin'}
-                </Button>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" type="button" onClick={() => setIsOpen(false)}>Cancel</Button>
+                <Button type="button" onClick={() => doCreateAdmin()} disabled={isLoading}>{isLoading ? 'Creating…' : 'Create'}</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
           {/* Department creation dialog */}
           <Dialog open={isDeptDialogOpen} onOpenChange={setIsDeptDialogOpen}>
-            <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+            <DialogContent className="max-w-md backdrop-blur-md shadow-2xl">
               <DialogHeader>
                 <DialogTitle>Create Department</DialogTitle>
               </DialogHeader>
@@ -475,7 +513,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for creating admin */}
             <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-              <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+              <DialogContent className="max-w-md backdrop-blur-md shadow-2xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Create Admin</DialogTitle>
                 </DialogHeader>
@@ -495,7 +533,7 @@ const ManageAdmins: React.FC = () => {
 
             {/* Confirmation Dialog for status change (activate/deactivate) */}
             <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
-              <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+              <DialogContent className="max-w-md backdrop-blur-md shadow-2xl">
                 <DialogHeader>
                   <DialogTitle>Confirm Status Change</DialogTitle>
                 </DialogHeader>
@@ -518,7 +556,7 @@ const ManageAdmins: React.FC = () => {
 
           {/* Division creation dialog */}
           <Dialog open={isDivDialogOpen} onOpenChange={setIsDivDialogOpen}>
-            <DialogContent className="max-w-md bg-white/40 text-black backdrop-blur-md border border-white/50 shadow-2xl">
+            <DialogContent className="max-w-md backdrop-blur-md shadow-2xl">
               <DialogHeader>
                 <DialogTitle>Create Division</DialogTitle>
               </DialogHeader>
@@ -555,76 +593,67 @@ const ManageAdmins: React.FC = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-        <div className="flex items-center justify-between p-3 border-b gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search admins..."
-            className="w-[260px]"
-          />
-          <div className="flex items-center gap-3">
-            <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v)}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by department" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Rows per page</span>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">Admins</h2>
+            <div className="flex items-center gap-3">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search admins..." className="w-[220px] border-primary" />
+              <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v)}>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Filter by department" /></SelectTrigger>
                 <SelectContent>
-                  {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+                  <SelectItem value="all">All</SelectItem>
+                  {departments.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Rows per page</span>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+                  <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[5,10,20,50].map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Full Name</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Division</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleAdmins.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-black/80">
-                  <UserCog className="mx-auto mb-2 h-8 w-8 opacity-50" />
-                  No admin accounts found.
-                </TableCell>
-              </TableRow>
+            {pageSlice.length === 0 ? (
+              <TableRow><TableCell colSpan={7} className="h-16 text-center text-black/80">No admins found</TableCell></TableRow>
             ) : (
-              pageSlice.map((admin) => (
-                <TableRow key={admin.User_Id}>
-                  <TableCell className="font-medium">{admin.Full_Name}</TableCell>
-                  <TableCell>{admin.Email}</TableCell>
-                  <TableCell>{admin.Department}</TableCell>
-                  <TableCell>{admin.Division}</TableCell>
-                  <TableCell>{admin.User_Role}</TableCell>
+              pageSlice.map((a) => (
+                <TableRow key={a.User_Id}>
+                  <TableCell className="font-medium">{a.Full_Name}</TableCell>
+                  <TableCell>{a.Email}</TableCell>
+                  <TableCell>{a.Department}</TableCell>
+                  <TableCell>{a.Division || '—'}</TableCell>
+                  <TableCell>{a.User_Role}</TableCell>
+                  <TableCell>{a.Status ? 'Active' : 'Inactive'}</TableCell>
                   <TableCell>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      title={admin.Status ? 'Click to deactivate this account' : 'Click to activate this account'}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status);
-                        }
-                      }}
-                      onClick={() => handleToggleStatus(admin.User_Id, admin.Full_Name, admin.Status)}
-                      className={`cursor-pointer inline-block rounded-full px-2 py-1 text-xs border border-black/20 ${
-                        admin.Status ? 'bg-green-500/20 text-black' : 'bg-red-500/20 text-black'
-                      }`}
-                    >
-                      {admin.Status ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">Actions</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, true)}>Activate</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleToggleStatus(a.User_Id, a.Full_Name, a.Status, false)}>Deactivate</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openImpersonateDialog(a)}>Sign in as</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -653,6 +682,75 @@ const ManageAdmins: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Status change confirmation dialog */}
+      <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{statusTarget?.newStatus ? 'Confirm Activation' : 'Confirm Deactivation'}</DialogTitle>
+            <DialogDescription>Are you sure you want to {statusTarget?.newStatus ? 'activate' : 'deactivate'} the account for <strong>{statusTarget?.fullName}</strong>?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsStatusConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => void doToggleStatus()} disabled={isLoading}>{isLoading ? 'Processing…' : 'Confirm'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Override dialog */}
+      <Dialog open={isOverrideOpen} onOpenChange={(open) => { if (!open) { setOverrideTarget(null); } setIsOverrideOpen(open); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Override: {overrideTarget?.fullName ?? ''}</DialogTitle>
+            <DialogDescription>Set a pre-assigned role and activation status for this account.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Pre-assigned Role</Label>
+              <Select value={overrideTarget?.preAssignedRole ?? '__none'} onValueChange={(v) => setOverrideTarget((p) => p ? { ...p, preAssignedRole: v } : p)}>
+                <SelectTrigger className="text-black"><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">None</SelectItem>
+                  <SelectItem value="Recorder">Recorder</SelectItem>
+                  <SelectItem value="Releaser">Releaser</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={overrideTarget?.status ? 'active' : 'inactive'} onValueChange={(v) => setOverrideTarget((p) => p ? { ...p, status: v === 'active' } : p)}>
+                <SelectTrigger className="text-black"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setIsOverrideOpen(false); setOverrideTarget(null); }}>Cancel</Button>
+            <Button onClick={() => void doOverride()} disabled={isLoading}>{isLoading ? 'Saving…' : 'Apply'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Impersonate confirmation dialog */}
+      <Dialog open={isImpersonateConfirmOpen} onOpenChange={setIsImpersonateConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sign in as {impersonateTarget?.fullName ?? ''}</DialogTitle>
+            <DialogDescription>Confirm that you want to sign in as this user. This will end your current session. You can revert back using the Revert action in the notification.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsImpersonateConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => void doImpersonate()} disabled={isLoading}>{isLoading ? 'Signing in…' : 'Sign in as user'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };

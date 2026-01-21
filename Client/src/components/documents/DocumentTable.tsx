@@ -37,7 +37,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, Download, ExternalLink } from 'lucide-react';
+import { Eye, Download, ExternalLink, Search, Paperclip } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -46,7 +47,7 @@ interface DocumentTableProps {
   onRevision?: (id: number, comment?: string) => void;
   onRelease?: (id: number) => void;
   onRecord?: (doc: Document) => void;
-  onForward?: (doc: Document) => void;
+  onForward?: (doc: Document, includeNotes?: boolean) => void; // second arg indicates whether to show comment field
   onView?: (doc: Document) => void;
   onEdit?: (doc: Document) => void;
   onTrack?: (doc: Document) => void;
@@ -58,6 +59,10 @@ interface DocumentTableProps {
   enablePagination?: boolean;
   pageSizeOptions?: number[];
   showStatusFilter?: boolean;
+  // Optional function to render a suffix for the Priority column
+  prioritySuffix?: (doc: Document) => string | undefined;
+  // Optional handler to mark a release record as done (used by ReceivedRequests)
+  onMarkRelease?: (recordDocId: number, mark?: 'done' | 'not_done') => Promise<void> | void;
 }
 
 const statusVariants: Record<string, 'pending' | 'approved' | 'revision' | 'released' | 'received' | 'default'> = {
@@ -100,13 +105,21 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   enablePagination = false,
   pageSizeOptions = [5, 10, 20],
   showStatusFilter = true,
+  prioritySuffix,
+  onMarkRelease,
 }) => {
-  const baseColumns = showDate ? 5 : 4; // type, sender, document, date?, status
-  const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showDescription ? 1 : 0) + (renderActions ? 1 : 0);
+  const baseColumns = showDate ? 6 : 5; // id, type, sender, document, date?, status
+  // Show comment/description column if showDescription is true OR if any document has comments
+  const hasComments = documents.some(doc => doc.comments);
+  const showCommentColumn = showDescription || hasComments;
+  const columnsCount = baseColumns + (showPriority ? 1 : 0) + (showCommentColumn ? 1 : 0) + (renderActions ? 1 : 0);
 
   const navigate = useNavigate();
   const [revisionDialogDoc, setRevisionDialogDoc] = React.useState<Document | null>(null);
   const [revisionComment, setRevisionComment] = React.useState('');
+  // Dialog state for marking a release as done
+  const [markDialogDoc, setMarkDialogDoc] = React.useState<Document | null>(null);
+  const [markLoading, setMarkLoading] = React.useState(false);
 
   const [query, setQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'all' | string>('all');
@@ -160,6 +173,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     }
   };
 
+  // Helper: append '/override' suffix when final_status is 'override'
+  const labelWithFinal = (base: string | undefined, doc: Document) => {
+    const b = typeof base === 'string' ? base : (base ?? '');
+    const finalRaw = (doc as any).final_status ?? (doc as any).finalStatus ?? '';
+    if (String(finalRaw).toLowerCase() === 'override') return `${b}/override`;
+    return b;
+  };
+
   const detectMimeChoice = (bytes: Uint8Array): 'pdf' | 'word' | 'excel' | 'auto' => {
     // PDF magic %PDF
     if (bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
@@ -205,101 +226,168 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   }, [query, statusFilter, pageSize, documents]);
 
   return (
-    <div className="rounded-xl border bg-card shadow-card overflow-hidden">
-      <div className="flex flex-col gap-3 p-3 border-b">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents..." className="w-[240px]" />
-            {showStatusFilter && (
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {availableStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+    <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Search..." 
+              className="w-[260px] pl-9" 
+            />
           </div>
-          {enablePagination && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Rows per page</span>
-              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
+          {showStatusFilter && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {availableStatuses.map((s) => (
+                  <SelectItem key={s} value={s}>{labelForStatus(s)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
+        {enablePagination && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v))}>
+              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((n) => (<SelectItem key={n} value={String(n)}>{n}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
-      <Table>
+      <div className="overflow-x-auto">
+        <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead>Type</TableHead>
-            <TableHead>Sender</TableHead>
-            {showPriority && <TableHead>Priority</TableHead>}
-            <TableHead>Document</TableHead>
-            {showDate && <TableHead>Date</TableHead>}
-            {showDescription && <TableHead>{descriptionLabel}</TableHead>}
-            <TableHead>Status</TableHead>
-            {renderActions && <TableHead>Actions</TableHead>}
+            <TableHead className="w-12 text-center font-semibold">ID</TableHead>
+            <TableHead className="font-semibold">Type</TableHead>
+            <TableHead className="font-semibold">Sender</TableHead>
+            {showPriority && <TableHead className="font-semibold">Priority</TableHead>}
+            <TableHead className="font-semibold">Document</TableHead>
+            {showDate && <TableHead className="font-semibold">Date</TableHead>}
+            {showCommentColumn && (
+              <TableHead className="font-semibold">
+                {showDescription ? descriptionLabel : (hasComments ? 'Comment' : descriptionLabel)}
+              </TableHead>
+            )}
+            <TableHead className="font-semibold">Status</TableHead>
+            {renderActions && <TableHead className="font-semibold">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageSlice.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columnsCount} className="h-24 text-center text-black/80">
+              <TableCell colSpan={columnsCount + 1} className="h-24 text-center text-muted-foreground">
                 No documents found.
               </TableCell>
             </TableRow>
           ) : (
-            pageSlice.map((doc) => (
-              <TableRow key={doc.Document_Id} className="animate-fade-in">
-                <TableCell>{doc.Type}</TableCell>
-                <TableCell>{doc.sender_name}</TableCell>
+            pageSlice.map((doc, index) => {
+              const rowNumber = enablePagination 
+                ? (currentPage - 1) * pageSize + index + 1 
+                : index + 1;
+              return (
+              <TableRow key={doc.Document_Id} className={`animate-fade-in ${index % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-muted/40'}`}> 
+                <TableCell className="font-medium text-foreground text-center">{rowNumber}</TableCell>
+                <TableCell className="text-foreground">{doc.Type}</TableCell>
+                <TableCell className="text-foreground">{doc.sender_name}</TableCell>
                 {showPriority && (
                   <TableCell>
-                    <Badge
-                      variant={
-                        doc.Priority === 'High'
-                          ? 'destructive'
-                          : doc.Priority === 'Medium'
-                          ? 'warning'
-                          : 'secondary'
+                    {(() => {
+                      // Map Priority values: High, Low, Moderate
+                      let priorityValue = doc.Priority || '';
+                      let priorityVariant: 'destructive' | 'warning' | 'secondary' = 'secondary';
+                      
+                      if (priorityValue.toLowerCase() === 'high') {
+                        priorityValue = 'High';
+                        priorityVariant = 'destructive';
+                      } else if (priorityValue.toLowerCase() === 'medium' || priorityValue.toLowerCase() === 'moderate') {
+                        priorityValue = 'Moderate';
+                        priorityVariant = 'warning';
+                      } else {
+                        priorityValue = 'Low';
+                        priorityVariant = 'secondary';
                       }
-                    >
-                      {doc.Priority}
-                    </Badge>
+
+                      return (
+                        <>
+                          <Badge variant={priorityVariant}>{priorityValue}</Badge>
+                          {(() => {
+                            if (!prioritySuffix) return null;
+                            const suffix = prioritySuffix(doc);
+                            if (!suffix) return null;
+                            return <span className="ml-2 text-xs text-muted-foreground">/{suffix}</span>;
+                          })()}
+                        </>
+                      );
+                    })()}
                   </TableCell>
                 )}
                 <TableCell>
                   {doc.Document ? (
                     <Button
                       variant="link"
-                      className="px-0 text-xs text-black hover:underline"
+                      className="px-0 text-xs text-blue-600 underline inline-flex items-center gap-1"
                       onClick={() => {
                         void handleAttachmentClick(doc);
                       }}
                     >
-                      Attached
+                      <Paperclip className="h-4 w-4" />
+                      <span>Attached</span>
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">None</span>
                   )}
                 </TableCell>
-                {showDate && <TableCell>{doc.created_at}</TableCell>}
-                {showDescription && (
-                  <TableCell className="max-w-[240px] truncate" title={doc.description || ''}>
-                    {doc.description || '—'}
+                {showDate && <TableCell>{formatDate(doc.created_at)}</TableCell>}
+                {showCommentColumn && (
+                  <TableCell className="max-w-[240px] truncate" title={doc.description || doc.comments || ''}>
+                    {doc.description || doc.comments || '—'}
                   </TableCell>
                 )}
                 <TableCell>
                   {(() => {
+                    // For received requests, show Done/undone based on mark field
+                    const mark = String((doc as any).mark || '').toLowerCase();
+                    if (mark === 'done' || mark === 'not_done' || mark === 'not done') {
+                      const isDone = mark === 'done';
+                      const statusLabel = isDone ? 'Done' : 'Not Done';
+
+                      // When not done, render a button that opens a confirmation dialog if a handler is provided
+                      if (!isDone && onMarkRelease) {
+                        return (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="px-0"
+                              onClick={() => setMarkDialogDoc(doc)}
+                            >
+                              <Badge variant={'default'} className="cursor-pointer">
+                                {statusLabel}
+                              </Badge>
+                            </Button>
+                          </>
+                        );
+                      }
+
+                      return (
+                        <Badge variant={isDone ? 'success' : 'default'}>
+                          {labelWithFinal(statusLabel, doc)}
+                        </Badge>
+                      );
+                    }
+                    
                     const statusLower = doc.Status?.toLowerCase();
-                    const statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
+                    let statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
+                    statusLabel = labelWithFinal(statusLabel, doc);
 
                     // Recorder: click to mark as Recorded
                     if (onRecord && statusLower === 'not recorded') {
@@ -340,7 +428,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                           variant="ghost"
                           size="sm"
                           className="px-0"
-                          onClick={() => onForward(doc)}
+                          onClick={() => onForward(doc, false)}
                         >
                           <Badge variant={statusVariants[statusLower || ''] || 'default'} className="cursor-pointer">
                             {statusLabel}
@@ -372,7 +460,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                                 </DropdownMenuItem>
                               )}
                               {onForward && (
-                                <DropdownMenuItem onSelect={() => onForward(doc)}>
+                                <DropdownMenuItem onSelect={() => onForward(doc, true)}>
                                   Forward
                                 </DropdownMenuItem>
                               )}
@@ -450,7 +538,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                               </DropdownMenuItem>
                             )}
                             {onForward && (
-                              <DropdownMenuItem onSelect={() => onForward(doc)}>
+                              <DropdownMenuItem onSelect={() => onForward(doc, true)}>
                                 Forward
                               </DropdownMenuItem>
                             )}
@@ -470,29 +558,39 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </TableCell>
                 )}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
+      </div>
       {enablePagination && (
-        <div className="p-3 border-t grid grid-cols-3 items-center text-sm">
+        <div className="p-4 border-t border-border grid grid-cols-3 items-center text-sm bg-muted/30">
           <div className="justify-self-start">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} />
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }} 
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>
-          <div className="justify-self-center text-xs text-muted-foreground">
+          <div className="justify-self-center text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
           </div>
           <div className="justify-self-end">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} />
+                  <PaginationNext 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }} 
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
@@ -550,6 +648,65 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               }}
             >
               Send for Revision
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as done confirmation dialog */}
+      <Dialog
+        open={!!markDialogDoc}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMarkDialogDoc(null);
+            setMarkLoading(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-primary">Mark request as done</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this request as done? This will set the release as completed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <p className="text-sm font-medium text-primary">Document</p>
+              <p className="text-sm text-muted-foreground">{markDialogDoc?.Type} — {markDialogDoc?.sender_name}</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="text-primary border-primary hover:text-primary hover:bg-primary/10" onClick={() => setMarkDialogDoc(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!markDialogDoc || !onMarkRelease) {
+                  setMarkDialogDoc(null);
+                  return;
+                }
+                if (!markDialogDoc.record_doc_id) {
+                  toast({ title: 'Cannot mark: missing record id', variant: 'destructive' });
+                  setMarkDialogDoc(null);
+                  return;
+                }
+                try {
+                  setMarkLoading(true);
+                  await onMarkRelease(markDialogDoc.record_doc_id, 'done');
+                  setMarkDialogDoc(null);
+                } catch (err) {
+                  console.error('Mark release error', err);
+                  toast({ title: 'Failed to mark request', variant: 'destructive' });
+                } finally {
+                  setMarkLoading(false);
+                }
+              }}
+              disabled={markLoading}
+            >
+              Mark as done
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,7 +3,15 @@ import pool from '../config/database.js';
 let senderStatusColumnPromise: Promise<boolean> | null = null;
 let reviseConstraintPromise: Promise<void> | null = null;
 let approvedStatusConstraintPromise: Promise<void> | null = null;
-let recordCommentColumnPromise: Promise<void> | null = null;
+let approvedCommentsColumnPromise: Promise<void> | null = null;
+let approvedDateColumnPromise: Promise<void> | null = null;
+let approvedForwardedDateColumnPromise: Promise<void> | null = null;
+let recordDateColumnPromise: Promise<void> | null = null;
+let approvedFinalStatusColumnPromise: Promise<void> | null = null;
+let recordFinalStatusColumnPromise: Promise<void> | null = null;
+let releaseFinalStatusColumnPromise: Promise<void> | null = null;
+let respondFinalStatusColumnPromise: Promise<void> | null = null;
+let revisionFinalStatusColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -102,24 +110,211 @@ export const ensureApprovedStatusAllowed = async (): Promise<void> => {
 };
 
 /**
- * Ensure record_document_tbl has a nullable comment column for recording notes.
+ * Ensure approved_document_tbl has a nullable comments column for user notes.
  */
-export const ensureRecordCommentColumn = async (): Promise<void> => {
-  if (recordCommentColumnPromise) return recordCommentColumnPromise;
+export const ensureApprovedCommentsColumn = async (): Promise<void> => {
+  if (approvedCommentsColumnPromise) return approvedCommentsColumnPromise;
 
-  recordCommentColumnPromise = (async () => {
+  approvedCommentsColumnPromise = (async () => {
     try {
       const columnCheck = await pool.query(
-        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'comment' LIMIT 1`
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'comments' LIMIT 1`
       );
 
       if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
 
-      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN comment text');
+      await pool.query('ALTER TABLE approved_document_tbl ADD COLUMN comments text');
     } catch (err) {
-      console.error('Failed to ensure record_document_tbl.comment column', err);
+      console.error('Failed to ensure approved_document_tbl.comments column', err);
     }
   })();
 
-  return recordCommentColumnPromise;
+  return approvedCommentsColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'date' column to record approval timestamp.
+ */
+export const ensureApprovedDateColumn = async (): Promise<void> => {
+  if (approvedDateColumnPromise) return approvedDateColumnPromise;
+
+  approvedDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      // Add a timestamp with timezone column with default current timestamp
+      await pool.query("ALTER TABLE approved_document_tbl ADD COLUMN date timestamptz DEFAULT CURRENT_TIMESTAMP");
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.date column', err);
+    }
+  })();
+
+  return approvedDateColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'forwarded_date' column to record when a document was forwarded.
+ * Do not set a default here; forwarded_date is explicitly set when the document is forwarded.
+ */
+export const ensureApprovedForwardedDateColumn = async (): Promise<void> => {
+  if (approvedForwardedDateColumnPromise) return approvedForwardedDateColumnPromise;
+
+  approvedForwardedDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'forwarded_date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE approved_document_tbl ADD COLUMN forwarded_date timestamptz');
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.forwarded_date column', err);
+    }
+  })();
+
+  return approvedForwardedDateColumnPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable 'record_date' column to record when a document was recorded by the recorder.
+ * Do not set a default here; record_date is explicitly set when the document is recorded.
+ */
+export const ensureRecordDateColumn = async (): Promise<void> => {
+  if (recordDateColumnPromise) return recordDateColumnPromise;
+
+  recordDateColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'record_date' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query('ALTER TABLE record_document_tbl ADD COLUMN record_date timestamptz');
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.record_date column', err);
+    }
+  })();
+
+  return recordDateColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureApprovedFinalStatusColumn = async (): Promise<void> => {
+  if (approvedFinalStatusColumnPromise) return approvedFinalStatusColumnPromise;
+
+  approvedFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE approved_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.final_status column', err);
+    }
+  })();
+
+  return approvedFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRecordFinalStatusColumn = async (): Promise<void> => {
+  if (recordFinalStatusColumnPromise) return recordFinalStatusColumnPromise;
+
+  recordFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE record_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.final_status column', err);
+    }
+  })();
+
+  return recordFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure release_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureReleaseFinalStatusColumn = async (): Promise<void> => {
+  if (releaseFinalStatusColumnPromise) return releaseFinalStatusColumnPromise;
+
+  releaseFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'release_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE release_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure release_document_tbl.final_status column', err);
+    }
+  })();
+
+  return releaseFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure respond_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRespondFinalStatusColumn = async (): Promise<void> => {
+  if (respondFinalStatusColumnPromise) return respondFinalStatusColumnPromise;
+
+  respondFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'respond_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE respond_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure respond_document_tbl.final_status column', err);
+    }
+  })();
+
+  return respondFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure revision_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRevisionFinalStatusColumn = async (): Promise<void> => {
+  if (revisionFinalStatusColumnPromise) return revisionFinalStatusColumnPromise;
+
+  revisionFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'revision_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE revision_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure revision_document_tbl.final_status column', err);
+    }
+  })();
+
+  return revisionFinalStatusColumnPromise;
 };

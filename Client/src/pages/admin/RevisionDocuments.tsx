@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDate } from '@/lib/utils';
 
 const RevisionDocuments: React.FC = () => {
   const { user } = useAuth();
@@ -101,6 +102,7 @@ const RevisionDocuments: React.FC = () => {
               <tr>
                 <th className="px-4 py-2 font-semibold">Document</th>
                 <th className="px-4 py-2 font-semibold">Sender</th>
+                <th className="px-4 py-2 font-semibold">Date</th>
                 <th className="px-4 py-2 font-semibold">Admin</th>
                 <th className="px-4 py-2 font-semibold">Comment</th>
               </tr>
@@ -108,7 +110,7 @@ const RevisionDocuments: React.FC = () => {
             <tbody>
               {pageSlice.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                     No revision entries found.
                   </td>
                 </tr>
@@ -117,6 +119,7 @@ const RevisionDocuments: React.FC = () => {
                   <tr key={`${rev.document_id}-${rev.user_id}-${rev.comment ?? ''}`} className="border-t border-gray-300">
                     <td className="px-4 py-2">{rev.document_type || '—'}</td>
                     <td className="px-4 py-2">{rev.sender_name || '—'}</td>
+                    <td className="px-4 py-2">{formatDate(rev.created_at)}</td>
                     <td className="px-4 py-2">{rev.admin || '—'}</td>
                     <td className="px-4 py-2 max-w-[320px] break-words text-muted-foreground">{rev.comment || '—'}</td>
                   </tr>

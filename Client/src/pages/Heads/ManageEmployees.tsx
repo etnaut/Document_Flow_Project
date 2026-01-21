@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus, createUser, getDepartments, getDivisions } from '@/services/api';
+import { getEmployeesByDepartment, getUsers, normalizeUser, updateUserStatus, getDepartments, getDivisions } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import AddEmployeeDialog from '@/components/heads/AddEmployeeDialog';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const ManageEmployees: React.FC = () => {
-  const { user } = useAuth();
-  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
+  const { user, loading: authLoading } = useAuth();
+  const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge' || user.User_Role === 'SuperAdmin');
+  const isSuperAdmin = user?.User_Role === 'SuperAdmin';
 
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,22 +25,10 @@ const ManageEmployees: React.FC = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  // Add employee dialog state
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedDept, setSelectedDept] = useState<string>('');
   const [divisions, setDivisions] = useState<string[]>([]);
-  const [form, setForm] = useState({
-    ID_Number: '',
-    Full_Name: '',
-    Gender: '',
-    Email: '',
-    Department: user?.Department || '',
-    Division: user?.Division || '',
-    User_Name: '',
-    Password: '',
-    Role: 'Employee',
-  });
+  const [selectedDiv, setSelectedDiv] = useState<string>('');
 
   const coerceArray = (value: unknown): unknown[] | null => {
     if (Array.isArray(value)) return value;
@@ -55,10 +43,13 @@ const ManageEmployees: React.FC = () => {
 
   const loadEmployees = useCallback(async () => {
     if (!user) return;
+    const effectiveDept = isSuperAdmin ? selectedDept : (user.Department || '');
+    const effectiveDiv = isSuperAdmin ? selectedDiv : (user.Division || '');
+    if (!effectiveDept) return;
     try {
       setLoading(true);
-      const dept = user.Department || '';
-      const div = user.Division || '';
+      const dept = effectiveDept;
+      const div = effectiveDiv;
 
       let list: User[] = [];
       try {
@@ -76,12 +67,10 @@ const ManageEmployees: React.FC = () => {
         list = allEmployees.filter((u) => u.Department === dept);
       }
 
-      const scoped = user.User_Role === 'DivisionHead' ? list.filter((e) => e.Division === div) : list;
+      const scoped = user.User_Role === 'DivisionHead' || (isSuperAdmin && selectedDiv)
+        ? list.filter((e) => e.Division === div)
+        : list;
       setEmployees(scoped);
-
-      // Load departments for the add employee form
-      const depts = await getDepartments();
-      setDepartments(depts);
     } catch (error) {
       console.error('Load employees error', error);
       const message = error instanceof Error ? error.message : 'Failed to load employees';
@@ -89,7 +78,28 @@ const ManageEmployees: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, selectedDept, selectedDiv]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const init = async () => {
+      try {
+        const depts = await getDepartments();
+        setDepartments(depts || []);
+        const initialDept = depts?.[0] || '';
+        setSelectedDept((prev) => prev || initialDept);
+        if (initialDept) {
+          const divs = await getDivisions(initialDept);
+          setDivisions(divs || []);
+          setSelectedDiv((prev) => prev || '');
+        }
+      } catch {
+        setDepartments([]);
+        setDivisions([]);
+      }
+    };
+    void init();
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -112,35 +122,6 @@ const ManageEmployees: React.FC = () => {
     }
   };
 
-  const handleCreateEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.Full_Name || !form.Email || !form.User_Name || !form.Password) {
-      toast({ title: 'Validation', description: 'Please fill required fields', variant: 'destructive' });
-      return;
-    }
-    try {
-      await createUser({
-        ID_Number: parseInt(form.ID_Number) || Date.now(),
-        Full_Name: form.Full_Name,
-        Gender: form.Gender,
-        Email: form.Email,
-        Department: form.Department,
-        Division: form.Division,
-        // Force created accounts from this dialog to have the Employee role
-        User_Role: 'Employee',
-        User_Name: form.User_Name,
-        Password: form.Password,
-        Status: true,
-      });
-      toast({ title: 'Success', description: 'Employee added' });
-      setIsAddOpen(false);
-      setForm({ ID_Number: '', Full_Name: '', Gender: '', Email: '', Department: user?.Department || '', Division: user?.Division || '', User_Name: '', Password: '', Role: 'Employee' });
-      await loadEmployees();
-    } catch (err: any) {
-      toast({ title: 'Error', description: err?.message || 'Failed to add employee', variant: 'destructive' });
-    }
-  };
-
   const filteredEmployees = useMemo(() => {
     const q = query.trim().toLowerCase();
     const byStatus = statusFilter === 'all'
@@ -159,6 +140,8 @@ const ManageEmployees: React.FC = () => {
 
   useEffect(() => { setPage(1); }, [statusFilter, query, pageSize, employees]);
 
+  if (authLoading) return <div className="p-4">Checking authentication…</div>;
+
   if (!allowed) return <Navigate to="/dashboard" replace />;
 
   return (
@@ -170,7 +153,47 @@ const ManageEmployees: React.FC = () => {
             <p className="text-muted-foreground">Set employees as Active or Inactive using the dropdown.</p>
           </div>
         </div>
+<<<<<<< HEAD
         <div className="flex flex-wrap items-center gap-3">
+=======
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <>
+              <Select value={selectedDept} onValueChange={async (v) => {
+                setSelectedDept(v);
+                try {
+                  const divs = await getDivisions(v);
+                  setDivisions(divs || []);
+                  setSelectedDiv('');
+                } catch {
+                  setDivisions([]);
+                  setSelectedDiv('');
+                }
+              }}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select dept" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedDiv || '__all'}
+                onValueChange={(v) => setSelectedDiv(v === '__all' ? '' : v)}
+                disabled={divisions.length === 0}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All divisions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">All divisions</SelectItem>
+                  {divisions.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          <AddEmployeeDialog onAdded={() => void loadEmployees()} />
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filter status" />
@@ -181,6 +204,7 @@ const ManageEmployees: React.FC = () => {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
+<<<<<<< HEAD
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees..." className="w-[220px] border-primary" />
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogContent className="max-w-lg">
@@ -282,6 +306,8 @@ const ManageEmployees: React.FC = () => {
           >
             Add Employee
           </Button>
+=======
+>>>>>>> 14358356059b01645918b43587691d6bc6cf2e43
           <Button
             variant="outline"
             className={`!border-primary !text-primary !bg-background ${loading ? 'pointer-events-none' : ''}`}
@@ -305,6 +331,14 @@ const ManageEmployees: React.FC = () => {
       </div>
 
       <div className="rounded-xl border bg-card shadow-card overflow-hidden">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">Employee List</h2>
+            <div className="flex items-center gap-3">
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employees..." className="w-[220px] border-primary" />
+            </div>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -318,9 +352,9 @@ const ManageEmployees: React.FC = () => {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">Loading employees…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Loading employees…</TableCell></TableRow>
             ) : filteredEmployees.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="h-16 text-center text-black/80">No employees found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">No employees found</TableCell></TableRow>
             ) : (
               pageSlice.map((emp) => (
                 <TableRow key={emp.User_Id} className="animate-fade-in">

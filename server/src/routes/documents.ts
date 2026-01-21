@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database.js';
 import { sendResponse, getJsonInput } from '../utils/helpers.js';
 import { CreateDocumentInput, UpdateDocumentInput, Document } from '../types/index.js';
-import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureRecordCommentColumn } from '../utils/schema.js';
+import { hasSenderStatusColumn, ensureReviseStatusAllowed, ensureApprovedStatusAllowed, ensureApprovedDateColumn, ensureApprovedForwardedDateColumn, ensureRecordDateColumn, ensureApprovedFinalStatusColumn, ensureRecordFinalStatusColumn, ensureReleaseFinalStatusColumn, ensureRespondFinalStatusColumn, ensureRevisionFinalStatusColumn } from '../utils/schema.js';
 import { createRequire } from 'module';
 import { promisify } from 'util';
 
@@ -71,6 +71,7 @@ router.get('/', async (req: Request, res: Response) => {
         sd.type AS "Type",
         sd.user_id AS "User_Id",
         ${derivedStatus} AS "Status",
+        a.final_status AS final_status,
         sd.priority AS "Priority",
         sd.document AS "Document",
         sd.description AS "description",
@@ -86,6 +87,7 @@ router.get('/', async (req: Request, res: Response) => {
         NULL AS forwarded_by_admin,
         NULL AS is_forwarded_request
       FROM Sender_Document_Tbl sd
+      LEFT JOIN approved_document_tbl a ON a.document_id = sd.document_id
       LEFT JOIN User_Tbl u ON sd.User_Id = u.User_Id
       LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
       LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
@@ -133,17 +135,24 @@ router.get('/', async (req: Request, res: Response) => {
     sql += ' ORDER BY sd.Document_Id DESC';
 
     const result = await pool.query(sql, params);
-    const documents: Document[] = result.rows.map((doc: any) => ({
-      ...doc,
-      Document: doc.Document ? Buffer.from(doc.Document) : null,
-      target_department: doc.target_department || null,
-      comments: doc.comments || null,
-      forwarded_from: doc.forwarded_from || null,
-      forwarded_by_admin: doc.forwarded_by_admin || null,
-      is_forwarded_request: doc.is_forwarded_request || null,
-      created_at: doc.created_at || null,
-      description: doc.description || null,
-    }));
+    const documents: Document[] = result.rows.map((doc: any) => {
+      const baseStatus = doc.Status || '';
+      const finalRaw = doc.final_status || '';
+      const statusWithFinal = (String(finalRaw).toLowerCase() === 'override') ? `${baseStatus}/override` : baseStatus;
+      return {
+        ...doc,
+        Document: doc.Document ? Buffer.from(doc.Document) : null,
+        Status: statusWithFinal,
+        target_department: doc.target_department || null,
+        comments: doc.comments || null,
+        forwarded_from: doc.forwarded_from || null,
+        forwarded_by_admin: doc.forwarded_by_admin || null,
+        is_forwarded_request: doc.is_forwarded_request || null,
+        created_at: doc.created_at || null,
+        description: doc.description || null,
+        final_status: doc.final_status || null,
+      } as Document;
+    });
 
     sendResponse(res, documents);
   } catch (error: any) {
@@ -156,9 +165,10 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/revisions', async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT r.document_id, r.user_id, r.comment, r.admin,
+      `SELECT r.document_id, r.user_id, r.comment, r.admin, r.final_status AS final_status,
               sd.type AS document_type,
-              u.full_name AS sender_name
+              u.full_name AS sender_name,
+              sd.date AS created_at
          FROM revision_document_tbl r
          LEFT JOIN sender_document_tbl sd ON r.document_id = sd.document_id
          LEFT JOIN user_tbl u ON r.user_id = u.user_id
@@ -172,6 +182,8 @@ router.get('/revisions', async (_req: Request, res: Response) => {
       admin: row.admin ?? null,
       document_type: row.document_type ?? null,
       sender_name: row.sender_name ?? null,
+      created_at: row.created_at ?? null,
+      final_status: row.final_status ?? null,
     }));
 
     sendResponse(res, revisions);
@@ -190,6 +202,18 @@ router.get('/approved', async (req: Request, res: Response) => {
 
     const params: any[] = [];
     const conditions: string[] = [];
+
+    // Detect whether approved_document_tbl has forwarded_date column
+    const approvedColsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'approved_document_tbl'`
+    );
+    const approvedCols = new Set<string>(approvedColsRes.rows.map((r) => r.column_name));
+    const includeForwardedDate = approvedCols.has('forwarded_date');
+
+    // Detect whether record_document_tbl has record_date column
+    const recordColsRes = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'record_document_tbl'`);
+    const recordCols = new Set<string>(recordColsRes.rows.map((r) => r.column_name));
+    const includeRecordDate = recordCols.has('record_date');
 
     if (statusParam) {
       const statuses = statusParam
@@ -229,6 +253,9 @@ router.get('/approved', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const forwardDateSelect = includeForwardedDate ? ', a.forwarded_date AS forwarded_date' : '';
+    const recordDateSelect = includeRecordDate ? ', rd.record_date AS record_date' : '';
+
     const result = await pool.query(
     `SELECT 
       a.document_id AS "Document_Id",
@@ -237,30 +264,42 @@ router.get('/approved', async (req: Request, res: Response) => {
       sd.document AS "Document",
       INITCAP(REPLACE(COALESCE(a.status, 'not_forwarded'), '_', ' ')) AS "Status",
       u.full_name AS sender_name,
-      a.admin AS approved_by,
+      CASE WHEN a.admin ~ '^[0-9]+$' THEN (SELECT full_name FROM user_tbl WHERE user_id = CAST(a.admin AS INTEGER) LIMIT 1) ELSE a.admin END AS approved_by,
       a.status AS approved_status,
+      a.final_status AS final_status,
       u.department_id AS sender_department_id,
-      u.division_id AS sender_division_id
+      u.division_id AS sender_division_id,
+      a.date AS "created_at"${forwardDateSelect}${recordDateSelect}
        FROM approved_document_tbl a
        LEFT JOIN sender_document_tbl sd ON sd.document_id = a.document_id
        LEFT JOIN user_tbl u ON u.user_id = a.user_id
        LEFT JOIN department_tbl d ON u.department_id = d.department_id
+       LEFT JOIN record_document_tbl rd ON rd.approved_doc_id = a.approved_doc_id
        ${where}
        ORDER BY a.document_id DESC`,
       params
     );
 
-    const docs = result.rows.map((row) => ({
-      ...row,
-      Document: row.Document ? Buffer.from(row.Document) : null,
-      description: row.approved_by || row.approved_status || null,
-      target_department: null,
-      comments: null,
-      forwarded_from: null,
-      forwarded_by_admin: row.approved_by || null,
-      is_forwarded_request: null,
-      created_at: null,
-    }));
+    const docs = result.rows.map((row) => {
+      const baseStatus = row.Status || '';
+      const finalRaw = row.final_status || '';
+      const statusWithFinal = (String(finalRaw).toLowerCase() === 'override') ? `${baseStatus}/override` : baseStatus;
+      return ({
+        ...row,
+        Document: row.Document ? Buffer.from(row.Document) : null,
+        Status: statusWithFinal,
+        description: row.approved_by || row.approved_status || null,
+        target_department: null,
+        comments: null,
+        forwarded_from: null,
+        forwarded_by_admin: row.approved_by || null,
+        is_forwarded_request: null,
+        created_at: row.created_at || null,
+        forwarded_date: row.forwarded_date || null,
+        record_date: row.record_date || null,
+        final_status: row.final_status || null,
+      } as Document);
+    });
 
     sendResponse(res, docs);
   } catch (error: any) {
@@ -442,6 +481,18 @@ router.put('/', async (req: Request, res: Response) => {
 
     if (statusValue === 'forwarded' || statusValue === 'recorded' || statusValue === 'approved') {
       await ensureApprovedStatusAllowed();
+      // Ensure the approved table has a 'date' column to record approval timestamps
+      try {
+        await ensureApprovedDateColumn();
+      } catch (err) {
+        // Non-fatal; continue - schema helper will log any errors
+      }
+      // Ensure forwarded_date exists so we can set it when forwarding
+      try {
+        await ensureApprovedForwardedDateColumn();
+      } catch (err) {
+        // Non-fatal
+      }
     }
 
     if (statusValue === 'revision' && hasStatus) {
@@ -488,12 +539,10 @@ router.put('/', async (req: Request, res: Response) => {
       return { updates, params, paramCount };
     };
 
-    const { updates, params, paramCount } = buildUpdates(true);
-
     const upsertRecordDocument = async (
       approvedDocId: number,
       recordStatus?: string,
-      recordComment?: string
+      applyFinal?: boolean,
     ) => {
       const statusVal = recordStatus || 'recorded';
       const existingRecord = await client.query(
@@ -501,18 +550,72 @@ router.put('/', async (req: Request, res: Response) => {
         [approvedDocId]
       );
 
+      // If the status being set is 'recorded', ensure the record_date column exists and persist the current timestamp
+      if (statusVal === 'recorded') {
+        await ensureRecordDateColumn();
+      }
+
       if (existingRecord.rows.length === 0) {
-        await client.query(
-          'INSERT INTO record_document_tbl (approved_doc_id, status, comment) VALUES ($1, $2, $3)',
-          [approvedDocId, statusVal, recordComment ?? null]
-        );
+        if (applyFinal) {
+          try { await ensureRecordFinalStatusColumn(); } catch (err) { /* non-fatal */ }
+        }
+
+        if (statusVal === 'recorded') {
+          if (applyFinal) {
+            await client.query(
+              'INSERT INTO record_document_tbl (approved_doc_id, status, record_date, final_status) VALUES ($1, $2, NOW(), $3)',
+              [approvedDocId, statusVal, 'override']
+            );
+          } else {
+            await client.query(
+              'INSERT INTO record_document_tbl (approved_doc_id, status, record_date) VALUES ($1, $2, NOW())',
+              [approvedDocId, statusVal]
+            );
+          }
+        } else {
+          if (applyFinal) {
+            await client.query(
+              'INSERT INTO record_document_tbl (approved_doc_id, status, final_status) VALUES ($1, $2, $3)',
+              [approvedDocId, statusVal, 'override']
+            );
+          } else {
+            await client.query(
+              'INSERT INTO record_document_tbl (approved_doc_id, status) VALUES ($1, $2)',
+              [approvedDocId, statusVal]
+            );
+          }
+        }
       } else {
-        await client.query(
-          'UPDATE record_document_tbl SET status = $1, comment = $2 WHERE record_doc_id = $3',
-          [statusVal, recordComment ?? null, existingRecord.rows[0].record_doc_id]
-        );
+        if (statusVal === 'recorded') {
+          if (applyFinal) {
+            await client.query(
+              'UPDATE record_document_tbl SET status = $1, record_date = NOW(), final_status = $3 WHERE record_doc_id = $2',
+              [statusVal, existingRecord.rows[0].record_doc_id, 'override']
+            );
+          } else {
+            await client.query(
+              'UPDATE record_document_tbl SET status = $1, record_date = NOW() WHERE record_doc_id = $2',
+              [statusVal, existingRecord.rows[0].record_doc_id]
+            );
+          }
+        } else {
+          if (applyFinal) {
+            await client.query(
+              'UPDATE record_document_tbl SET status = $1, final_status = $3 WHERE record_doc_id = $2',
+              [statusVal, existingRecord.rows[0].record_doc_id, 'override']
+            );
+          } else {
+            await client.query(
+              'UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2',
+              [statusVal, existingRecord.rows[0].record_doc_id]
+            );
+          }
+        }
       }
     };
+
+    // Build updates for updating the sender document; include status when appropriate
+    const { updates, params } = buildUpdates(true);
 
     if (updates.length === 0 && !statusValue) {
       client.release();
@@ -538,13 +641,30 @@ router.put('/', async (req: Request, res: Response) => {
           [input.Document_Id]
         );
 
+        // Ensure final_status column exists when we may set it
+        if (input.apply_final_status) {
+          try { await ensureApprovedFinalStatusColumn(); } catch (err) { /* non-fatal */ }
+        }
+
         if (approvedCheck.rows.length === 0) {
-          await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
-            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
-          );
+          if (input.apply_final_status) {
+            await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date, final_status) VALUES ($1, $2, $3, $4, NOW(), $5)',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded', 'override']
+            );
+          } else {
+            await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date) VALUES ($1, $2, $3, $4, NOW())',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'not_forwarded']
+            );
+          }
         } else if (input.admin) {
-          await client.query('UPDATE approved_document_tbl SET admin = $1 WHERE document_id = $2', [input.admin, input.Document_Id]);
+          // Update admin and refresh approval date to current time
+          if (input.apply_final_status) {
+            await client.query('UPDATE approved_document_tbl SET admin = $1, date = NOW(), final_status = $2 WHERE document_id = $3', [input.admin, 'override', input.Document_Id]);
+          } else {
+            await client.query('UPDATE approved_document_tbl SET admin = $1, date = NOW() WHERE document_id = $2', [input.admin, input.Document_Id]);
+          }
         }
       }
 
@@ -555,59 +675,99 @@ router.put('/', async (req: Request, res: Response) => {
           [input.Document_Id]
         );
 
+        if (input.apply_final_status) {
+          try { await ensureApprovedFinalStatusColumn(); } catch (err) {}
+        }
+
         if (approvedCheck.rows.length === 0) {
-          await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4)',
-            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
-          );
+          if (input.apply_final_status) {
+            await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date, forwarded_date, final_status) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded', 'override']
+            );
+          } else {
+            await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date, forwarded_date) VALUES ($1, $2, $3, $4, NOW(), NOW())',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'forwarded']
+            );
+          }
         } else {
-          await client.query(
-            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
-            ['forwarded', input.admin ?? null, input.Document_Id]
-          );
+          if (input.apply_final_status) {
+            await client.query(
+              'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), forwarded_date = NOW(), final_status = $4 WHERE document_id = $3',
+              ['forwarded', input.admin ?? null, input.Document_Id, 'override']
+            );
+          } else {
+            await client.query(
+              'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), forwarded_date = NOW() WHERE document_id = $3',
+              ['forwarded', input.admin ?? null, input.Document_Id]
+            );
+          }
         }
       }
 
       // When marking as recorded, persist to approved_document_tbl and record_document_tbl
       if (statusValue === 'recorded') {
-        await ensureRecordCommentColumn();
         const approvedCheck = await client.query(
           'SELECT approved_doc_id FROM approved_document_tbl WHERE document_id = $1 LIMIT 1',
           [input.Document_Id]
         );
 
-  const recordStatusVal = (input.record_status || 'recorded').toLowerCase();
-  const recordCommentVal = input.record_comment ?? undefined;
+        const recordStatusVal = (input.record_status || 'recorded').toLowerCase();
         let approvedDocId: number;
 
         if (approvedCheck.rows.length === 0) {
-          const inserted = await client.query(
-            'INSERT INTO approved_document_tbl (document_id, user_id, admin, status) VALUES ($1, $2, $3, $4) RETURNING approved_doc_id',
-            [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
-          );
-          approvedDocId = inserted.rows[0].approved_doc_id;
-        } else {
+          if (input.apply_final_status) {
+            const inserted = await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date, final_status) VALUES ($1, $2, $3, $4, NOW(), $5) RETURNING approved_doc_id',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded', 'override']
+            );
+            approvedDocId = inserted.rows[0].approved_doc_id;
+          } else {
+            const inserted = await client.query(
+              'INSERT INTO approved_document_tbl (document_id, user_id, admin, status, date) VALUES ($1, $2, $3, $4, NOW()) RETURNING approved_doc_id',
+              [input.Document_Id, existingDoc.rows[0].user_id, input.admin ?? null, 'recorded']
+            );
+            approvedDocId = inserted.rows[0].approved_doc_id;
+          }
+         } else {
           approvedDocId = approvedCheck.rows[0].approved_doc_id;
-          await client.query(
-            'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
-            ['recorded', input.admin ?? null, input.Document_Id]
-          );
-        }
+          if (input.apply_final_status) {
+            await client.query(
+              'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin), final_status = $4 WHERE document_id = $3',
+              ['recorded', input.admin ?? null, input.Document_Id, 'override']
+            );
+          } else {
+            await client.query(
+              'UPDATE approved_document_tbl SET status = $1, admin = COALESCE($2, admin) WHERE document_id = $3',
+              ['recorded', input.admin ?? null, input.Document_Id]
+            );
+          }
+         }
 
-        await upsertRecordDocument(approvedDocId, recordStatusVal, recordCommentVal);
+        await upsertRecordDocument(approvedDocId, recordStatusVal, !!input.apply_final_status);
       }
 
       if (statusValue === 'revision') {
-        await client.query(
-          'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
-          [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null]
-        );
-      }
+        // Ensure revision table has final_status column if we will set it
+        if (input.apply_final_status) {
+          try { await ensureRevisionFinalStatusColumn(); } catch (err) {}
+          await client.query(
+            'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin, final_status) VALUES ($1, $2, $3, $4, $5)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null, 'override']
+          );
+        } else {
+          await client.query(
+            'INSERT INTO revision_document_tbl (document_id, user_id, comment, admin) VALUES ($1, $2, $3, $4)',
+            [input.Document_Id, existingDoc.rows[0].user_id, input.comments ?? null, input.admin ?? null]
+          );
+        }
+     }
 
-      // When resubmitting, remove any revision entry so the derived status returns to Pending
-      if (statusValue === 'pending') {
-        await client.query('DELETE FROM revision_document_tbl WHERE document_id = $1', [input.Document_Id]);
-      }
+     // When resubmitting, remove any revision entry so the derived status returns to Pending
+     if (statusValue === 'pending') {
+       await client.query('DELETE FROM revision_document_tbl WHERE document_id = $1', [input.Document_Id]);
+     }
 
       await client.query('COMMIT');
       updated = true;
@@ -725,64 +885,79 @@ router.get('/records', async (req: Request, res: Response) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const result = await pool.query(
-      `
-      SELECT
-        rd.record_doc_id,
-        rd.approved_doc_id,
-        rd.status AS record_status,
-        rd.comment AS record_comment,
-        ad.status AS approved_status,
-        ad.document_id,
-  sd.type,
-        sd.document,
-        sd.priority,
-        sd.description,
-  sd.date AS created_at,
-  u.full_name AS sender_name,
-        dept.department AS target_department
-      FROM record_document_tbl rd
-      JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
-      JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
-      JOIN user_tbl u ON ad.user_id = u.user_id
-      LEFT JOIN department_tbl dept ON u.department_id = dept.department_id
-      ${where}
-      ORDER BY rd.record_doc_id DESC
-      `,
-      params
+    // Detect whether record_document_tbl has a 'record_date' column
+    const recordColsRes = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'record_document_tbl'`
     );
+    const recordCols = new Set<string>(recordColsRes.rows.map((r) => r.column_name));
+    const includeRecordDate = recordCols.has('record_date');
 
-    const data = result.rows.map((row) => {
-      const statusLower = (row.record_status || '').toLowerCase();
-      
-      // Always display 'Not Released' when the record row status is 'recorded'.
-      // This makes it clear the document has been recorded but not yet released.
-      let statusLabel: string;
-      if (statusLower === 'recorded') {
-        statusLabel = 'Not Released';
-      } else if (statusLower === 'not_recorded') {
-        statusLabel = 'Not Recorded';
-      } else if (statusLower === 'released') {
-        statusLabel = 'Released';
-      } else {
-        statusLabel = row.record_status || 'Not Released';
-      }
+    const recordDateSelect = includeRecordDate ? ', rd.record_date AS record_date' : '';
+    const createdAtSelect = includeRecordDate ? 'COALESCE(rd.record_date, ad.date, sd.date) AS created_at' : 'COALESCE(ad.date, sd.date) AS created_at';
 
-      return {
-  Document_Id: row.document_id,
-  record_doc_id: row.record_doc_id,
-        Type: row.type,
-        Document: row.document,
-        Priority: row.priority || 'Normal',
-        Status: statusLabel,
-        description: row.record_comment ?? row.description ?? null,
-        created_at: row.created_at,
-        sender_name: row.sender_name || '',
-        target_department: row.target_department || '',
-      };
-    });
+    // Build ORDER BY expression: prefer record_date when available, then priority (high > medium > low), then record id
+      const dateExpr = includeRecordDate ? 'COALESCE(rd.record_date, ad.date, sd.date)' : 'COALESCE(ad.date, sd.date)';
+      const priorityOrder = "(CASE LOWER(COALESCE(sd.priority, '')) WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'moderate' THEN 2 WHEN 'low' THEN 1 ELSE 0 END)";
+      const orderByExpr = `${dateExpr} DESC, ${priorityOrder} DESC, rd.record_doc_id DESC`;
 
-    return sendResponse(res, data, 200);
+    const result = await pool.query(
+         `
+         SELECT
+           rd.record_doc_id,
+           rd.approved_doc_id,
+           rd.status AS record_status,
+           ad.status AS approved_status,
+           ad.final_status AS approved_final_status,
+           rd.final_status AS record_final_status,
+           ad.document_id,
+           sd.type,
+           sd.document,
+           sd.priority,
+           sd.description,${createdAtSelect}${recordDateSelect},
+           u.full_name AS sender_name,
+           dept.department AS target_department
+         FROM record_document_tbl rd
+         JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
+         JOIN sender_document_tbl sd ON ad.document_id = sd.document_id
+         JOIN user_tbl u ON ad.user_id = u.user_id
+         LEFT JOIN department_tbl dept ON u.department_id = dept.department_id
+        ${where}
+        ORDER BY ${orderByExpr}
+         `,
+         params
+       );
+
+      const mapped = result.rows.map((row) => {
+        const finalStatus = (row.record_final_status || row.approved_final_status) ?? null;
+        const statusLower = (row.record_status || '').toLowerCase();
+        let statusLabel: string;
+        if (statusLower === 'recorded') {
+          statusLabel = 'Not Released';
+        } else if (statusLower === 'not_recorded') {
+          statusLabel = 'Not Recorded';
+        } else if (statusLower === 'released') {
+          statusLabel = 'Released';
+        } else {
+          statusLabel = row.record_status || 'Not Released';
+        }
+
+        return {
+          Document_Id: row.document_id,
+          record_doc_id: row.record_doc_id,
+          Type: row.type,
+          Document: row.document,
+          Priority: row.priority || 'Normal',
+          Status: statusLabel,
+          description: row.description ?? null,
+          created_at: row.created_at,
+          sender_name: row.sender_name || '',
+          target_department: row.target_department || '',
+          record_date: row.record_date || null,
+          final_status: finalStatus,
+        };
+      });
+ 
+    return sendResponse(res, mapped, 200);
   } catch (error: any) {
     console.error('Get record documents error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
@@ -804,13 +979,26 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE record_document_tbl
-       SET status = $1
-       WHERE record_doc_id = $2
-       RETURNING record_doc_id, approved_doc_id, status, comment`,
-      [statusVal, recordDocId]
-    );
+    let result;
+    if (statusVal === 'recorded') {
+      // Ensure the column exists before attempting to write to it
+      await ensureRecordDateColumn();
+      result = await pool.query(
+        `UPDATE record_document_tbl
+         SET status = $1, record_date = NOW()
+         WHERE record_doc_id = $2
+         RETURNING record_doc_id, approved_doc_id, status, comment`,
+        [statusVal, recordDocId]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE record_document_tbl
+         SET status = $1
+         WHERE record_doc_id = $2
+         RETURNING record_doc_id, approved_doc_id, status, comment`,
+        [statusVal, recordDocId]
+      );
+    }
 
     if (result.rowCount === 0) {
       return sendResponse(res, { error: 'Record not found' }, 404);
@@ -830,12 +1018,22 @@ router.put('/records/:recordDocId', async (req: Request, res: Response) => {
 
 // POST /releases - create a release entry and mark record as released
 router.post('/releases', async (req: Request, res: Response) => {
-  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string; division?: string };
+  const { record_doc_id, status, department, division } = req.body as { record_doc_id?: number; status?: string; department?: string | string[]; division?: string | string[] };
 
   const recordDocId = Number(record_doc_id);
   const statusVal = String(status || '').trim().toLowerCase();
-  const departmentVal = String(department || '').trim();
-  const divisionVal = String(division || '').trim();
+
+  // Normalize departments and divisions into arrays
+  const departmentsArr: string[] = Array.isArray(department)
+    ? department.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(department || '').trim() ? [String(department || '').trim()] : []);
+
+  const divisionsArrRaw: string[] = Array.isArray(division)
+    ? division.map((d) => String(d || '').trim()).filter(Boolean)
+    : (String(division || '').trim() ? [String(division || '').trim()] : []);
+
+  // divisionsArr may be empty meaning department-level release (no specific division)
+  const divisionsArr = divisionsArrRaw.length > 0 ? divisionsArrRaw : [null as any];
 
   if (!Number.isFinite(recordDocId)) {
     return sendResponse(res, { error: 'Invalid record_doc_id' }, 400);
@@ -843,12 +1041,8 @@ router.post('/releases', async (req: Request, res: Response) => {
   if (!statusVal) {
     return sendResponse(res, { error: 'Status is required' }, 400);
   }
-  if (!departmentVal) {
-    return sendResponse(res, { error: 'Department is required' }, 400);
-  }
-
-  if (!divisionVal) {
-    return sendResponse(res, { error: 'Division is required' }, 400);
+  if (departmentsArr.length === 0) {
+    return sendResponse(res, { error: 'At least one Department is required' }, 400);
   }
 
   const client = await pool.connect();
@@ -856,7 +1050,7 @@ router.post('/releases', async (req: Request, res: Response) => {
     await client.query('BEGIN');
 
     const recordRes = await client.query(
-      `SELECT rd.record_doc_id, rd.approved_doc_id, rd.status AS record_status, rd.comment,
+      `SELECT rd.record_doc_id, rd.approved_doc_id, rd.status AS record_status,
               ad.document_id, sd.type, sd.document
          FROM record_document_tbl rd
          JOIN approved_document_tbl ad ON rd.approved_doc_id = ad.approved_doc_id
@@ -886,8 +1080,8 @@ router.post('/releases', async (req: Request, res: Response) => {
       ['type', rec.type],
       ['document', rec.document],
       ['status', statusVal],
-      ['department', departmentVal],
-      ['division', divisionVal],
+      ['department', null], // placeholder
+      ['division', null], // placeholder
       ['mark', 'not_done'],
     ];
 
@@ -899,12 +1093,28 @@ router.post('/releases', async (req: Request, res: Response) => {
 
     const columnNames = columnsToInsert.map(([col]) => col).join(', ');
     const placeholders = columnsToInsert.map((_, idx) => `$${idx + 1}`).join(', ');
-    const values = columnsToInsert.map(([, val]) => val);
 
-    await client.query(
-      `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
-      values
-    );
+    // Insert a row for each department/division pair
+    const inserted: Array<{ department: string | null; division: string | null }> = [];
+
+    for (const dept of departmentsArr) {
+      for (const div of divisionsArr) {
+        const values = columnsToInsert.map(([col]) => {
+          if (col === 'department') return dept;
+          if (col === 'division') return div;
+          // find value from candidateColumns
+          const found = candidateColumns.find(([c]) => c === col);
+          return found ? found[1] : null;
+        });
+
+        await client.query(
+          `INSERT INTO release_document_tbl (${columnNames}) VALUES (${placeholders})`,
+          values
+        );
+
+        inserted.push({ department: dept || null, division: div || null });
+      }
+    }
 
     await client.query('UPDATE record_document_tbl SET status = $1 WHERE record_doc_id = $2', ['released', rec.record_doc_id]);
 
@@ -916,8 +1126,7 @@ router.post('/releases', async (req: Request, res: Response) => {
       document_id: rec.document_id,
       type: rec.type,
       status: statusVal,
-      department: departmentVal,
-      division: divisionVal,
+      inserted,
     });
   } catch (error: any) {
     try {
@@ -970,18 +1179,42 @@ router.get('/releases', async (req: Request, res: Response) => {
     }
 
     // If userId provided, prefer numeric comparison against sender's user_tbl entries
-    if (userId) {
-      const adminRes = await pool.query('SELECT department_id, division_id FROM user_tbl WHERE user_id = $1 LIMIT 1', [userId]);
+    // If userId provided and no explicit department/division query params are given,
+    // derive the user's Department/Division names and filter releases by the target
+    // department/division (r.department/r.division or the joined Department/Division names).
+    // If department/division query params are explicitly passed, skip this to avoid
+    // overly restrictive sender-based filtering (which caused empty results for admins
+    // viewing received releases targeted to their department).
+    if (userId && !department && !division) {
+      const adminRes = await pool.query(
+        `SELECT d.Department AS department, dv.Division AS division
+           FROM user_tbl u
+           LEFT JOIN Department_Tbl d ON u.Department_Id = d.Department_Id
+           LEFT JOIN Division_Tbl dv ON u.Division_Id = dv.Division_Id
+          WHERE u.user_id = $1 LIMIT 1`,
+        [userId]
+      );
+
       if (adminRes.rows.length > 0) {
-        const adminDeptId = adminRes.rows[0].department_id;
-        const adminDivId = adminRes.rows[0].division_id;
-        if (adminDeptId !== null && adminDeptId !== undefined) {
-          values.push(adminDeptId);
-          where.push(`u.department_id = $${values.length}`);
+        const adminDept = adminRes.rows[0].department;
+        const adminDiv = adminRes.rows[0].division;
+
+        if (adminDept) {
+          values.push(String(adminDept).toLowerCase());
+          if (cols.has('department')) {
+            where.push(`LOWER(COALESCE(r.department, '')) = $${values.length}`);
+          } else {
+            where.push(`LOWER(COALESCE(d.Department, '')) = $${values.length}`);
+          }
         }
-        if (adminDivId !== null && adminDivId !== undefined) {
-          values.push(adminDivId);
-          where.push(`u.division_id = $${values.length}`);
+
+        if (adminDiv) {
+          values.push(String(adminDiv).toLowerCase());
+          if (cols.has('division')) {
+            where.push(`LOWER(COALESCE(r.division, '')) = $${values.length}`);
+          } else {
+            where.push(`LOWER(COALESCE(dv.Division, '')) = $${values.length}`);
+          }
         }
       }
     }
@@ -1000,15 +1233,15 @@ router.get('/releases', async (req: Request, res: Response) => {
       'r.status',
       "COALESCE(r.department, d.Department) AS department",
       "COALESCE(r.division, dv.Division) AS division",
-      'u.department_id AS sender_department_id',
-      'u.division_id AS sender_division_id',
     ];
 
     if (cols.has('mark')) {
       selectCols.push('r.mark');
     }
+    if (cols.has('final_status')) {
+      selectCols.push('r.final_status AS final_status');
+    }
 
-    // Pull the required fields from joined tables
     const result = await pool.query(
       `SELECT ${selectCols.join(',\n         ')}
        FROM release_document_tbl r
@@ -1121,7 +1354,10 @@ router.get('/releases/track', async (req: Request, res: Response) => {
       "COALESCE(r.division, dv.Division) AS division",
     ];
 
-    if (cols.has('mark')) selectCols.push('r.mark');
+    // Include final_status from release table when present
+    if (cols.has('final_status')) {
+      selectCols.push('r.final_status AS final_status');
+    }
 
     const result = await pool.query(
       `SELECT ${selectCols.join(',\n         ')}
@@ -1147,17 +1383,23 @@ router.get('/releases/track', async (req: Request, res: Response) => {
 // POST /documents/respond - Create a respond document entry in respond_document_tbl
 router.post('/respond', async (req: Request, res: Response) => {
   try {
-    const { release_doc_id, user_id, status, comment } = req.body as {
+    const { release_doc_id, user_id, status, comment, document, document_name, document_type } = req.body as {
       release_doc_id?: number;
       user_id?: number;
       status?: string;
       comment?: string;
+      document?: string; // base64
+      document_name?: string;
+      document_type?: string;
     };
 
     const releaseDocId = Number(release_doc_id);
     const userId = Number(user_id);
     const statusVal = String(status || '').trim().toLowerCase();
     const commentVal = String(comment || '').trim();
+    const documentBase64 = document ? String(document) : '';
+    const docName = document_name ? String(document_name) : '';
+    const docType = document_type ? String(document_type) : '';
 
     if (!Number.isFinite(releaseDocId)) {
       return sendResponse(res, { error: 'Invalid release_doc_id' }, 400);
@@ -1168,8 +1410,10 @@ router.post('/respond', async (req: Request, res: Response) => {
     if (!statusVal || (statusVal !== 'actioned' && statusVal !== 'not actioned')) {
       return sendResponse(res, { error: 'Status must be "actioned" or "not actioned"' }, 400);
     }
-    if (!commentVal) {
-      return sendResponse(res, { error: 'Comment is required' }, 400);
+
+    // Require either a comment or a file attachment
+    if (!commentVal && !documentBase64) {
+      return sendResponse(res, { error: 'Comment or file is required' }, 400);
     }
 
     // Find the foreign key constraint to determine what column it references
@@ -1290,24 +1534,68 @@ router.post('/respond', async (req: Request, res: Response) => {
       return sendResponse(res, { error: 'respond_document_tbl does not have status column' }, 500);
     }
 
-    // comment is required
+    // comment is required unless a document is attached
     if (columns.has('comment')) {
-      insertCols.push('comment');
-      insertValues.push(commentVal);
-    } else {
-      return sendResponse(res, { error: 'respond_document_tbl does not have comment column' }, 500);
+      if (commentVal) {
+        insertCols.push('comment');
+        insertValues.push(commentVal);
+      } else if (!(columns.has('document') && documentBase64)) {
+        return sendResponse(res, { error: 'Comment is required when no file is attached' }, 400);
+      }
+    } else if (!columns.has('document') || !documentBase64) {
+      return sendResponse(res, { error: 'respond_document_tbl does not have comment column and no document provided' }, 500);
+    }
+
+    // If respond_document_tbl has a document column and a file was provided, include it
+    if (columns.has('document') && documentBase64) {
+      insertCols.push('document');
+      try {
+        insertValues.push(Buffer.from(documentBase64, 'base64'));
+      } catch (err) {
+        return sendResponse(res, { error: 'Invalid base64 document data' }, 400);
+      }
+    }
+
+    // Optional document name / filename
+    if (docName && (columns.has('document_name') || columns.has('filename') || columns.has('file_name'))) {
+      const nameCol = columns.has('document_name') ? 'document_name' : (columns.has('filename') ? 'filename' : 'file_name');
+      insertCols.push(nameCol);
+      insertValues.push(docName);
+    }
+
+    // Optional document mime/type
+    if (docType && (columns.has('document_type') || columns.has('mime') || columns.has('content_type'))) {
+      const typeCol = columns.has('document_type') ? 'document_type' : (columns.has('mime') ? 'mime' : 'content_type');
+      insertCols.push(typeCol);
+      insertValues.push(docType);
+    }
+
+    // If caller requested final_status override for this respond entry, ensure column exists and include it
+    if (req.body && req.body.apply_final_status) {
+      try { await ensureRespondFinalStatusColumn(); } catch (err) { /* non-fatal */ }
+      insertCols.push('final_status');
+      insertValues.push('override');
     }
 
     // Build the INSERT statement
-    const placeholders = insertCols.map((_, idx) => `$${idx + 1}`).join(', ');
-    const columnNames = insertCols.join(', ');
+     const placeholders = insertCols.map((_, idx) => `$${idx + 1}`).join(', ');
+     const columnNames = insertCols.join(', ');
 
     const result = await pool.query(
       `INSERT INTO respond_document_tbl (${columnNames}) VALUES (${placeholders}) RETURNING *`,
       insertValues
     );
 
-    return sendResponse(res, result.rows[0], 201);
+    const row = result.rows[0] || {};
+    // Convert any Buffer fields to base64 strings for JSON transport
+    for (const key of Object.keys(row)) {
+      const val = row[key];
+      if (val && Buffer.isBuffer(val)) {
+        row[key] = val.toString('base64');
+      }
+    }
+
+    return sendResponse(res, row, 201);
   } catch (error: any) {
     console.error('Create respond document error:', error);
     return sendResponse(res, { error: 'Database error: ' + error.message }, 500);
@@ -1359,7 +1647,7 @@ router.get('/track', async (req: Request, res: Response) => {
     let record: any = null;
     if (approved) {
       const rd = await pool.query(
-        'SELECT record_doc_id, status, comment FROM record_document_tbl WHERE approved_doc_id = $1 ORDER BY record_doc_id DESC LIMIT 1',
+        'SELECT record_doc_id, status FROM record_document_tbl WHERE approved_doc_id = $1 ORDER BY record_doc_id DESC LIMIT 1',
         [approved.approved_doc_id]
       );
       record = rd.rows[0] ?? null;
@@ -1399,12 +1687,30 @@ router.get('/track', async (req: Request, res: Response) => {
     );
 
     const releases = releasesRes.rows || [];
+    const responses: any[] = [];
 
     // Fetch responses from respond_document_tbl for releases with mark='done'
     // Follow the chain: respond_document_tbl.release_doc_id -> release_document_tbl.record_doc_id 
     // -> record_document_tbl.approved_doc_id -> approved_document_tbl.document_id
-    const responses: any[] = [];
-    
+    // If respond_document_tbl uses release_doc_id, join release -> record -> approved -> sender
+    // If it uses record_doc_id, join record -> approved -> sender directly
+    let respondJoin = '';
+    let fkColumnName = 'release_doc_id';
+
+    if (cols.has('release_doc_id')) {
+      // Default join on release_doc_id
+      respondJoin = `JOIN release_document_tbl r ON r.release_doc_id = rd.release_doc_id
+                     JOIN record_document_tbl rec ON rec.record_doc_id = r.record_doc_id
+                     JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+                     JOIN sender_document_tbl sd ON sd.document_id = ad.document_id`;
+    } else if (cols.has('record_doc_id')) {
+      // Fallback to record_doc_id if release_doc_id doesn't exist
+      fkColumnName = 'record_doc_id';
+      respondJoin = `JOIN record_document_tbl rec ON rec.record_doc_id = rd.record_doc_id
+                     JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+                     JOIN sender_document_tbl sd ON sd.document_id = ad.document_id`;
+    }
+
     // Check if respond_document_tbl exists
     const respondTableCheck = await pool.query(`
       SELECT table_name 
@@ -1421,64 +1727,70 @@ router.get('/track', async (req: Request, res: Response) => {
       `);
       const respondCols = new Set<string>(respondColsRes.rows.map((r) => r.column_name));
 
-      // Determine the foreign key column name in respond_document_tbl
-      let fkColumnName = 'release_doc_id';
-      if (!respondCols.has('release_doc_id') && respondCols.has('record_doc_id')) {
-        fkColumnName = 'record_doc_id';
+      // If respond_document_tbl uses record_doc_id, adjust the join accordingly
+      if (fkColumnName === 'record_doc_id') {
+        respondJoin = `JOIN record_document_tbl rec ON rec.record_doc_id = rd.record_doc_id
+                       JOIN approved_document_tbl ad ON ad.approved_doc_id = rec.approved_doc_id
+                       JOIN sender_document_tbl sd ON sd.document_id = ad.document_id`;
       }
 
-      if (respondCols.has(fkColumnName)) {
-        // Fetch responses by following the chain backwards from document_id:
-        // approved_document_tbl.document_id -> record_document_tbl.approved_doc_id 
-        // -> release_document_tbl.record_doc_id -> respond_document_tbl.release_doc_id
-        // First, check what column in release_document_tbl the foreign key references
-        const fkInfoRes = await pool.query(`
-          SELECT 
-            ccu.column_name AS foreign_column_name
-          FROM information_schema.table_constraints AS tc
-          JOIN information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
-            AND tc.table_schema = kcu.table_schema
-          JOIN information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
-            AND ccu.table_schema = tc.table_schema
-          WHERE tc.constraint_type = 'FOREIGN KEY'
-            AND tc.table_name = 'respond_document_tbl'
-            AND kcu.column_name = '${fkColumnName}'
-            AND ccu.table_name = 'release_document_tbl'
-          LIMIT 1
-        `);
+      // Select response fields
+      const respondSelectCols: string[] = [
+        'rd.respond_doc_id',
+        'rd.user_id',
+        "u.full_name AS full_name",
+        'u.department_id',
+        'u.division_id',
+        "d.department AS department",
+        "dv.division AS division",
+        'rd.status',
+      ];
 
-        let releaseJoinColumn = 'record_doc_id'; // default
-        if (fkInfoRes.rows.length > 0) {
-          releaseJoinColumn = fkInfoRes.rows[0].foreign_column_name;
-        }
+      if (respondCols.has('comment')) respondSelectCols.push('rd.comment');
+      if (respondCols.has('document')) respondSelectCols.push('rd.document');
+      if (respondCols.has('document_name')) respondSelectCols.push('rd.document_name');
+      else if (respondCols.has('filename')) respondSelectCols.push('rd.filename');
+      else if (respondCols.has('file_name')) respondSelectCols.push('rd.file_name');
+      if (respondCols.has('document_type')) respondSelectCols.push('rd.document_type');
+      else if (respondCols.has('mime')) respondSelectCols.push('rd.mime');
+      else if (respondCols.has('content_type')) respondSelectCols.push('rd.content_type');
 
-        // Fetch responses with user, department, and division information
-        // Join chain: approved_document_tbl -> record_document_tbl -> release_document_tbl -> respond_document_tbl
-        const respondRes = await pool.query(
-          `SELECT DISTINCT rd.respond_doc_id, rd.user_id, rd.status, rd.comment, rd.${fkColumnName},
-                  u.full_name,
-                  d.department,
-                  dv.division
-           FROM approved_document_tbl ad
-           JOIN record_document_tbl rec ON rec.approved_doc_id = ad.approved_doc_id
-           JOIN release_document_tbl r ON r.record_doc_id = rec.record_doc_id
-           JOIN respond_document_tbl rd ON rd.${fkColumnName} = r.${releaseJoinColumn}
-           LEFT JOIN user_tbl u ON rd.user_id = u.user_id
+
+      // Always include sender document info (alias the sender's document to avoid clashing with rd.document)
+      respondSelectCols.push('sd.document_id', 'sd.type', 'sd.document AS sender_document');
+
+      const respondRes = await pool.query(
+         
+          `SELECT ${respondSelectCols.join(',\n         ')}
+           FROM respond_document_tbl rd
+           ${respondJoin}
+           LEFT JOIN user_tbl u ON u.user_id = rd.user_id
            LEFT JOIN department_tbl d ON u.department_id = d.department_id
            LEFT JOIN division_tbl dv ON u.division_id = dv.division_id
-           WHERE ad.document_id = $1
-             AND LOWER(COALESCE(r.mark, '')) = 'done'
-           ORDER BY rd.respond_doc_id DESC`,
-          [documentId]
-        );
+
+          WHERE sd.document_id = $1
+          ORDER BY rd.respond_doc_id DESC`,
+         [documentId]
+       );
         
-        if (respondRes.rows && respondRes.rows.length > 0) {
-          responses.push(...respondRes.rows);
+        
+        if (!respondRes.rows || respondRes.rows.length === 0) {
+          console.debug(`No responses found for document ${documentId} using fk column ${fkColumnName}`);
         }
+         
+         if (respondRes.rows && respondRes.rows.length > 0) {
+           // Convert any Buffer fields to base64 for JSON
+           const converted = respondRes.rows.map((r: any) => {
+             for (const k of Object.keys(r)) {
+               if (r[k] && Buffer.isBuffer(r[k])) {
+                 r[k] = r[k].toString('base64');
+               }
+             }
+             return r;
+           });
+           responses.push(...converted);
+         }
       }
-    }
 
     // Determine stage completions and current stage
     const senderStatus = String(sender.status || '').toLowerCase();

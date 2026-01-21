@@ -16,7 +16,8 @@ export interface Document {
   Document_Id: number;
   Type: string;
   User_Id: number;
-  Status: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received' | 'Forwarded' | 'Not Forwarded' | 'Recorded';
+  // Status in responses may include suffixes like '/override' so keep as string
+  Status: string;
   Priority: string;
   Document: Buffer | null;
   sender_name: string;
@@ -28,7 +29,10 @@ export interface Document {
   forwarded_by_admin: string | null;
   is_forwarded_request: boolean | null;
   created_at: string | null;
+  forwarded_date?: string | null;
+  record_date?: string | null;
   description: string | null;
+  final_status?: string | null;
 }
 
 export interface CreateUserInput {
@@ -55,7 +59,6 @@ export interface CreateDocumentInput {
 export interface UpdateDocumentInput {
   Document_Id: number;
   record_status?: 'recorded' | 'not_recorded' | 'released';
-  record_comment?: string;
   Status?: 'Pending' | 'Approved' | 'Revision' | 'Released' | 'Archived' | 'Received' | 'Forwarded' | 'Not Forwarded' | 'Recorded';
   Priority?: string;
   Type?: string;
@@ -63,6 +66,7 @@ export interface UpdateDocumentInput {
   comments?: string;
   description?: string;
   admin?: string;
+  apply_final_status?: boolean;
 }
 
 export interface LoginInput {
