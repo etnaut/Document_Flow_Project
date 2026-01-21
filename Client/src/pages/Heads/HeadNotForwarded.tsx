@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 
 const HeadNotForwarded: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge' || user.User_Role === 'SuperAdmin');
   const isSuperAdmin = user?.User_Role === 'SuperAdmin';
   const [departments, setDepartments] = useState<string[]>([]);
@@ -77,7 +77,7 @@ const HeadNotForwarded: React.FC = () => {
     try {
       setSubmittingId(forwardDialogDoc.Document_Id);
       // Do not send a comment when forwarding (comments no longer required)
-      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name);
+      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document forwarded' });
       setForwardDialogDoc(null);
       await loadDocuments();

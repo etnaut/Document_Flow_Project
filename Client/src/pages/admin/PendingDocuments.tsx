@@ -7,7 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { Clock } from 'lucide-react';
 
 const PendingDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const isSuperAdmin = user?.User_Role === 'SuperAdmin';
   const [departments, setDepartments] = useState<string[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>('');
@@ -59,7 +59,7 @@ const PendingDocuments: React.FC = () => {
   const handleApprove = async (id: number) => {
     if (!user) return;
     try {
-      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
+      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document approved successfully.' });
       fetchDocuments();
     } catch (error) {
@@ -81,7 +81,7 @@ const PendingDocuments: React.FC = () => {
 
   const handleRevision = async (id: number, comment?: string) => {
     try {
-      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name);
+      await updateDocumentStatus(id, 'Revision', comment, user?.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document sent for revision.' });
       fetchDocuments();
     } catch (error) {

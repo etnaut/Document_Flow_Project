@@ -23,7 +23,7 @@ import { CheckCircle2, Reply } from 'lucide-react';
 type TabValue = 'all' | 'pending' | 'approved' | 'revision' | 'received' | 'not_forwarded' | 'forwarded';
 
 const AllDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   // Check if user is a Department Head (not Admin)
   const isDepartmentHead = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const [activeTab, setActiveTab] = useState<TabValue>('all');
@@ -101,6 +101,7 @@ const AllDocuments: React.FC = () => {
         priority?: string;
         admin?: string;
         forwarded_by_admin?: string;
+        final_status?: string | null;
       };
 
       const mappedReceived: Document[] = (received || []).map((r: ReceivedRaw, idx: number) => ({
@@ -115,6 +116,7 @@ const AllDocuments: React.FC = () => {
         sender_department: r.department || '',
         target_department: r.department || '',
         comments: r.status || '',
+        final_status: r.final_status || null,
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
         sender_department_id: r.sender_department_id ?? undefined,
@@ -166,7 +168,7 @@ const AllDocuments: React.FC = () => {
   const handleApprove = async (id: number) => {
     if (!user) return;
     try {
-      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name);
+      await updateDocumentStatus(id, 'Approved', undefined, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document approved successfully.' });
       fetchAllDocuments();
     } catch (error) {
@@ -189,7 +191,7 @@ const AllDocuments: React.FC = () => {
   const handleRevision = async (id: number, comment?: string) => {
     if (!user) return;
     try {
-      await updateDocumentStatus(id, 'Revision', comment, user.Full_Name);
+      await updateDocumentStatus(id, 'Revision', comment, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document sent for revision.' });
       fetchAllDocuments();
     } catch (error) {
@@ -227,7 +229,7 @@ const AllDocuments: React.FC = () => {
   const handleRespond = async (releaseDocId: number, status: 'actioned' | 'not actioned', comment: string, documentBase64?: string, filename?: string, mimetype?: string) => {
     if (!user) return;
     try {
-      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
+      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype, impersonator ? true : false);
       toast({ title: 'Response saved successfully.' });
       fetchAllDocuments();
     } catch (error: unknown) {

@@ -173,6 +173,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     }
   };
 
+  // Helper: append '/override' suffix when final_status is 'override'
+  const labelWithFinal = (base: string | undefined, doc: Document) => {
+    const b = typeof base === 'string' ? base : (base ?? '');
+    const finalRaw = (doc as any).final_status ?? (doc as any).finalStatus ?? '';
+    if (String(finalRaw).toLowerCase() === 'override') return `${b}/override`;
+    return b;
+  };
+
   const detectMimeChoice = (bytes: Uint8Array): 'pdf' | 'word' | 'excel' | 'auto' => {
     // PDF magic %PDF
     if (bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
@@ -372,13 +380,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
                       return (
                         <Badge variant={isDone ? 'success' : 'default'}>
-                          {statusLabel}
+                          {labelWithFinal(statusLabel, doc)}
                         </Badge>
                       );
                     }
                     
                     const statusLower = doc.Status?.toLowerCase();
-                    const statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
+                    let statusLabel = statusLower === 'revision' ? 'Needs Revision' : doc.Status;
+                    statusLabel = labelWithFinal(statusLabel, doc);
 
                     // Recorder: click to mark as Recorded
                     if (onRecord && statusLower === 'not recorded') {

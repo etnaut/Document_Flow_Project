@@ -7,6 +7,11 @@ let approvedCommentsColumnPromise: Promise<void> | null = null;
 let approvedDateColumnPromise: Promise<void> | null = null;
 let approvedForwardedDateColumnPromise: Promise<void> | null = null;
 let recordDateColumnPromise: Promise<void> | null = null;
+let approvedFinalStatusColumnPromise: Promise<void> | null = null;
+let recordFinalStatusColumnPromise: Promise<void> | null = null;
+let releaseFinalStatusColumnPromise: Promise<void> | null = null;
+let respondFinalStatusColumnPromise: Promise<void> | null = null;
+let revisionFinalStatusColumnPromise: Promise<void> | null = null;
 
 /**
  * Check once whether sender_document_tbl has a "status" column. Result is cached.
@@ -197,4 +202,119 @@ export const ensureRecordDateColumn = async (): Promise<void> => {
   })();
 
   return recordDateColumnPromise;
+};
+
+/**
+ * Ensure approved_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureApprovedFinalStatusColumn = async (): Promise<void> => {
+  if (approvedFinalStatusColumnPromise) return approvedFinalStatusColumnPromise;
+
+  approvedFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'approved_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE approved_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure approved_document_tbl.final_status column', err);
+    }
+  })();
+
+  return approvedFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure record_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRecordFinalStatusColumn = async (): Promise<void> => {
+  if (recordFinalStatusColumnPromise) return recordFinalStatusColumnPromise;
+
+  recordFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'record_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE record_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure record_document_tbl.final_status column', err);
+    }
+  })();
+
+  return recordFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure release_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureReleaseFinalStatusColumn = async (): Promise<void> => {
+  if (releaseFinalStatusColumnPromise) return releaseFinalStatusColumnPromise;
+
+  releaseFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'release_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE release_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure release_document_tbl.final_status column', err);
+    }
+  })();
+
+  return releaseFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure respond_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRespondFinalStatusColumn = async (): Promise<void> => {
+  if (respondFinalStatusColumnPromise) return respondFinalStatusColumnPromise;
+
+  respondFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'respond_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE respond_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure respond_document_tbl.final_status column', err);
+    }
+  })();
+
+  return respondFinalStatusColumnPromise;
+};
+
+/**
+ * Ensure revision_document_tbl has a nullable 'final_status' column to indicate overrides.
+ */
+export const ensureRevisionFinalStatusColumn = async (): Promise<void> => {
+  if (revisionFinalStatusColumnPromise) return revisionFinalStatusColumnPromise;
+
+  revisionFinalStatusColumnPromise = (async () => {
+    try {
+      const columnCheck = await pool.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'revision_document_tbl' AND column_name = 'final_status' LIMIT 1`
+      );
+
+      if (columnCheck.rowCount && columnCheck.rowCount > 0) return;
+
+      await pool.query("ALTER TABLE revision_document_tbl ADD COLUMN final_status text");
+    } catch (err) {
+      console.error('Failed to ensure revision_document_tbl.final_status column', err);
+    }
+  })();
+
+  return revisionFinalStatusColumnPromise;
 };

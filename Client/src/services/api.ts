@@ -163,12 +163,14 @@ export const updateDocumentStatus = async (
   status: Document['Status'],
   comments?: string,
   admin?: string,
-  recordStatus?: 'recorded' | 'not_recorded'
+  recordStatus?: 'recorded' | 'not_recorded',
+  applyFinalStatus?: boolean,
 ): Promise<Document | null> => {
   const body: any = { Document_Id: documentId, Status: status };
   if (comments !== undefined) body.comments = comments;
   if (admin !== undefined) body.admin = admin;
   if (recordStatus !== undefined) body.record_status = recordStatus;
+  if (applyFinalStatus) body.apply_final_status = true;
   return apiRequest('/documents', {
     method: 'PUT',
     body: JSON.stringify(body),
@@ -260,7 +262,8 @@ export const createRespondDocument = async (
   comment: string,
   documentBase64?: string,
   filename?: string,
-  mimetype?: string
+  mimetype?: string,
+  applyFinalStatus?: boolean
 ): Promise<any> => {
   const body: any = {
     release_doc_id: releaseDocId,
@@ -271,6 +274,7 @@ export const createRespondDocument = async (
   if (documentBase64 !== undefined) body.document = documentBase64;
   if (filename !== undefined) body.document_name = filename;
   if (mimetype !== undefined) body.document_type = mimetype;
+  if (applyFinalStatus) body.apply_final_status = true;
 
   return apiRequest('/documents/respond', {
     method: 'POST',
@@ -400,11 +404,13 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
 };
 
 // Update user status (activate / deactivate)
-export const updateUserStatus = async (userId: number, status: boolean): Promise<User | null> => {
+export const updateUserStatus = async (userId: number, status: boolean, applyFinalStatus?: boolean): Promise<User | null> => {
   // Use a dedicated endpoint to avoid colliding with other user updates
+  const body: any = { User_Id: userId, Status: status };
+  if (applyFinalStatus) body.apply_final_status = true;
   return apiRequest('/users/status', {
     method: 'PUT',
-    body: JSON.stringify({ User_Id: userId, Status: status }),
+    body: JSON.stringify(body),
   });
 };
 
@@ -466,4 +472,15 @@ export const impersonateUser = async (userId: number): Promise<User | null> => {
   });
   if (!data) return null;
   return normalizeUser(data as any);
+};
+
+// Apply an override to a user (SuperAdmin). This updates assignment/status and marks related document rows as overridden.
+export const overrideUser = async (userId: number, pre_assigned_role: string | null, status?: boolean): Promise<User | null> => {
+  const body: any = { User_Id: userId };
+  if (typeof pre_assigned_role !== 'undefined') body.pre_assigned_role = pre_assigned_role;
+  if (typeof status !== 'undefined') body.Status = status;
+  return apiRequest('/users/override', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 };

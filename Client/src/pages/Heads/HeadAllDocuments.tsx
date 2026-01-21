@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 type TabValue = 'all' | 'not_forwarded' | 'forwarded';
 
 const HeadAllDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const allowed = user && (user.User_Role === 'DepartmentHead' || user.User_Role === 'DivisionHead' || user.User_Role === 'OfficerInCharge');
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
@@ -67,7 +67,7 @@ const HeadAllDocuments: React.FC = () => {
     try {
       setSubmittingId(forwardDialogDoc.Document_Id);
       // Do not send a comment when forwarding
-      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name);
+      await updateDocumentStatus(forwardDialogDoc.Document_Id, 'Forwarded', undefined, user.Full_Name, undefined, impersonator ? true : false);
       toast({ title: 'Document forwarded' });
       setForwardDialogDoc(null);
       await fetchAllDocuments();

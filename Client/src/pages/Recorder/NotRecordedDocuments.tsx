@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 
 const NotRecordedDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const isSuperAdmin = user?.User_Role === 'SuperAdmin';
   const isRecorder = user && (isSuperAdmin || user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').toLowerCase() === 'recorder');
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -98,7 +98,8 @@ const NotRecordedDocuments: React.FC = () => {
         'Recorded',
         undefined,
         user.Full_Name,
-        recordStatus
+        recordStatus,
+        impersonator ? true : false
       );
       toast({ title: 'Document recorded' });
       setRecordDialogDoc(null);

@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast';
 import { Inbox, Reply, CheckCircle2 } from 'lucide-react';
 
 const ReceivedRequests: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const isSuperAdmin = user?.User_Role === 'SuperAdmin';
   const [departments, setDepartments] = useState<string[]>([]);
   const [divisions, setDivisions] = useState<string[]>([]);
@@ -55,6 +55,7 @@ const ReceivedRequests: React.FC = () => {
         priority?: string;
         admin?: string;
         forwarded_by_admin?: string;
+        final_status?: string | null;
       };
 
       const mapped: Document[] = (data || []).map((r: ReceivedRaw, idx: number) => ({
@@ -70,6 +71,7 @@ const ReceivedRequests: React.FC = () => {
         target_department: r.department || '',
         description: r.admin || r.forwarded_by_admin || '',
         comments: r.admin || r.forwarded_by_admin || '',
+        final_status: r.final_status || null,
         forwarded_from: r.division || '',
         mark: String(r.mark ?? '').toLowerCase(),
         sender_department_id: r.sender_department_id ?? undefined,
@@ -129,7 +131,7 @@ const ReceivedRequests: React.FC = () => {
     if (!user) return;
     try {
       console.log('Saving response:', { releaseDocId, userId: user.User_Id, status, comment, filename });
-      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype);
+      await createRespondDocument(releaseDocId, user.User_Id, status, comment, documentBase64, filename, mimetype, impersonator ? true : false);
       toast({ title: 'Response saved successfully.' });
       fetchDocuments();
     } catch (error: unknown) {

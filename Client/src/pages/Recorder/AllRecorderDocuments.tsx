@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 type TabValue = 'all' | 'not_recorded' | 'recorded';
 
 const AllRecorderDocuments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, impersonator } = useAuth();
   const isRecorder = user && (user.User_Role === 'Releaser' || String(user.pre_assigned_role ?? '').toLowerCase() === 'recorder');
   const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
@@ -84,7 +84,8 @@ const AllRecorderDocuments: React.FC = () => {
         'Recorded',
         undefined,
         user.Full_Name,
-        recordStatus
+        recordStatus,
+        impersonator ? true : false
       );
       toast({ title: 'Document recorded' });
       setRecordDialogDoc(null);

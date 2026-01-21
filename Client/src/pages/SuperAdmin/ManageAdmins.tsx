@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { getUsers, createUser, getDepartments, getDivisions, createDepartment, createDivision, updateUserStatus, updateUserAssignment } from '@/services/api';
+import { getUsers, createUser, getDepartments, getDivisions, createDepartment, createDivision, updateUserStatus, updateUserAssignment, overrideUser } from '@/services/api';
 import { User } from '@/types';
 import { Plus, UserCog, Shield } from 'lucide-react';
 
@@ -257,12 +257,8 @@ const ManageAdmins: React.FC = () => {
     setIsLoading(true);
     try {
       const role = overrideTarget.preAssignedRole === '__none' ? '' : overrideTarget.preAssignedRole;
-      await updateUserAssignment(overrideTarget.userId, role);
-      // Update account status if changed
-      const current = admins.find((x) => x.User_Id === overrideTarget.userId);
-      if (!current || current.Status !== overrideTarget.status) {
-        await updateUserStatus(overrideTarget.userId, overrideTarget.status);
-      }
+      // Use the consolidated override endpoint which also marks related document entries as overridden
+      await overrideUser(overrideTarget.userId, role, overrideTarget.status);
       toast({ title: 'Success', description: 'Override applied successfully.' });
       setIsOverrideOpen(false);
       setOverrideTarget(null);
@@ -279,7 +275,8 @@ const ManageAdmins: React.FC = () => {
     if (!statusTarget) return;
     setIsLoading(true);
     try {
-      await updateUserStatus(statusTarget.userId, statusTarget.newStatus);
+      // Mark related document rows as overridden when SuperAdmin toggles status
+      await updateUserStatus(statusTarget.userId, statusTarget.newStatus, true);
       toast({ title: 'Success', description: `Account ${statusTarget.newStatus ? 'activated' : 'deactivated'} successfully.` });
       setStatusTarget(null);
       setIsStatusConfirmOpen(false);

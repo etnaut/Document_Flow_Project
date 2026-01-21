@@ -46,6 +46,7 @@ export interface Document {
   forwarded_by_admin?: string; // Name of admin who forwarded
   is_forwarded_request?: boolean; // True if this was forwarded from another admin
   mark?: string; // optional release mark (e.g., 'not_done')
+  final_status?: string | null; // 'override' when SuperAdmin has overridden
 }
 
 export interface DocumentResponse {
@@ -78,6 +79,7 @@ export interface RevisionEntry {
   document_type: string | null;
   sender_name: string | null;
   created_at?: string | null;
+  final_status?: string | null;
 }
 
 export interface ResponseDocument {

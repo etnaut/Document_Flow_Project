@@ -240,7 +240,16 @@ const DocumentViewer: React.FC = () => {
             <div><span className="font-medium text-foreground">Type:</span> {doc?.Type || '—'}</div>
             <div><span className="font-medium text-foreground">Sender:</span> {doc?.sender_name || '—'}</div>
             <div><span className="font-medium text-foreground">Priority:</span> {doc?.Priority || '—'}</div>
-            <div><span className="font-medium text-foreground">Status:</span> {doc?.Status || '—'}</div>
+            <div>
+              <span className="font-medium text-foreground">Status:</span>{' '}
+              {(() => {
+                if (!doc?.Status) return '—';
+                const base = doc.Status;
+                const finalRaw = (doc as any).final_status ?? (doc as any).finalStatus ?? '';
+                if (String(finalRaw).toLowerCase() === 'override') return `${base}/override`;
+                return base;
+              })()}
+            </div>
             <div><span className="font-medium text-foreground">Date:</span> {formatDateTime(doc?.created_at)}</div>
             {doc?.description && (
               <div className="mt-2">
