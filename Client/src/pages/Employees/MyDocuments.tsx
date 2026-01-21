@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { deleteDocument, getDocuments, getDocumentsByStatus, getRevisions, updateDocument } from '@/services/api';
+import { deleteDocument, getDocuments, getRevisions, updateDocument } from '@/services/api';
 import { Document } from '@/types';
 import DocumentViewToggle from '@/components/documents/DocumentViewToggle';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,6 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const documentTypes = [
   'Leave Request',
@@ -40,16 +39,10 @@ const documentTypes = [
 
 const priorities = ['Low', 'Medium', 'High'];
 
-type TabValue = 'all' | 'pending' | 'approved' | 'revision';
-
 const MyDocuments: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabValue>('all');
-  const [allDocuments, setAllDocuments] = useState<Document[]>([]);
-  const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
-  const [approvedDocuments, setApprovedDocuments] = useState<Document[]>([]);
-  const [revisionDocuments, setRevisionDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingDoc, setEditingDoc] = useState<Document | null>(null);
   const [editForm, setEditForm] = useState({ type: '', priority: '', notes: '' });
@@ -59,20 +52,16 @@ const MyDocuments: React.FC = () => {
   const [selectedTrackDocument, setSelectedTrackDocument] = useState<Document | null>(null);
 
   useEffect(() => {
-    fetchAllDocuments();
+    fetchDocuments();
   }, [user]);
 
-  const fetchAllDocuments = async () => {
+  const fetchDocuments = async () => {
     if (!user) return;
     
     try {
-      setLoading(true);
-      const [docs, revisions, pending, approved, revision] = await Promise.all([
+      const [docs, revisions] = await Promise.all([
         getDocuments(user.User_Id, user.User_Role),
         getRevisions(),
-        getDocumentsByStatus('Pending', undefined, user.User_Role),
-        getDocumentsByStatus('Approved', undefined, user.User_Role),
-        getDocumentsByStatus('Revision', undefined, user.User_Role),
       ]);
 
       const revisionByDocId = new Map(revisions.map((r) => [r.document_id, r.comment]));
@@ -83,10 +72,7 @@ const MyDocuments: React.FC = () => {
           : d
       );
 
-      setAllDocuments(merged);
-      setPendingDocuments((pending || []).filter((d) => d.User_Id === user.User_Id));
-      setApprovedDocuments((approved || []).filter((d) => d.User_Id === user.User_Id));
-      setRevisionDocuments((revision || []).filter((d) => d.User_Id === user.User_Id));
+      setDocuments(merged);
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -127,7 +113,7 @@ const MyDocuments: React.FC = () => {
       setSubmitting(true);
       await deleteDocument(id);
       toast({ title: 'Document deleted.' });
-      fetchAllDocuments();
+      fetchDocuments();
     } catch (error) {
       toast({ title: 'Failed to delete document', variant: 'destructive' });
     } finally {
@@ -156,7 +142,7 @@ const MyDocuments: React.FC = () => {
       setEditingDoc(null);
       setSelectedFile(null);
       setEditForm({ type: '', priority: '', notes: '' });
-      fetchAllDocuments();
+      fetchDocuments();
     } catch (error) {
       toast({ title: 'Failed to resubmit document', variant: 'destructive' });
     } finally {
@@ -169,26 +155,6 @@ const MyDocuments: React.FC = () => {
     setTrackDialogOpen(true);
   };
 
-  const counts = useMemo(() => ({
-    all: allDocuments.length,
-    pending: pendingDocuments.length,
-    approved: approvedDocuments.length,
-    revision: revisionDocuments.length,
-  }), [allDocuments, pendingDocuments, approvedDocuments, revisionDocuments]);
-
-  const currentDocuments = useMemo(() => {
-    switch (activeTab) {
-      case 'pending':
-        return pendingDocuments;
-      case 'approved':
-        return approvedDocuments;
-      case 'revision':
-        return revisionDocuments;
-      default:
-        return allDocuments;
-    }
-  }, [activeTab, allDocuments, pendingDocuments, approvedDocuments, revisionDocuments]);
-
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -198,13 +164,13 @@ const MyDocuments: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 min-h-screen p-6" style={{ backgroundColor: '#f6f2ee' }}>
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between bg-transparent">
+      <div className="flex items-center justify-between animate-slide-up">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Application Review</h1>
-          <p className="mt-1 text-gray-600">
-            Review and manage business permit applications.
+          <h1 className="text-3xl font-bold text-foreground">My Documents</h1>
+          <p className="mt-1 text-muted-foreground">
+            View and manage your submitted documents.
           </p>
         </div>
         <Button onClick={() => navigate('/send-document')} className="gap-2">
@@ -213,50 +179,17 @@ const MyDocuments: React.FC = () => {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
-        <TabsList className="bg-white border border-gray-200 rounded-lg p-1.5 h-auto gap-1 inline-flex">
-          <TabsTrigger 
-            value="all" 
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            All ({counts.all})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="pending"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Pending ({counts.pending})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="approved"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            Approved ({counts.approved})
-          </TabsTrigger>
-          <TabsTrigger 
-            value="revision"
-            className="data-[state=active]:bg-gray-800 data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-gray-700 data-[state=inactive]:hover:bg-gray-100 rounded-md px-4 py-2 text-sm font-medium transition-all"
-          >
-            For Revision ({counts.revision})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Content */}
-        <TabsContent value={activeTab} className="mt-4">
-          <DocumentViewToggle 
-            documents={currentDocuments} 
-            onEdit={handleEdit} 
-            onDelete={handleDelete}
-            onTrack={handleTrack} 
-            showDescription 
-            enablePagination 
-            pageSizeOptions={[10,20,50]}
-            defaultView="table"
-            showStatusFilter={false}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* Documents View */}
+      <DocumentViewToggle 
+        documents={documents} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete}
+        onTrack={handleTrack} 
+        showDescription 
+        enablePagination 
+        pageSizeOptions={[10,20,50]}
+        defaultView="accordion"
+      />
 
       {/* Edit Dialog */}
       <Dialog
